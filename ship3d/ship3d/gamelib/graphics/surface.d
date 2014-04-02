@@ -170,14 +170,16 @@ public:
             auto opSlice(int x1, int x2) inout pure nothrow
             {
                 checkCoord(x1);
-                checkCoord(x2 - 1);
+                assert(x2 >= x1);
+                debug assert(x2 <= surf.width);
                 return data[x1..x2];
             }
 
             auto opSliceAssign(T)(in T val, int x1, int x2) pure nothrow
             {
                 checkCoord(x1);
-                checkCoord(x2);
+                assert(x2 >= x1);
+                debug assert(x2 <= surf.width);
                 return data[x1..x2] = val;
             }
 

@@ -17,7 +17,7 @@ public:
     this(in Size sz)
     {
         mSize = sz;
-        mProjMat = mat4.perspective(sz.w,sz.h,90,1,10);
+        mProjMat = mat4.perspective(sz.w,sz.h,90,0.1,1000);
     }
 
     void handleQuit() pure nothrow
@@ -32,24 +32,20 @@ public:
 
     void draw(SurfT surf)
     {
-        //surf.lock();
-        //scope(exit) surf.unlock();
-        /*vec4[3] verts;
-        verts[0] = vec4(10,10,0,0);
-        verts[1] = vec4(100,10,0,0);
-        verts[2] = vec4(100,100,0,0);*/
+        surf.fill(ColorBlack);
         Vertex[3] verts;
-        /*verts[0].pos = vec4(10,10,0,0);
-        verts[1].pos = vec4(100,50,0,0);
-        verts[2].pos = vec4(10,100,0,0);*/
 
-        verts[0].pos = vec4(-1,-1,7,0);
-        verts[1].pos = vec4(1,-1,7,0);
-        verts[2].pos = vec4(1,1,7,0);
+        verts[0].pos = vec4(-1,-1,0,1);
+        verts[1].pos = vec4( 1,-1,0,1);
+        verts[2].pos = vec4( 1, 1,0,1);
 
-        foreach(i,v;verts)
+        static float si = 0;
+        mat4 t = mProjMat * mat4.translation(0.0,0.0,10) * mat4.yrotation(si);
+        si += 0.01;
+
+        foreach(i;0..verts.length)
         {
-            verts[i].pos = mProjMat * v.pos;
+            verts[i].pos = t * verts[i].pos;
             verts[i].pos = verts[i].pos / verts[i].pos.w;
             verts[i].pos.x = verts[i].pos.x * mSize.w + mSize.w / 2;
             verts[i].pos.y = verts[i].pos.y * mSize.h + mSize.h / 2;
