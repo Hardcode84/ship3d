@@ -142,49 +142,40 @@ public:
             int pitch;
             ColorT* data;
 
-            auto opIndex(int x) const pure nothrow
+            private void checkCoord(int x) const pure nothrow
             {
                 assert(x >= 0);
                 debug
                 {
                     assert(x < surf.width);
+                    assert(y >= 0 && y < surf.height);
                     assert(surf.isLocked);
                 }
+            }
+
+            auto opIndex(int x) const pure nothrow
+            {
+                checkCoord(x);
                 return data[x];
             }
 
             auto opIndexAssign(in ColorT value, int x) pure nothrow
             {
-                assert(x >= 0);
-                debug
-                {
-                    assert(x < surf.width);
-                    assert(surf.isLocked);
-                }
+                checkCoord(x);
                 return data[x] = value;
             }
 
             auto opSlice(int x1, int x2) inout pure nothrow
             {
-                assert(x1 >= 0);
-                assert(x2 >= x1);
-                debug
-                {
-                    assert(x2 <= surf.width);
-                    assert(surf.isLocked);
-                }
+                checkCoord(x1);
+                checkCoord(x2 - 1);
                 return data[x1..x2];
             }
 
             auto opSliceAssign(T)(in T val, int x1, int x2) pure nothrow
             {
-                assert(x1 >= 0);
-                assert(x2 >= x1);
-                debug
-                {
-                    assert(x2 <= surf.width);
-                    assert(surf.isLocked);
-                }
+                checkCoord(x1);
+                checkCoord(x2 - 1);
                 return data[x1..x2] = val;
             }
 
@@ -194,7 +185,6 @@ public:
                 debug
                 {
                     mixin("y"~op~";");
-                    assert(y >= 0 && y < surf.height);
                 }
                 return this;
             }

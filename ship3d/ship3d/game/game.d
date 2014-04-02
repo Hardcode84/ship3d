@@ -11,6 +11,7 @@ import gamelib.graphics.surface;
 
 import derelict.sdl2.sdl;
 
+import game.units;
 import game.world;
 
 scope final class Game
@@ -18,8 +19,6 @@ scope final class Game
 private:
     enum UpdateInterval = 50;
     enum MaxUpdates = 100;
-
-    alias ColorT = World.ColorT;
 
     @auto_dispose Core mCore;
     @auto_dispose Window mWindow;

@@ -77,6 +77,8 @@
     <Compile Include="3rdparty\DerelictUtil-master\source\derelict\util\wintypes.d" />
     <Compile Include="3rdparty\DerelictUtil-master\source\derelict\util\xtypes.d" />
     <Compile Include="game\world.d" />
+    <Compile Include="game\units.d" />
+    <Compile Include="game\rasterizer.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="gamelib\" />
