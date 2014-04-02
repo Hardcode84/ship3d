@@ -78,12 +78,13 @@
     <Compile Include="3rdparty\DerelictUtil-master\source\derelict\util\xtypes.d" />
     <Compile Include="game\world.d" />
     <Compile Include="game\units.d" />
-    <Compile Include="game\rasterizer.d" />
+    <Compile Include="game\renderer\rasterizer.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="gamelib\" />
     <Folder Include="game\" />
     <Folder Include="3rdparty\" />
+    <Folder Include="game\renderer\" />
   </ItemGroup>
   <ItemGroup>
     <None Include="3rdparty\build.bat" />

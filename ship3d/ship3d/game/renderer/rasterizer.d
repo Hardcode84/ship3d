@@ -1,4 +1,4 @@
-﻿module game.rasterizer;
+﻿module game.renderer.rasterizer;
 
 import std.traits;
 import std.algorithm;
@@ -19,13 +19,6 @@ struct Rasterizer(BitmapT)
         mBitmap.unlock();
     }
 
-    /*private struct Edge
-    {
-        const(Vertex)* v1, v2;
-    }
-    private struct Span
-    {
-    }*/
     void drawTriangle(in Vertex[3] verts)
     {
         const(Vertex)*[3] pverts;
@@ -59,7 +52,11 @@ struct Rasterizer(BitmapT)
             auto x1 = cast(int)(pverts[0].pos.x + e1xdiff * factor1);
             auto x2 = cast(int)(pverts[0].pos.x + e2xdiff * factor2);
             if(spanDir) swap(x1, x2);
-            drawSpan(line, x1, x2);
+
+            /*x1 = clamp(x1,0,799);
+            x2 = clamp(x2,0,799);
+            if(y >= 0 && y < 600)*/
+                drawSpan(line, x1, x2);
             factor1 += factor1step;
             factor2 += factor2step;
             ++line;
@@ -71,7 +68,11 @@ struct Rasterizer(BitmapT)
             auto x1 = cast(int)(pverts[0].pos.x + e1xdiff * factor1);
             auto x2 = cast(int)(pverts[1].pos.x + e3xdiff * factor2);
             if(spanDir) swap(x1, x2);
-            drawSpan(line, x1, x2);
+
+            /*x1 = clamp(x1,0,799);
+            x2 = clamp(x2,0,799);
+            if(y >= 0 && y < 600)*/
+                drawSpan(line, x1, x2);
             factor1 += factor1step;
             factor2 += factor2step;
             ++line;
@@ -85,26 +86,5 @@ struct Rasterizer(BitmapT)
         {
         }*/
     }
-    /*private void drawSpansBetweenEdges(in Edge e1, in Edge e2) pure nothrow
-    {
-        const e1xdiff = e1.v2.pos.x -  e1.v1.pos.x;
-        const e2xdiff = e2.v2.pos.x -  e2.v1.pos.x;
-
-        const e1ydiff = e1.v2.pos.y - e1.v1.pos.y;
-        const e2ydiff = e2.v2.pos.y - e2.v1.pos.y;
-
-        const factor1step = 1 / e1ydiff;
-        auto factor1 = (e2.v1.pos.y - e1.v1.pos.y) * factor1step;
-        const factor2step = 1 / e2ydiff;
-        auto factor2 = cast(typeof(factor1))0;
-
-        const minY = cast(int)e2.v1.pos.y;
-        const maxY = cast(int)e2.v2.pos.y;
-        foreach(y;minY..maxY)
-        {
-            factor1 += factor1step;
-            factor2 += factor2step;
-        }
-    }*/
 }
 

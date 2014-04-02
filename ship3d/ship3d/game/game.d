@@ -142,7 +142,7 @@ private:
             const s = mWindow.size;
             mSurface = new FFSurface!ColorT(s.x, s.y);
         }
-        mWorld = new World();
+        mWorld = new World(Size(width,height));
     }
 
     void handleQuit() pure nothrow

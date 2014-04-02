@@ -266,7 +266,18 @@ unittest {
 }
 
 /// Returns min(max(x, min_val), max_val), Results are undefined if min_val > max_val.
-auto clamp(T1, T2, T3)(T1 x, T2 min_val, T3 max_val) {
+auto clamp(T1, T2, T3)(T1 x, T2 min_val, T3 max_val)
+in
+{
+    assert(max_val >= min_val);
+}
+out(result)
+{
+    assert(result >= min_val);
+    assert(result <= max_val);
+}
+body
+{
     return min(max(x, min_val), max_val);
 }
 

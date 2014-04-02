@@ -4,17 +4,20 @@ import gamelib.graphics.surface;
 import gamelib.graphics.graph;
 
 import game.units;
-import game.rasterizer;
+import game.renderer.rasterizer;
 
 final class World
 {
 private:
     bool mQuitReq = false;
+    mat4 mProjMat;
+    immutable Size mSize;
 public:
     alias SurfT  = FFSurface!ColorT;
-    this()
+    this(in Size sz)
     {
-        // Constructor code
+        mSize = sz;
+        mProjMat = mat4.perspective(sz.w,sz.h,90,1,10);
     }
 
     void handleQuit() pure nothrow
@@ -36,9 +39,21 @@ public:
         verts[1] = vec4(100,10,0,0);
         verts[2] = vec4(100,100,0,0);*/
         Vertex[3] verts;
-        verts[0].pos = vec4(10,10,0,0);
+        /*verts[0].pos = vec4(10,10,0,0);
         verts[1].pos = vec4(100,50,0,0);
-        verts[2].pos = vec4(10,100,0,0);
+        verts[2].pos = vec4(10,100,0,0);*/
+
+        verts[0].pos = vec4(-1,-1,7,0);
+        verts[1].pos = vec4(1,-1,7,0);
+        verts[2].pos = vec4(1,1,7,0);
+
+        foreach(i,v;verts)
+        {
+            verts[i].pos = mProjMat * v.pos;
+            verts[i].pos = verts[i].pos / verts[i].pos.w;
+            verts[i].pos.x = verts[i].pos.x * mSize.w + mSize.w / 2;
+            verts[i].pos.y = verts[i].pos.y * mSize.h + mSize.h / 2;
+        }
         Rasterizer!SurfT rast = surf;
         rast.drawTriangle(verts);
     }

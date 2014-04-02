@@ -131,9 +131,10 @@ public:
     final auto opIndex(int y) pure nothrow
     {
         assert(isLocked);
-        assert(y >= 0 && y < height);
+        //assert(y >= 0 && y < height);
         struct Line
         {
+        private:
             debug
             {
                 Surface surf;
@@ -142,7 +143,7 @@ public:
             int pitch;
             ColorT* data;
 
-            private void checkCoord(int x) const pure nothrow
+            void checkCoord(int x) const pure nothrow
             {
                 assert(x >= 0);
                 debug
@@ -152,6 +153,7 @@ public:
                     assert(surf.isLocked);
                 }
             }
+        public:
 
             auto opIndex(int x) const pure nothrow
             {
@@ -175,7 +177,7 @@ public:
             auto opSliceAssign(T)(in T val, int x1, int x2) pure nothrow
             {
                 checkCoord(x1);
-                checkCoord(x2 - 1);
+                checkCoord(x2);
                 return data[x1..x2] = val;
             }
 
