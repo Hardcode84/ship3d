@@ -79,6 +79,8 @@
     <Compile Include="game\world.d" />
     <Compile Include="game\units.d" />
     <Compile Include="game\renderer\rasterizer.d" />
+    <Compile Include="game\renderer\texture.d" />
+    <Compile Include="gamelib\graphics\surfaceview.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="gamelib\" />

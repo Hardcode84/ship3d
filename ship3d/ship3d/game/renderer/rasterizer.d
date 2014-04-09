@@ -3,6 +3,8 @@
 import std.traits;
 import std.algorithm;
 
+import gamelib.util;
+
 import game.units;
 
 struct Rasterizer(BitmapT)
@@ -37,10 +39,10 @@ public:
         mClipRect = Rect(dstLeft, dstTop, dstRight - dstLeft, dstBottom - dstTop);
     }
 
-    void drawTriangle(VertT)(in VertT[3] verts)
+    void drawIndexedTriangle(VertT,IndT)(in VertT[] verts, in IndT[3] indices) if(isIntegral!IndT)
     {
         const(VertT)*[3] pverts;
-        foreach(i,ref v; verts) pverts[i] = verts.ptr + i;
+        foreach(i,ind; indices) pverts[i] = verts.ptr + ind;
         sort!("a.pos.y < b.pos.y")(pverts[0..$]);
 
         const e1xdiff = pverts[0].pos.x - pverts[2].pos.x;
@@ -67,8 +69,6 @@ public:
 
         const factor1step = 1 / e1ydiff;
         auto factor1 = factor1step * minYinc;
-        auto factor2step = 1 / e2ydiff;
-        auto factor2 = factor2step * minYinc;
 
         auto line = mBitmap[minY];
         /*import std.stdio;
@@ -76,37 +76,44 @@ public:
         writeln(minY);
         writeln(midY);
         writeln(maxY);*/
-        foreach(y;minY..midY)
+        foreach(i;TupleRange!(0,2))
         {
-            auto x1 = cast(int)(pverts[0].pos.x + e1xdiff * factor1);
-            auto x2 = cast(int)(pverts[0].pos.x + e2xdiff * factor2);
-            if(spanDir) swap(x1, x2);
+            const x1Start = pverts[0].pos.x;
+            const x1Diff  = e1xdiff;
+            static if(0 == i)
+            {
+                const factor2step = 1 / e2ydiff;
+                auto factor2  = factor2step * minYinc;
+                const yStart  = minY;
+                const yEnd    = midY;
+                const x2Start = pverts[0].pos.x;
+                const x2Diff  = e2xdiff;
+            }
+            else
+            {
+                const factor2step = 1 / e3ydiff;
+                auto factor2  = factor2step * midYinc;
+                const yStart  = midY;
+                const yEnd    = maxY;
+                const x2Start = pverts[1].pos.x;
+                const x2Diff  = e3xdiff;
+            }
 
-            const x1inc = max(0, mClipRect.x - x1);
-            x1 += x1inc;
-            x2 = min(x2, mClipRect.x + mClipRect.w);
+            foreach(y;yStart..yEnd)
+            {
+                auto x1 = cast(int)(x1Start + x1Diff * factor1);
+                auto x2 = cast(int)(x2Start + x2Diff * factor2);
+                if(spanDir) swap(x1, x2);
 
-            drawSpan(line, x1, x2);
-            factor1 += factor1step;
-            factor2 += factor2step;
-            ++line;
-        }
-        factor2step = 1 / e3ydiff;
-        factor2 = factor2step * midYinc;
-        foreach(y;midY..maxY)
-        {
-            auto x1 = cast(int)(pverts[0].pos.x + e1xdiff * factor1);
-            auto x2 = cast(int)(pverts[1].pos.x + e3xdiff * factor2);
-            if(spanDir) swap(x1, x2);
+                const x1inc = max(0, mClipRect.x - x1);
+                x1 += x1inc;
+                x2 = min(x2, mClipRect.x + mClipRect.w);
 
-            const x1inc = max(0, mClipRect.x - x1);
-            x1 += x1inc;
-            x2 = min(x2, mClipRect.x + mClipRect.w);
-
-            drawSpan(line, x1, x2);
-            factor1 += factor1step;
-            factor2 += factor2step;
-            ++line;
+                drawSpan(line, x1, x2);
+                factor1 += factor1step;
+                factor2 += factor2step;
+                ++line;
+            }
         }
     }
     private void drawSpan(LineT)(auto ref LineT line, int x1, int x2)

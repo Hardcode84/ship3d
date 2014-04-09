@@ -33,11 +33,12 @@ public:
     void draw(SurfT surf)
     {
         surf.fill(ColorBlack);
-        Vertex[3] verts;
+        Vertex[4] verts;
 
         verts[0].pos = vec4(-1,-1,0,1);
         verts[1].pos = vec4( 1,-1,0,1);
         verts[2].pos = vec4( 1, 1,0,1);
+        verts[3].pos = vec4(-1, 1,0,1);
 
         static float si = 0;
         mat4 t = mProjMat * mat4.translation(0.0,0.0,10) * mat4.yrotation(si);
@@ -51,7 +52,8 @@ public:
             verts[i].pos.y = verts[i].pos.y * mSize.h + mSize.h / 2;
         }
         Rasterizer!SurfT rast = surf;
-        rast.drawTriangle(verts);
+        rast.drawIndexedTriangle(verts, [0,1,2]);
+        rast.drawIndexedTriangle(verts, [0,2,3]);
     }
 }
 
