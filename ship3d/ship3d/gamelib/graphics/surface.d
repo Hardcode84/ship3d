@@ -142,6 +142,7 @@ public:
 
     final auto opIndex(int y) pure nothrow
     {
+        assert(isLocked);
         import gamelib.graphics.surfaceview;
         SurfaceView!ColorT view = this;
         return view[y];

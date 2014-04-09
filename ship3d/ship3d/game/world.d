@@ -5,6 +5,7 @@ import gamelib.graphics.graph;
 
 import game.units;
 import game.renderer.rasterizer;
+import game.renderer.texture;
 
 final class World
 {
@@ -12,12 +13,15 @@ private:
     bool mQuitReq = false;
     mat4 mProjMat;
     immutable Size mSize;
+    Texture!ColorT mTexture;
 public:
     alias SurfT  = FFSurface!ColorT;
     this(in Size sz)
     {
         mSize = sz;
         mProjMat = mat4.perspective(sz.w,sz.h,90,0.1,1000);
+        mTexture = new Texture!ColorT(256,256);
+        fillChess(mTexture);
     }
 
     void handleQuit() pure nothrow
@@ -35,10 +39,14 @@ public:
         surf.fill(ColorBlack);
         Vertex[4] verts;
 
-        verts[0].pos = vec4(-1,-1,0,1);
-        verts[1].pos = vec4( 1,-1,0,1);
-        verts[2].pos = vec4( 1, 1,0,1);
-        verts[3].pos = vec4(-1, 1,0,1);
+        verts[0].pos  = vec4(-1,-1,0,1);
+        verts[0].tpos = vec2(0,0);
+        verts[1].pos  = vec4( 1,-1,0,1);
+        verts[1].tpos = vec2(1,0);
+        verts[2].pos  = vec4( 1, 1,0,1);
+        verts[2].tpos = vec2(1,1);
+        verts[3].pos  = vec4(-1, 1,0,1);
+        verts[3].tpos = vec2(0,1);
 
         static float si = 0;
         mat4 t = mProjMat * mat4.translation(0.0,0.0,10) * mat4.yrotation(si);
@@ -51,7 +59,7 @@ public:
             verts[i].pos.x = verts[i].pos.x * mSize.w + mSize.w / 2;
             verts[i].pos.y = verts[i].pos.y * mSize.h + mSize.h / 2;
         }
-        Rasterizer!SurfT rast = surf;
+        Rasterizer!(SurfT,typeof(mTexture)) rast = surf;
         rast.drawIndexedTriangle(verts, [0,1,2]);
         rast.drawIndexedTriangle(verts, [0,2,3]);
     }

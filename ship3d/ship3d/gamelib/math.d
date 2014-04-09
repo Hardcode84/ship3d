@@ -315,6 +315,16 @@ auto uppow2(U)(U x) if(isIntegral!U && isUnsigned!U)
     return x;
 }
 
+bool ispow2(U)(U x) if(isIntegral!U)
+in
+{
+    assert(0 != x); //fuck off
+}
+body
+{
+    return 0 == (x & (x - 1));
+}
+
 unittest {
     assert(step(0, 1) == 1.0f);
     assert(step(0, 10) == 1.0f);
@@ -333,4 +343,12 @@ unittest {
     assert(uppow2(5u) == 8);
     assert(uppow2(65500u) == 65536);
     assert(uppow2(2147483000u) == 2147483648);
+
+    assert(ispow2(2));
+    assert(ispow2(4));
+    assert(ispow2(256));
+    assert(ispow2(0x10000));
+    assert(ispow2(0x100000000));
+    assert(!ispow2(5));
+    assert(!ispow2(-1));
 }

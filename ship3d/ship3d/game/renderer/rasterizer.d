@@ -7,10 +7,11 @@ import gamelib.util;
 
 import game.units;
 
-struct Rasterizer(BitmapT)
+struct Rasterizer(BitmapT,TextureT)
 {
 private:
     BitmapT mBitmap;
+    TextureT mTexture;
     Rect mClipRect;
 public:
     this(BitmapT b)
@@ -25,6 +26,9 @@ public:
     {
         mBitmap.unlock();
     }
+
+    @property auto texture() inout pure nothrow { return mTexture; }
+    @property void texture(TextureT tex) pure nothrow { mTexture = tex; }
 
     @property void clipRect(in Rect rc) pure nothrow
     {
@@ -41,17 +45,37 @@ public:
 
     void drawIndexedTriangle(VertT,IndT)(in VertT[] verts, in IndT[3] indices) if(isIntegral!IndT)
     {
+        alias PosT = typeof(VertT.pos.x);
         const(VertT)*[3] pverts;
         foreach(i,ind; indices) pverts[i] = verts.ptr + ind;
         sort!("a.pos.y < b.pos.y")(pverts[0..$]);
 
         const e1xdiff = pverts[0].pos.x - pverts[2].pos.x;
         const e2xdiff = pverts[0].pos.x - pverts[1].pos.x;
-        const e3xdiff = pverts[1].pos.x - pverts[2].pos.x;
 
         const e1ydiff = pverts[0].pos.y - pverts[2].pos.y;
         const e2ydiff = pverts[0].pos.y - pverts[1].pos.y;
-        const e3ydiff = pverts[1].pos.y - pverts[2].pos.y;
+
+        struct Edge
+        {
+        private:
+            PosT factor;
+            immutable PosT factorStep;
+            immutable PosT xStart;
+            immutable PosT xDiff;
+        public:
+            this(VT)(in VT v1, in VT v2, int inc) pure nothrow
+            {
+                const ydiff = v1.pos.y - v2.pos.y;
+                factorStep = 1 / ydiff;
+                factor = factorStep * inc;
+                xStart = v1.pos.x;
+                xDiff = v1.pos.x - v2.pos.x;
+            }
+
+            @property auto x() const pure nothrow { return xStart + xDiff * factor; }
+            ref auto opUnary(string op: "++")() pure nothrow { factor += factorStep; return this; }
+        }
 
         const bool spanDir = ((e1xdiff / e1ydiff) * e2ydiff) < e2xdiff;
 
@@ -67,42 +91,29 @@ public:
         if(minY >= maxY) return;
         midY = min(midY, maxY);
 
-        const factor1step = 1 / e1ydiff;
-        auto factor1 = factor1step * minYinc;
+        auto edge1 = Edge(pverts[0], pverts[2], minYinc);
 
         auto line = mBitmap[minY];
-        /*import std.stdio;
-        writeln();
-        writeln(minY);
-        writeln(midY);
-        writeln(maxY);*/
+
         foreach(i;TupleRange!(0,2))
         {
-            const x1Start = pverts[0].pos.x;
-            const x1Diff  = e1xdiff;
             static if(0 == i)
             {
-                const factor2step = 1 / e2ydiff;
-                auto factor2  = factor2step * minYinc;
                 const yStart  = minY;
                 const yEnd    = midY;
-                const x2Start = pverts[0].pos.x;
-                const x2Diff  = e2xdiff;
+                auto edge2 = Edge(pverts[0], pverts[1], minYinc);
             }
             else
             {
-                const factor2step = 1 / e3ydiff;
-                auto factor2  = factor2step * midYinc;
                 const yStart  = midY;
                 const yEnd    = maxY;
-                const x2Start = pverts[1].pos.x;
-                const x2Diff  = e3xdiff;
+                auto edge2 = Edge(pverts[1], pverts[2], midYinc);
             }
 
             foreach(y;yStart..yEnd)
             {
-                auto x1 = cast(int)(x1Start + x1Diff * factor1);
-                auto x2 = cast(int)(x2Start + x2Diff * factor2);
+                auto x1 = cast(int)edge1.x;
+                auto x2 = cast(int)edge2.x;
                 if(spanDir) swap(x1, x2);
 
                 const x1inc = max(0, mClipRect.x - x1);
@@ -110,8 +121,8 @@ public:
                 x2 = min(x2, mClipRect.x + mClipRect.w);
 
                 drawSpan(line, x1, x2);
-                factor1 += factor1step;
-                factor2 += factor2step;
+                ++edge1;
+                ++edge2;
                 ++line;
             }
         }
