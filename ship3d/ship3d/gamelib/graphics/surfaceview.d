@@ -20,7 +20,7 @@ public:
         mData   = surf.data;
     }
 
-    auto opIndex(int y) pure nothrow
+    auto opIndex(int y) inout pure nothrow
     {
         struct Line
         {

@@ -11,7 +11,7 @@ final class World
 {
 private:
     bool mQuitReq = false;
-    mat4 mProjMat;
+    immutable mat4 mProjMat;
     immutable Size mSize;
     Texture!ColorT mTexture;
 public:
@@ -48,18 +48,21 @@ public:
         verts[3].pos  = vec4(-1, 1,0,1);
         verts[3].tpos = vec2(0,1);
 
-        static float si = 0;
-        mat4 t = mProjMat * mat4.translation(0.0,0.0,10) * mat4.yrotation(si);
-        si += 0.01;
+        static float si = 45;
+        mat4 t = mProjMat * mat4.translation(0.0,0.0,3) * mat4.xrotation(si);
+        //si += 0.01;
 
         foreach(i;0..verts.length)
         {
             verts[i].pos = t * verts[i].pos;
-            verts[i].pos = verts[i].pos / verts[i].pos.w;
+            const w = verts[i].pos.w;
+            verts[i].pos = verts[i].pos / w;
+            verts[i].pos.w = w;
             verts[i].pos.x = verts[i].pos.x * mSize.w + mSize.w / 2;
             verts[i].pos.y = verts[i].pos.y * mSize.h + mSize.h / 2;
         }
         Rasterizer!(SurfT,typeof(mTexture)) rast = surf;
+        rast.texture = mTexture;
         rast.drawIndexedTriangle(verts, [0,1,2]);
         rast.drawIndexedTriangle(verts, [0,2,3]);
     }

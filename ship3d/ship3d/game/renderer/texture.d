@@ -47,7 +47,7 @@ void fillChess(T)(auto ref T surf)
     {
         foreach(x;0..surf.width)
         {
-            if((x / 5) % 2 == (y / 5) % 2)
+            if((x / 25) % 2 == (y / 25) % 2)
             {
                 view[y][x] = ColorBlack;
             }

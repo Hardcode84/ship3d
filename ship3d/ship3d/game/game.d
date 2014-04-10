@@ -101,6 +101,10 @@ public:
                 mFPS = cast(float)mFPSCounter / (cast(float)(newTicks - mLastFPSTicks) / 1000.0f);
                 mLastFPSTicks = newTicks;
                 mFPSCounter = 0;
+
+                auto totalSeconds = mUpdateCounter * UpdateInterval / 1000.0f;
+                import std.string: format;
+                mWindow.title = format("%s %s %s", mFPS, totalSeconds, mUpdateCounter);
             }
             present();
         }
