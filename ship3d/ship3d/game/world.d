@@ -49,8 +49,8 @@ public:
         verts[3].tpos = vec2(0,1);
 
         static float si = 45;
-        mat4 t = mProjMat * mat4.translation(0.0,0.0,3) * mat4.xrotation(si);
-        //si += 0.01;
+        mat4 t = mProjMat * mat4.translation(0,0,3) * mat4.yrotation(si);
+        si += 0.01;
 
         foreach(i;0..verts.length)
         {

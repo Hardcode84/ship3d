@@ -83,6 +83,78 @@ private:
         }
         ref auto opUnary(string op: "++")() pure nothrow { factor += factorStep; return this; }
     }
+    struct Span(PosT, bool Affine)
+    {
+        PosT x1, x2;
+        static if(Affine)
+        {
+            PosT u1, u2;
+            PosT v1, v2;
+            immutable PosT du, dv;
+        }
+        else
+        {
+            PosT su1, su2;
+            PosT sv1, sv2;
+            PosT sw1, sw2;
+            immutable PosT dsu, dsv, dsw;
+        }
+
+        this(EdgeT)(in EdgeT e1, in EdgeT e2) pure nothrow
+        {
+            x1 = e1.x;
+            x2 = e2.x;
+            const dx = x2 - x1;
+            static if(Affine)
+            {
+                u1 = e1.u;
+                u2 = e2.u;
+                v1 = e1.v;
+                v2 = e2.v;
+                du = (u2 - u1) / dx;
+                dv = (v2 - v1) / dx;
+            }
+            else
+            {
+                su1 = e1.su;
+                su2 = e2.su;
+                sv1 = e1.sv;
+                sv2 = e2.sv;
+                sw1 = e1.sw;
+                sw2 = e2.sw;
+                dsu = (su2 - su1) / dx;
+                dsv = (sv2 - sv1) / dx;
+                dsw = (sw2 - sw1) / dx;
+            }
+        }
+        @property bool valid() const pure nothrow { return x2 > x1; }
+        void clip(PosT minX, PosT maxX) pure nothrow
+        {
+            const x1inc = max(cast(PosT)0, minX - x1);
+            x1 += x1inc;
+            x2 = min(x2, maxX);
+            inc(x1inc);
+        }
+        void inc(PosT val) pure nothrow
+        {
+            static if(Affine)
+            {
+                u1 += du * val;
+                v1 += dv * val;
+            }
+            else
+            {
+                su1 += dsu * val;
+                sv1 += dsv * val;
+                sw1 += dsw * val;
+            }
+        }
+        static if(!Affine)
+        {
+            @property PosT u() const pure nothrow { return su1 / sw1; }
+            @property PosT v() const pure nothrow { return sv1 / sw1; }
+        }
+    }
 public:
     this(BitmapT b)
     {
@@ -125,11 +197,22 @@ public:
         const e1ydiff = pverts[0].pos.y - pverts[2].pos.y;
         const e2ydiff = pverts[0].pos.y - pverts[1].pos.y;
 
-        const bool reverseSpans = ((e1xdiff / e1ydiff) * e2ydiff) < e2xdiff;
+        const cxdiff = ((e1xdiff / e1ydiff) * e2ydiff) - e2xdiff;
+        const reverseSpans = (cxdiff < 0);
+        const affine = (abs(cxdiff) <= AffineLength);
 
-        drawTriangle!false(pverts, reverseSpans);
+        if(reverseSpans)
+        {
+            if(affine) drawTriangle!(true,true)(pverts);
+            else       drawTriangle!(false,true)(pverts);
+        }
+        else
+        {
+            if(affine) drawTriangle!(true,false)(pverts);
+            else       drawTriangle!(false,false)(pverts);
+        }
     }
-    private void drawTriangle(bool Affine,VertT)(in VertT[3] pverts, bool reverseSpans)
+    private void drawTriangle(bool Affine,bool ReverseSpans,VertT)(in VertT[3] pverts)
     {
         assert(isSorted!("a.pos.y < b.pos.y")(pverts[0..$]));
         alias PosT = Unqual!(typeof(VertT.pos.x));
@@ -168,71 +251,35 @@ public:
 
             foreach(y;yStart..yEnd)
             {
-                auto x1 = edge1.x;
-                auto x2 = edge2.x;
-                if(reverseSpans)
+                static if(ReverseSpans)
                 {
-                    swap(x1, x2);
-                }
-                const dx = (x2 - x1);
-                const x1inc = max(cast(PosT)0, minX - x1);
-                x1 += x1inc;
-                x2 = min(x2, maxX);
-
-                const ix1 = cast(int)x1;
-                const ix2 = cast(int)x2;
-                static if(Affine)
-                {
-                    auto u1 = edge1.u;
-                    auto u2 = edge2.u;
-                    auto v1 = edge1.v;
-                    auto v2 = edge2.v;
-                    if(reverseSpans)
-                    {
-                        swap(u1, u2);
-                        swap(v1, v2);
-                    }
-                    const du = (u2 - u1) / dx;
-                    const dv = (v2 - v1) / dx;
-                    u1 += du * x1inc;
-                    v1 += dv * x1inc;
-
-                    drawSpan(line, y, ix1, ix2, u1, du, v1, dv);
+                    auto span = Span!(PosT,Affine)(edge2, edge1);
                 }
                 else
                 {
-                    auto su1 = edge1.su;
-                    auto su2 = edge2.su;
-                    auto sv1 = edge1.sv;
-                    auto sv2 = edge2.sv;
-                    auto sw1 = edge1.sw;
-                    auto sw2 = edge2.sw;
-                    if(reverseSpans)
-                    {
-                        swap(su1, su2);
-                        swap(sv1, sv2);
-                        swap(sw1, sw2);
-                    }
-                    const dsu = (su2 - su1) / dx;
-                    const dsv = (sv2 - sv1) / dx;
-                    const dsw = (sw2 - sw1) / dx;
-                    su1 += dsu * x1inc;
-                    sv1 += dsv * x1inc;
-                    sw1 += dsw * x1inc;
-
-                    auto u = su1 / sw1;
-                    auto v = sv1 / sw1;
+                    auto span = Span!(PosT,Affine)(edge1, edge2);
+                }
+                span.clip(minX, maxX);
+                //if(!span.valid) continue;
+                const ix1 = cast(int)span.x1;
+                const ix2 = cast(int)span.x2;
+                static if(Affine)
+                {
+                    drawSpan(line, y, ix1, ix2, span.u1, span.du, span.v1, span.dv);
+                }
+                else
+                {
+                    auto u = span.u;
+                    auto v = span.v;
                     int x = ix1;
                     while(true)
                     {
                         const nx = (x + AffineLength);
                         if(nx < ix2)
                         {
-                            su1 += dsu * cast(PosT)AffineLength;
-                            sv1 += dsv * cast(PosT)AffineLength;
-                            sw1 += dsw * cast(PosT)AffineLength;
-                            const nu = su1 / sw1;
-                            const nv = sv1 / sw1;
+                            span.inc(AffineLength);
+                            const nu = span.u;
+                            const nv = span.v;
                             const du = (nu - u) / cast(PosT)AffineLength;
                             const dv = (nv - v) / cast(PosT)AffineLength;
                             drawSpan(line, y, x, nx, u, du, v, dv);
@@ -242,11 +289,9 @@ public:
                         else
                         {
                             const rem =  cast(PosT)(ix2 - x);
-                            su1 += dsu * rem;
-                            sv1 += dsv * rem;
-                            sw1 += dsw * rem;
-                            const nu = su1 / sw1;
-                            const nv = sv1 / sw1;
+                            span.inc(rem);
+                            const nu = span.u;
+                            const nv = span.v;
                             const du = (nu - u) / rem;
                             const dv = (nv - v) / rem;
                             drawSpan(line, y, x, ix2, u, du, v, dv);
@@ -275,12 +320,13 @@ public:
         auto v = v1;
         foreach(x;x1..x2)
         {
-            const tx = cast(int)(u * w);
-            const ty = cast(int)(v * h);
+            const tx = cast(int)(u * w) & w;
+            const ty = cast(int)(v * h) & h;
             line[x] = tview[ty][tx];
             u += du;
             v += dv;
         }
+        //line[x1..x2] = ColorRed;
     }
 }
 
