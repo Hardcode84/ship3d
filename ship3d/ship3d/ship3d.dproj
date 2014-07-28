@@ -3,7 +3,7 @@
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
     <Platform Condition=" '$(Platform)' == '' ">AnyCPU</Platform>
-    <ProductVersion>10.0.0</ProductVersion>
+    <ProductVersion>8.0.30703</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{F788B2C5-9536-4E82-9FFC-A6E30C9AC567}</ProjectGuid>
     <UseDefaultCompiler>true</UseDefaultCompiler>
@@ -46,6 +46,11 @@
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="main.d" />
+    <Compile Include="game\game.d" />
+    <Compile Include="game\world.d" />
+    <Compile Include="game\units.d" />
+    <Compile Include="game\renderer\rasterizer.d" />
+    <Compile Include="game\renderer\texture.d" />
     <Compile Include="gamelib\autodispose.d" />
     <Compile Include="gamelib\core.d" />
     <Compile Include="gamelib\fixedpoint.d" />
@@ -54,47 +59,41 @@
     <Compile Include="gamelib\queue.d" />
     <Compile Include="gamelib\types.d" />
     <Compile Include="gamelib\util.d" />
+    <Compile Include="gamelib\3rdparty\DerelictSDL2-master\source\derelict\sdl2\functions.d" />
+    <Compile Include="gamelib\3rdparty\DerelictSDL2-master\source\derelict\sdl2\image.d" />
+    <Compile Include="gamelib\3rdparty\DerelictSDL2-master\source\derelict\sdl2\mixer.d" />
+    <Compile Include="gamelib\3rdparty\DerelictSDL2-master\source\derelict\sdl2\net.d" />
+    <Compile Include="gamelib\3rdparty\DerelictSDL2-master\source\derelict\sdl2\sdl.d" />
+    <Compile Include="gamelib\3rdparty\DerelictSDL2-master\source\derelict\sdl2\ttf.d" />
+    <Compile Include="gamelib\3rdparty\DerelictSDL2-master\source\derelict\sdl2\types.d" />
+    <Compile Include="gamelib\3rdparty\DerelictUtil-master\source\derelict\util\exception.d" />
+    <Compile Include="gamelib\3rdparty\DerelictUtil-master\source\derelict\util\loader.d" />
+    <Compile Include="gamelib\3rdparty\DerelictUtil-master\source\derelict\util\sharedlib.d" />
+    <Compile Include="gamelib\3rdparty\DerelictUtil-master\source\derelict\util\system.d" />
+    <Compile Include="gamelib\3rdparty\DerelictUtil-master\source\derelict\util\wintypes.d" />
+    <Compile Include="gamelib\3rdparty\DerelictUtil-master\source\derelict\util\xtypes.d" />
     <Compile Include="gamelib\graphics\graph.d" />
     <Compile Include="gamelib\graphics\surface.d" />
+    <Compile Include="gamelib\graphics\surfaceview.d" />
     <Compile Include="gamelib\graphics\window.d" />
     <Compile Include="gamelib\graphics\renderer2d\font.d" />
     <Compile Include="gamelib\graphics\renderer2d\renderer.d" />
     <Compile Include="gamelib\graphics\renderer2d\texture.d" />
     <Compile Include="gamelib\graphics\renderer2d\textureview.d" />
     <Compile Include="gamelib\graphics\renderer2d\vectorfont.d" />
-    <Compile Include="game\game.d" />
-    <Compile Include="3rdparty\DerelictSDL2-master\source\derelict\sdl2\functions.d" />
-    <Compile Include="3rdparty\DerelictSDL2-master\source\derelict\sdl2\image.d" />
-    <Compile Include="3rdparty\DerelictSDL2-master\source\derelict\sdl2\mixer.d" />
-    <Compile Include="3rdparty\DerelictSDL2-master\source\derelict\sdl2\net.d" />
-    <Compile Include="3rdparty\DerelictSDL2-master\source\derelict\sdl2\sdl.d" />
-    <Compile Include="3rdparty\DerelictSDL2-master\source\derelict\sdl2\ttf.d" />
-    <Compile Include="3rdparty\DerelictSDL2-master\source\derelict\sdl2\types.d" />
-    <Compile Include="3rdparty\DerelictUtil-master\source\derelict\util\exception.d" />
-    <Compile Include="3rdparty\DerelictUtil-master\source\derelict\util\loader.d" />
-    <Compile Include="3rdparty\DerelictUtil-master\source\derelict\util\sharedlib.d" />
-    <Compile Include="3rdparty\DerelictUtil-master\source\derelict\util\system.d" />
-    <Compile Include="3rdparty\DerelictUtil-master\source\derelict\util\wintypes.d" />
-    <Compile Include="3rdparty\DerelictUtil-master\source\derelict\util\xtypes.d" />
-    <Compile Include="game\world.d" />
-    <Compile Include="game\units.d" />
-    <Compile Include="game\renderer\rasterizer.d" />
-    <Compile Include="game\renderer\texture.d" />
-    <Compile Include="gamelib\graphics\surfaceview.d" />
   </ItemGroup>
   <ItemGroup>
-    <Folder Include="gamelib\" />
     <Folder Include="game\" />
-    <Folder Include="3rdparty\" />
     <Folder Include="game\renderer\" />
+    <Folder Include="gamelib\" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="3rdparty\build.bat" />
-    <None Include="3rdparty\DerelictSDL2-master\.gitignore" />
-    <None Include="3rdparty\DerelictSDL2-master\package.json" />
-    <None Include="3rdparty\DerelictSDL2-master\README.md" />
-    <None Include="3rdparty\DerelictUtil-master\.gitignore" />
-    <None Include="3rdparty\DerelictUtil-master\package.json" />
-    <None Include="3rdparty\DerelictUtil-master\README.md" />
+    <None Include="gamelib\3rdparty\build.bat" />
+    <None Include="gamelib\3rdparty\DerelictSDL2-master\.gitignore" />
+    <None Include="gamelib\3rdparty\DerelictSDL2-master\package.json" />
+    <None Include="gamelib\3rdparty\DerelictSDL2-master\README.md" />
+    <None Include="gamelib\3rdparty\DerelictUtil-master\.gitignore" />
+    <None Include="gamelib\3rdparty\DerelictUtil-master\package.json" />
+    <None Include="gamelib\3rdparty\DerelictUtil-master\README.md" />
   </ItemGroup>
 </Project>
