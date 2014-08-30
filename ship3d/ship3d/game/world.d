@@ -41,12 +41,16 @@ public:
 
         verts[0].pos  = vec4(-1,-1,0,1);
         verts[0].tpos = vec2(0,0);
+        verts[0].color = ColorRed;
         verts[1].pos  = vec4( 1,-1,0,1);
         verts[1].tpos = vec2(1,0);
+        verts[1].color = ColorBlue;
         verts[2].pos  = vec4( 1, 1,0,1);
         verts[2].tpos = vec2(1,1);
+        verts[2].color = ColorGreen;
         verts[3].pos  = vec4(-1, 1,0,1);
         verts[3].tpos = vec2(0,1);
+        verts[3].color = ColorWhite;
 
         static float si = 45;
         mat4 t = mProjMat * mat4.translation(0,0,3) * mat4.yrotation(si);

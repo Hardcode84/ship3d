@@ -81,15 +81,19 @@ private:
             @property auto sv() const pure nothrow { return svStart + svDiff * factor; }
             @property auto sw() const pure nothrow { return swStart + swDiff * factor; }
         }
-        ref auto opUnary(string op: "++")() pure nothrow { factor += factorStep; return this; }
+        ref auto opUnary(string op: "++")() pure nothrow
+        { 
+            factor += factorStep; 
+            return this; 
+        }
     }
     struct Span(PosT, bool Affine)
     {
         PosT x1, x2;
         static if(Affine)
         {
-            PosT u1, u2;
-            PosT v1, v2;
+            PosT u, u2;
+            PosT v, v2;
             immutable PosT du, dv;
         }
         else
@@ -98,6 +102,9 @@ private:
             PosT sv1, sv2;
             PosT sw1, sw2;
             immutable PosT dsu, dsv, dsw;
+            PosT nu, nv;
+            PosT pu, pv;
+            PosT du, dv;
         }
 
         this(EdgeT)(in EdgeT e1, in EdgeT e2) pure nothrow
@@ -107,12 +114,12 @@ private:
             const dx = x2 - x1;
             static if(Affine)
             {
-                u1 = e1.u;
+                u = e1.u;
                 u2 = e2.u;
-                v1 = e1.v;
+                v = e1.v;
                 v2 = e2.v;
-                du = (u2 - u1) / dx;
-                dv = (v2 - v1) / dx;
+                du = (u2 - u) / dx;
+                dv = (v2 - v) / dx;
             }
             else
             {
@@ -125,6 +132,8 @@ private:
                 dsu = (su2 - su1) / dx;
                 dsv = (sv2 - sv1) / dx;
                 dsw = (sw2 - sw1) / dx;
+                nu = su1 / sw1;
+                nv = sv1 / sw1;
             }
         }
         @property bool valid() const pure nothrow { return x2 > x1; }
@@ -139,20 +148,26 @@ private:
         {
             static if(Affine)
             {
-                u1 += du * val;
-                v1 += dv * val;
+                u += du * val;
+                v += dv * val;
             }
             else
             {
+                pu = nu;
+                pv = nv;
                 su1 += dsu * val;
                 sv1 += dsv * val;
                 sw1 += dsw * val;
+                nu = su1 / sw1;
+                nv = sv1 / sw1;
+                du = (nu - pu) / val;
+                dv = (nv - pv) / val;
             }
         }
         static if(!Affine)
         {
-            @property PosT u() const pure nothrow { return su1 / sw1; }
-            @property PosT v() const pure nothrow { return sv1 / sw1; }
+            @property PosT u() const pure nothrow { return pu; }
+            @property PosT v() const pure nothrow { return pv; }
         }
     }
 public:
@@ -199,7 +214,7 @@ public:
 
         const cxdiff = ((e1xdiff / e1ydiff) * e2ydiff) - e2xdiff;
         const reverseSpans = (cxdiff < 0);
-        const affine = (abs(cxdiff) <= AffineLength);
+        const affine = false;//(abs(cxdiff) > AffineLength * 25);
 
         if(reverseSpans)
         {
@@ -234,6 +249,29 @@ public:
 
         const minX = cast(PosT)(mClipRect.x);
         const maxX = cast(PosT)(mClipRect.x + mClipRect.w);
+
+        const tw = mTexture.width - 1;
+        const th = mTexture.height - 1;
+        const tview = mTexture.view();
+        void drawSpan(SpanT)(int y,
+                      int x1, int x2,
+                      in SpanT span)
+        {
+            if(x1 >= x2) return;
+
+            Unqual!(typeof(span.u)) u = span.u;
+            Unqual!(typeof(span.v)) v = span.v;
+            foreach(x;x1..x2)
+            {
+                const tx = cast(int)(u * tw) & tw;
+                const ty = cast(int)(v * th) & th;
+                line[x] = tview[ty][tx];
+                u += span.du;
+                v += span.dv;
+            }
+            //line[x1..x2] = ColorRed;
+        }
+
         foreach(i;TupleRange!(0,2))
         {
             static if(0 == i)
@@ -265,12 +303,10 @@ public:
                 const ix2 = cast(int)span.x2;
                 static if(Affine)
                 {
-                    drawSpan(line, y, ix1, ix2, span.u1, span.du, span.v1, span.dv);
+                    drawSpan(y, ix1, ix2, span);
                 }
                 else
                 {
-                    auto u = span.u;
-                    auto v = span.v;
                     int x = ix1;
                     while(true)
                     {
@@ -278,23 +314,13 @@ public:
                         if(nx < ix2)
                         {
                             span.inc(AffineLength);
-                            const nu = span.u;
-                            const nv = span.v;
-                            const du = (nu - u) / cast(PosT)AffineLength;
-                            const dv = (nv - v) / cast(PosT)AffineLength;
-                            drawSpan(line, y, x, nx, u, du, v, dv);
-                            u = nu;
-                            v = nv;
+                            drawSpan(y, x, nx, span);
                         }
                         else
                         {
                             const rem =  cast(PosT)(ix2 - x);
                             span.inc(rem);
-                            const nu = span.u;
-                            const nv = span.v;
-                            const du = (nu - u) / rem;
-                            const dv = (nv - v) / rem;
-                            drawSpan(line, y, x, ix2, u, du, v, dv);
+                            drawSpan(y, x, ix2, span);
                             break;
                         }
                         x = nx;
@@ -305,28 +331,6 @@ public:
                 ++line;
             }
         }
-    }
-    private void drawSpan(LineT)(auto ref LineT line,
-                                 int y,
-                                 int x1, int x2,
-                                 float u1, float du,
-                                 float v1, float dv)
-    {
-        if(x1 >= x2) return;
-        const w = mTexture.width - 1;
-        const h = mTexture.height - 1;
-        const tview = mTexture.view();
-        auto u = u1;
-        auto v = v1;
-        foreach(x;x1..x2)
-        {
-            const tx = cast(int)(u * w) & w;
-            const ty = cast(int)(v * h) & h;
-            line[x] = tview[ty][tx];
-            u += du;
-            v += dv;
-        }
-        //line[x1..x2] = ColorRed;
     }
 }
 
