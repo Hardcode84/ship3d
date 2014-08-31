@@ -67,7 +67,7 @@ private:
                 const w2 = cast(PosT)1 / v2.pos.w;
                 const swStart = w1;
                 const swDiff  = (w1 - w2);
-                swDelta = swDiff / ydiff;
+                swDelta = swDiff / (ydiff);
                 swCurr  = swStart + swDelta * inc;
             }
 
@@ -216,7 +216,7 @@ private:
             {
                 sw1 = e1.sw;
                 sw2 = e2.sw;
-                dsw = (sw2 - sw1) / dx;
+                dsw = (sw2 - sw1) / (dx + 1);
             }
 
             static if(HasTextures) static if(Affine)
@@ -244,8 +244,8 @@ private:
 
             static if(HasColor)
             {
-                factor = PosT.epsilon;
-                factorStep = cast(PosT)1 / dx;
+                factor = 0;
+                factorStep = cast(PosT)1 / (dx + 1);
                 color1 = e1.color;
                 color2 = e2.color;
                 static if(Affine)
@@ -266,13 +266,13 @@ private:
             const x1inc = max(cast(PosT)0, minX - x1);
             x1 += x1inc;
             x2 = min(x2, maxX);
-            //if(!valid) return;
+            if(!valid) return;
             inc(x1inc);
         }
         void inc(in PosT val) pure nothrow
         in
         {
-            //assert(valid);
+            assert(valid);
         }
         body
         {
@@ -301,7 +301,6 @@ private:
             static if(HasColor && !Affine)
             {
                 factor += factorStep * val;
-                //factor = clamp(factor, cast(PosT)0, cast(PosT)1);
                 colorStart = colorEnd;
                 colorEnd = ColT.lerp(color2, color1, factor);
             }
@@ -439,13 +438,13 @@ public:
                     divLine(x1, x , col1, col);
                     divLine(x , x2, col , col2);
                 }
-                //divLine(x1, x2 + 1, span.colorStart, span.colorEnd);
+                divLine(x1, x2 + 1, span.colorStart, span.colorEnd);
                 //line[x1..x2] = span.colorStart;
                 foreach(x;x1..x2)
                 {
                     //line[x] = span.colorStart;
                     //line[x] = (y % 2 == 1) ? span.colorStart : span.colorEnd;
-                    line[x] = ColT.lerp(span.colorEnd, span.colorStart, cast(PosT)(x - x1) / cast(PosT)(x2 - x1));
+                    //line[x] = ColT.lerp(span.colorEnd, span.colorStart, cast(PosT)(x - x1) / cast(PosT)(x2 - x1));
                 }
 
             }
@@ -478,32 +477,34 @@ public:
                     auto span = SpanT(edge1, edge2);
                 }
                 span.clip(minX, maxX);
-                //if(!span.valid) continue;
-                const ix1 = cast(int)span.x1;
-                const ix2 = cast(int)span.x2;
-                static if(Affine)
+                if(span.valid)
                 {
-                    drawSpan(y, ix1, ix2, span);
-                }
-                else
-                {
-                    int x = ix1;
-                    while(true)
+                    const ix1 = cast(int)span.x1;
+                    const ix2 = cast(int)span.x2;
+                    static if(Affine)
                     {
-                        const nx = (x + AffineLength);
-                        if(nx < ix2)
+                        drawSpan(y, ix1, ix2, span);
+                    }
+                    else
+                    {
+                        int x = ix1;
+                        while(true)
                         {
-                            span.inc(AffineLength);
-                            drawSpan(y, x, nx, span);
+                            const nx = (x + AffineLength);
+                            if(nx < ix2)
+                            {
+                                span.inc(AffineLength);
+                                drawSpan(y, x, nx, span);
+                            }
+                            else
+                            {
+                                const rem =  cast(PosT)(ix2 - x);
+                                span.inc(rem);
+                                drawSpan(y, x, ix2, span);
+                                break;
+                            }
+                            x = nx;
                         }
-                        else
-                        {
-                            const rem =  cast(PosT)(ix2 - x);
-                            span.inc(rem);
-                            drawSpan(y, x, ix2, span);
-                            break;
-                        }
-                        x = nx;
                     }
                 }
                 ++edge1;
