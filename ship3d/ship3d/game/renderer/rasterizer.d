@@ -75,24 +75,24 @@ private:
             static if(HasTextures) static if(Affine)
             {
                 const uStart = v1.tpos.u;
-                const uDiff  = v1.tpos.u - v2.tpos.u;
+                const uDiff  = v2.tpos.u - v1.tpos.u;
                 uDelta = uDiff / ydiff;
                 uCurr = uStart + uDelta * inc;
 
                 const vStart = v1.tpos.v;
-                const vDiff  = v1.tpos.v - v2.tpos.v;
+                const vDiff  = v2.tpos.v - v1.tpos.v;
                 vDelta = vDiff / ydiff;
                 vCurr = vStart + vDelta * inc;
             }
             else
             {
                 const suStart = v1.tpos.u * w1;
-                const suDiff  = suStart - v2.tpos.u * w2;
+                const suDiff  = v2.tpos.u * w2 - suStart;
                 suDelta = suDiff / ydiff;
                 suCurr  = suStart + suDelta * inc;
 
                 const svStart = v1.tpos.v * w1;
-                const svDiff  = svStart - v2.tpos.v * w2;
+                const svDiff  = v2.tpos.v * w2 - svStart;
                 svDelta = svDiff / ydiff;
                 svCurr  = svStart + svDelta * inc;
             }
@@ -348,7 +348,7 @@ public:
         mClipRect = Rect(dstLeft, dstTop, dstRight - dstLeft, dstBottom - dstTop);
     }
 
-    void drawIndexedTriangle(bool HasTextures = false, bool HasColor = true,VertT,IndT)(in VertT[] verts, in IndT[3] indices) if(isIntegral!IndT)
+    void drawIndexedTriangle(bool HasTextures = true, bool HasColor = false,VertT,IndT)(in VertT[] verts, in IndT[3] indices) if(isIntegral!IndT)
     {
         const(VertT)*[3] pverts;
         foreach(i,ind; indices) pverts[i] = verts.ptr + ind;
