@@ -52,7 +52,7 @@ public:
         verts[3].tpos = vec2(0,1);
         verts[3].color = ColorWhite;
 
-        static float si = 45;
+        static float si = 1;
         mat4 t = mProjMat * mat4.translation(0,0,-3) * mat4.yrotation(si);
         //si += 0.005;
 

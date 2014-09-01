@@ -13,7 +13,7 @@ private:
     BitmapT mBitmap;
     TextureT mTexture;
     Rect mClipRect;
-    enum AffineLength = 32;
+    enum AffineLength = 16;
     struct Edge(PosT, bool Affine, bool HasTextures, ColT)
     {
     private:
@@ -57,20 +57,18 @@ private:
         this(VT)(in VT v1, in VT v2, int inc) pure nothrow
         {
             const ydiff = v2.pos.y - v1.pos.y;
+            assert(ydiff > 0, debugConv(ydiff));
             xStart = v1.pos.x;
-            xDiff  = v1.pos.x  - v2.pos.x;
+            xDiff  = v2.pos.x  - v1.pos.x;
             xCurr  = xStart;
             xDelta = xDiff / ydiff;
             static if(!Affine)
             {
                 const w1 = cast(PosT)1 / v1.pos.w;
                 const w2 = cast(PosT)1 / v2.pos.w;
-                //debugOut("-1-");
-                //debugOut(w1);
-                //debugOut(w2);
                 const swStart = w1;
-                const swDiff  = (w1 - w2);
-                swDelta = swDiff / (ydiff + 1);
+                const swDiff  = (w2 - w1);
+                swDelta = swDiff / ydiff;
                 swCurr  = swStart + swDelta * inc;
             }
 
@@ -110,10 +108,6 @@ private:
                     scDelta = w2 / ydiff;
                 }
                 scCurr = scDelta * inc;
-                //debugOut("-2-");
-                //debugOut(ydiff);
-                //debugOut(scCurr);
-                //debugOut(scDelta);
                 color1 = v1.color;
                 color2 = v2.color;
             }
@@ -143,21 +137,12 @@ private:
                 static if(Affine)
                 {
                     const f = scCurr;
-                    //debugOut("---");
-                    //debugOut(scCurr);
-                    //debugOut(scDelta);
                 }
                 else
                 {
                     const f = scCurr / sw;
-                    //debugOut("---");
-                    //debugOut(scCurr);
-                    //debugOut(scDelta);
-                    //debugOut(sw);
-                    //debugOut(swDelta);
-                    //debugOut(f);
                 }
-                return ColT.lerp(color1, color2, f);
+                return ColT.lerp(color2, color1, f);
             }
         }
 
@@ -227,12 +212,12 @@ private:
         {
             x1 = e1.x;
             x2 = e2.x;
-            const dx = x2 - x1;
+            const dx = x2 - x1 + 1;
             static if(!Affine)
             {
                 sw1 = e1.sw;
                 sw2 = e2.sw;
-                dsw = (sw2 - sw1) / (dx + 1);
+                dsw = (sw2 - sw1) / (dx);
             }
 
             static if(HasTextures) static if(Affine)
@@ -261,7 +246,14 @@ private:
             static if(HasColor)
             {
                 factor = 0;
-                factorStep = cast(PosT)1 / (dx + 1);
+                static if(Affine)
+                {
+                    factorStep = cast(PosT)1 / dx;
+                }
+                else
+                {
+                    factorStep = sw2 / dx;
+                }
                 color1 = e1.color;
                 color2 = e2.color;
                 static if(Affine)
@@ -271,7 +263,6 @@ private:
                 }
                 else
                 {
-                    //colorStart= color1; //
                     colorEnd = color2;
                 }
             }
@@ -318,7 +309,7 @@ private:
             {
                 factor += factorStep * val;
                 colorStart = colorEnd;
-                colorEnd = ColT.lerp(color2, color1, factor);
+                colorEnd = ColT.lerp(color2, color1, factor / sw1);
             }
         }
         static if(HasTextures) static if(!Affine)
@@ -371,7 +362,7 @@ public:
 
         const cxdiff = ((e1xdiff / e1ydiff) * e2ydiff) - e2xdiff;
         const reverseSpans = (cxdiff < 0);
-        const affine = true;//(abs(cxdiff) > AffineLength * 25);
+        const affine = false;//(abs(cxdiff) > AffineLength * 25);
 
         if(reverseSpans)
         {
@@ -460,7 +451,7 @@ public:
                 {
                     //line[x] = span.colorStart;
                     //line[x] = (y % 2 == 1) ? span.colorStart : span.colorEnd;
-                    line[x] = ColT.lerp(span.colorEnd, span.colorStart, cast(PosT)(x - x1) / cast(PosT)(x2 - x1));
+                    //line[x] = ColT.lerp(span.colorEnd, span.colorStart, cast(PosT)(x - x1) / cast(PosT)(x2 - x1));
                 }*/
 
             }
@@ -473,12 +464,14 @@ public:
             {
                 const yStart  = minY;
                 const yEnd    = midY;
+                if(yStart == yEnd) continue;
                 auto edge2 = EdgeT(pverts[0], pverts[1], minYinc);
             }
             else
             {
                 const yStart  = midY;
                 const yEnd    = maxY;
+                if(yStart == yEnd) continue;
                 auto edge2 = EdgeT(pverts[1], pverts[2], midYinc);
             }
 
