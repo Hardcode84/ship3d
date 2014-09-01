@@ -56,7 +56,7 @@ private:
     public:
         this(VT)(in VT v1, in VT v2, int inc) pure nothrow
         {
-            const ydiff = v1.pos.y - v2.pos.y;
+            const ydiff = v2.pos.y - v1.pos.y;
             xStart = v1.pos.x;
             xDiff  = v1.pos.x  - v2.pos.x;
             xCurr  = xStart;
@@ -65,9 +65,12 @@ private:
             {
                 const w1 = cast(PosT)1 / v1.pos.w;
                 const w2 = cast(PosT)1 / v2.pos.w;
+                //debugOut("-1-");
+                //debugOut(w1);
+                //debugOut(w2);
                 const swStart = w1;
                 const swDiff  = (w1 - w2);
-                swDelta = swDiff / (ydiff);
+                swDelta = swDiff / (ydiff + 1);
                 swCurr  = swStart + swDelta * inc;
             }
 
@@ -107,6 +110,10 @@ private:
                     scDelta = w2 / ydiff;
                 }
                 scCurr = scDelta * inc;
+                //debugOut("-2-");
+                //debugOut(ydiff);
+                //debugOut(scCurr);
+                //debugOut(scDelta);
                 color1 = v1.color;
                 color2 = v2.color;
             }
@@ -136,10 +143,19 @@ private:
                 static if(Affine)
                 {
                     const f = scCurr;
+                    //debugOut("---");
+                    //debugOut(scCurr);
+                    //debugOut(scDelta);
                 }
                 else
                 {
                     const f = scCurr / sw;
+                    //debugOut("---");
+                    //debugOut(scCurr);
+                    //debugOut(scDelta);
+                    //debugOut(sw);
+                    //debugOut(swDelta);
+                    //debugOut(f);
                 }
                 return ColT.lerp(color1, color2, f);
             }
@@ -355,7 +371,7 @@ public:
 
         const cxdiff = ((e1xdiff / e1ydiff) * e2ydiff) - e2xdiff;
         const reverseSpans = (cxdiff < 0);
-        const affine = false;//(abs(cxdiff) > AffineLength * 25);
+        const affine = true;//(abs(cxdiff) > AffineLength * 25);
 
         if(reverseSpans)
         {
@@ -440,12 +456,12 @@ public:
                 }
                 divLine(x1, x2 + 1, span.colorStart, span.colorEnd);
                 //line[x1..x2] = span.colorStart;
-                foreach(x;x1..x2)
+                /*foreach(x;x1..x2)
                 {
                     //line[x] = span.colorStart;
                     //line[x] = (y % 2 == 1) ? span.colorStart : span.colorEnd;
-                    //line[x] = ColT.lerp(span.colorEnd, span.colorStart, cast(PosT)(x - x1) / cast(PosT)(x2 - x1));
-                }
+                    line[x] = ColT.lerp(span.colorEnd, span.colorStart, cast(PosT)(x - x1) / cast(PosT)(x2 - x1));
+                }*/
 
             }
             //line[x1..x2] = ColorRed;
@@ -477,6 +493,7 @@ public:
                     auto span = SpanT(edge1, edge2);
                 }
                 span.clip(minX, maxX);
+                //debugOut(y);
                 if(span.valid)
                 {
                     const ix1 = cast(int)span.x1;

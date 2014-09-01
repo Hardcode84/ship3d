@@ -53,8 +53,8 @@ public:
         verts[3].color = ColorWhite;
 
         static float si = 45;
-        mat4 t = mProjMat * mat4.translation(0,0,3) * mat4.yrotation(si);
-        si += 0.005;
+        mat4 t = mProjMat * mat4.translation(0,0,-3) * mat4.yrotation(si);
+        //si += 0.005;
 
         foreach(i;0..verts.length)
         {
@@ -67,8 +67,11 @@ public:
         }
         Rasterizer!(SurfT,typeof(mTexture)) rast = surf;
         rast.texture = mTexture;
-        rast.drawIndexedTriangle(verts, [0,1,2]);
-        rast.drawIndexedTriangle(verts, [0,2,3]);
+        foreach(i;0..1)
+        {
+            rast.drawIndexedTriangle(verts, [0,1,2]);
+            rast.drawIndexedTriangle(verts, [0,2,3]);
+        }
     }
 }
 
