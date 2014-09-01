@@ -60,8 +60,9 @@ private:
             assert(ydiff > 0, debugConv(ydiff));
             xStart = v1.pos.x;
             xDiff  = v2.pos.x  - v1.pos.x;
-            xCurr  = xStart;
             xDelta = xDiff / ydiff;
+            xCurr  = xStart + xDelta * inc;
+
             static if(!Affine)
             {
                 const w1 = cast(PosT)1 / v1.pos.w;
@@ -348,7 +349,7 @@ public:
         mClipRect = Rect(dstLeft, dstTop, dstRight - dstLeft, dstBottom - dstTop);
     }
 
-    void drawIndexedTriangle(bool HasTextures = true, bool HasColor = false,VertT,IndT)(in VertT[] verts, in IndT[3] indices) if(isIntegral!IndT)
+    void drawIndexedTriangle(bool HasTextures = false, bool HasColor = true,VertT,IndT)(in VertT[] verts, in IndT[3] indices) if(isIntegral!IndT)
     {
         const(VertT)*[3] pverts;
         foreach(i,ind; indices) pverts[i] = verts.ptr + ind;
