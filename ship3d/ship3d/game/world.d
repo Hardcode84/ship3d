@@ -5,6 +5,7 @@ import gamelib.graphics.graph;
 
 import game.units;
 import game.renderer.rasterizer;
+import game.renderer.rasterizerhp;
 import game.renderer.texture;
 
 final class World
@@ -54,7 +55,7 @@ public:
 
         static float si = 1;
         mat4 t = mProjMat * mat4.translation(0,0,-3) * mat4.yrotation(si);
-        //si += 0.005;
+        si += 0.005;
 
         foreach(i;0..verts.length)
         {
@@ -65,7 +66,7 @@ public:
             verts[i].pos.x = verts[i].pos.x * mSize.w + mSize.w / 2;
             verts[i].pos.y = verts[i].pos.y * mSize.h + mSize.h / 2;
         }
-        Rasterizer!(SurfT,typeof(mTexture)) rast = surf;
+        RasterizerHP!(SurfT,typeof(mTexture)) rast = surf;
         rast.texture = mTexture;
         foreach(i;0..1)
         {

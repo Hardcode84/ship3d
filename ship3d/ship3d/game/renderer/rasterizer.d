@@ -381,6 +381,15 @@ public:
         static assert(HasTextures != HasColor);
         assert(isSorted!("a.pos.y < b.pos.y")(pverts[0..$]));
         alias PosT = Unqual!(typeof(VertT.pos.x));
+        static if(HasColor)
+        {
+            alias ColT = Unqual!(typeof(VertT.color));
+        }
+        else
+        {
+            alias ColT = void;
+        }
+
         auto minY = cast(int)pverts[0].pos.y;
         auto midY = cast(int)pverts[1].pos.y;
         auto maxY = cast(int)pverts[2].pos.y;
@@ -393,14 +402,6 @@ public:
         if(minY >= maxY) return;
         midY = min(midY, maxY);
 
-        static if(HasColor)
-        {
-            alias ColT = Unqual!(typeof(VertT.color));
-        }
-        else
-        {
-            alias ColT = void;
-        }
         alias EdgeT = Edge!(PosT,Affine,HasTextures,ColT);
         alias SpanT = Span!(PosT,Affine,HasTextures,ColT);
         auto edge1 = EdgeT(pverts[0], pverts[2], minYinc);

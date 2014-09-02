@@ -81,6 +81,7 @@
     <Compile Include="gamelib\graphics\renderer2d\texture.d" />
     <Compile Include="gamelib\graphics\renderer2d\textureview.d" />
     <Compile Include="gamelib\graphics\renderer2d\vectorfont.d" />
+    <Compile Include="game\renderer\rasterizerhp.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />
