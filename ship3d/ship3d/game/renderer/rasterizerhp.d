@@ -23,7 +23,7 @@ private:
     {
         immutable PosT dx, dy, c;
         PosT cx, cy;
-        this(VT)(in VT v1, in VT v2, int minX, int minY)
+        this(VT)(in VT v1, in VT v2, int minX, int minY) pure nothrow
         {
             const x1 = v1.pos.x;
             const x2 = v2.pos.x;
@@ -67,6 +67,54 @@ private:
         }
 
         @property auto curr() const pure nothrow { return cx; } 
+    }
+
+    struct LinesPack(LineT)
+    {
+        LineT[3] lines;
+        this(VT)(in VT v1, in VT v2, in VT v3, int minX, int minY) pure nothrow
+        {
+            lines = [LineT(v1, v2, minX, minY),LineT(v2, v3, minX, minY),LineT(v3, v1, minX, minY)];
+        }
+
+        void incX(int val) pure nothrow
+        {
+            foreach(ref line;lines)
+            {
+                line.incX(val);
+            }
+        }
+
+        void incY(int val) pure nothrow
+        {
+            foreach(ref line;lines)
+            {
+                line.incY(val);
+            }
+        }
+
+        void setXY(int x, int y) pure nothrow
+        {
+            foreach(ref line;lines)
+            {
+                line.setXY(x, y);
+            }
+        }
+
+        auto check() const pure nothrow
+        {
+            return all!"a.curr > 0"(lines[]);
+        }
+
+        auto testTile(int x1, int y1, int x2, int y2) const pure nothrow
+        {
+            uint res = 0;
+            foreach(i,ref line;lines)
+            {
+                res |= (line.testTile(x1,y1,x2,y2) << (4 * i));
+            }
+            return res;
+        }
     }
 
     struct Tile(int W, int H, PosT)
@@ -139,6 +187,7 @@ public:
             alias ColT = void;
         }
         alias LineT = Line!(PosT);
+        alias PackT = LinesPack!(LineT);
 
         int minY = cast(int)min(pverts[0].pos.y, pverts[1].pos.y, pverts[2].pos.y);
         int maxY = cast(int)max(pverts[0].pos.y, pverts[1].pos.y, pverts[2].pos.y);
@@ -152,11 +201,9 @@ public:
 
         //auto line = mBitmap[minY];
 
-        auto line1 = LineT(pverts[0], pverts[1], minX, minY);
-        auto line2 = LineT(pverts[1], pverts[2], minX, minY);
-        auto line3 = LineT(pverts[2], pverts[0], minX, minY);
+        auto pack = PackT(pverts[0], pverts[1], pverts[2], minX, minY);
 
-        void drawArea(int TileWidth, int TileHeight)(in int x0, in int y0, in uint abc)
+        /*void drawArea(int TileWidth, int TileHeight)(in int x0, in int y0, in uint abc)
         {
             if(0x0 == abc)
             {
@@ -269,7 +316,7 @@ public:
                     }
                 }
             }
-        }
+        }*/
 
         const minTx = minX / MinTileWidth;
         const maxTx = (maxX + MinTileWidth - 1) / MinTileWidth;
@@ -283,12 +330,10 @@ public:
             {
                 const x0 = (tx + 0) * MinTileWidth;
                 const x1 = (tx + 1) * MinTileWidth;
-                const a = line1.testTile(x0, y0, x1, y1);
-                const b = line2.testTile(x0, y0, x1, y1);
-                const c = line3.testTile(x0, y0, x1, y1);
-                if(0x0 == a && 0x0 == b && 0x0 == c) continue;
+                auto res = pack.testTile(x0, y0, x1, y1);
+                if(0x0 == res) continue;
 
-                if(0xf == a && 0xf == b && 0xf == c)
+                if(0xfff == res)
                 {
                     //completely covered
                     auto line = mBitmap[y0];
@@ -304,38 +349,23 @@ public:
                 else
                 {
                     //patrially covered
-                    line1.setXY(x0, y0);
-                    line2.setXY(x0, y0);
-                    line3.setXY(x0, y0);
+                    pack.setXY(x0,y0);
                     auto line = mBitmap[y0];
                     foreach(y;y0..y1)
                     {
                         foreach(x;x0..x1)
                         {
-                            if(line1.curr > 0 && line2.curr > 0 && line3.curr > 0)
+                            if(pack.check())
                             {
                                 line[x] = ColorGreen;
                             }
-                            line1.incX(1);
-                            line2.incX(1);
-                            line3.incX(1);
+                            pack.incX(1);
                         }
-                        line1.incY(1);
-                        line2.incY(1);
-                        line3.incY(1);
+                        pack.incY(1);
                         ++line;
                     }
                 }
-
-                /*if(line1.curr > 0 &&
-                   line2.curr > 0 &&
-                   line3.curr > 0)
-                {
-                    line[x] = ColorRed;
-                }*/
-
             }
-            //line++;
         }
     }
 }
