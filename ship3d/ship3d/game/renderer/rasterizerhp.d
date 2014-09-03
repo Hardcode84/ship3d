@@ -14,6 +14,9 @@ private:
     TextureT mTexture;
     Rect mClipRect;
 
+    enum TileWidth  = 8;
+    enum TileHeight = 8;
+
     struct Line(PosT)
     {
         immutable PosT dx, dy, c;
@@ -127,25 +130,26 @@ public:
         auto line1 = LineT(pverts[0], pverts[1], minX, minY);
         auto line2 = LineT(pverts[1], pverts[2], minX, minY);
         auto line3 = LineT(pverts[2], pverts[0], minX, minY);
-        //line1.incXY(minX, minY);
-        //line2.incXY(minX, minY);
-        //line3.incXY(minX, minY);
-        foreach(y;minY..maxY)
+
+        const minTx = minX / TileWidth;
+        const maxTx = (maxX + TileWidth - 1) / TileWidth;
+        const minTy = minY / TileHeight;
+        const maxTy = (maxY + TileHeight - 1) / TileHeight;
+        foreach(ty;minTy..maxTy)
         {
-            //debugOut(y);
-            foreach(x;minX..maxX)
+            const y0 = (ty + 0) * TileHeight;
+            const y1 = (ty + 1) * TileHeight;
+            foreach(tx;minTx..maxTx)
             {
-                //debugOut(x);
-                if(line1.curr > 0 &&
+                const x0 = (tx + 0) * TileWidth;
+                const x1 = (tx + 1) * TileWidth;
+
+                /*if(line1.curr > 0 &&
                    line2.curr > 0 &&
                    line3.curr > 0)
                 {
                     line[x] = ColorRed;
-                }
-                else
-                {
-                    //line[x] = ColorGreen;
-                }
+                }*/
                 line1.incX(1);
                 line2.incX(1);
                 line3.incX(1);

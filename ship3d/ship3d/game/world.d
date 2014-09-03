@@ -55,7 +55,7 @@ public:
 
         static float si = 1;
         mat4 t = mProjMat * mat4.translation(0,0,-3) * mat4.yrotation(si);
-        si += 0.005;
+        //si += 0.005;
 
         foreach(i;0..verts.length)
         {
