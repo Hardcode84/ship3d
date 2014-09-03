@@ -14,8 +14,10 @@ private:
     TextureT mTexture;
     Rect mClipRect;
 
-    enum TileWidth  = 8;
-    enum TileHeight = 8;
+    enum MinTileWidth  = 16;
+    enum MinTileHeight = 16;
+    enum MaxTileWidth  = 2048;
+    enum MaxTileHeight = 2048;
 
     struct Line(PosT)
     {
@@ -30,7 +32,12 @@ private:
             dx = x2 - x1;
             dy = y2 - y1;
             c = (dy * x1 - dx * y1);
-            cy = c + dx * minY - dy * minX;
+            setXY(minX, minY);
+        }
+
+        void setXY(int x, int y) pure nothrow
+        {
+            cy = val(x, y);
             cx = cy;
         }
 
@@ -50,7 +57,25 @@ private:
             return c + dx * y - dy * x;
         }
 
+        uint testTile(int x1, int y1, int x2, int y2) const pure nothrow
+        {
+            bool a00 = (val(x1, y1) > 0);
+            bool a10 = (val(x2, y1) > 0); 
+            bool a01 = (val(x1, y2) > 0);
+            bool a11 = (val(x2, y2) > 0);
+            return (a00 << 0) | (a10 << 1) | (a01 << 2) | (a11 << 3);
+        }
+
         @property auto curr() const pure nothrow { return cx; } 
+    }
+
+    struct Tile(int W, int H, PosT)
+    {
+        immutable int x0, x1;
+        immutable int y0, y1;
+        this(int i)
+        {
+        }
     }
 public:
     this(BitmapT b)
@@ -125,24 +150,182 @@ public:
         //debugOut(minY);
         //debugOut(maxY);
 
-        auto line = mBitmap[minY];
+        //auto line = mBitmap[minY];
 
         auto line1 = LineT(pverts[0], pverts[1], minX, minY);
         auto line2 = LineT(pverts[1], pverts[2], minX, minY);
         auto line3 = LineT(pverts[2], pverts[0], minX, minY);
 
-        const minTx = minX / TileWidth;
-        const maxTx = (maxX + TileWidth - 1) / TileWidth;
-        const minTy = minY / TileHeight;
-        const maxTy = (maxY + TileHeight - 1) / TileHeight;
+        void drawArea(int TileWidth, int TileHeight)(in int x0, in int y0, in uint abc)
+        {
+            if(0x0 == abc)
+            {
+                //uncovered
+            }
+            else if(0xfff == abc)
+            {
+                //completely covered
+                auto line = mBitmap[y0];
+                foreach(y;y0..(x0 + TileHeight))
+                {
+                    foreach(x;x0..(x0 + TileWidth))
+                    {
+                        line[x] = ColorRed;
+                    }
+                    ++line;
+                }
+            }
+            else
+            {
+                //patrially covered
+                static if(TileWidth == MinTileWidth && TileHeight == MinTileHeight)
+                {
+                    line1.setXY(x0, y0);
+                    line2.setXY(x0, y0);
+                    line3.setXY(x0, y0);
+                    auto line = mBitmap[y0];
+                    foreach(y;y0..(y0 + TileHeight))
+                    {
+                        foreach(x;x0..(x0 + TileWidth))
+                        {
+                            if(line1.curr > 0 && line2.curr > 0 && line3.curr > 0)
+                            {
+                                line[x] = ColorGreen;
+                            }
+                            line1.incX(1);
+                            line2.incX(1);
+                            line3.incX(1);
+                        }
+                        line1.incY(1);
+                        line2.incY(1);
+                        line3.incY(1);
+                        ++line;
+                    }
+                }
+                else
+                {
+                    enum NewTileWidth = TileWidth / 2;
+                    enum NewTileHeight = TileHeight / 2;
+                    const x1 = x0 + NewTileWidth;
+                    const y1 = y0 + NewTileHeight;
+                }
+            }
+
+
+            const minTx = minX / TileWidth;
+            const maxTx = (maxX + TileWidth - 1) / TileWidth;
+            const minTy = minY / TileHeight;
+            const maxTy = (maxY + TileHeight - 1) / TileHeight;
+            foreach(ty;minTy..maxTy)
+            {
+                const y0 = (ty + 0) * TileHeight;
+                const y1 = (ty + 1) * TileHeight;
+                foreach(tx;minTx..maxTx)
+                {
+                    const x0 = (tx + 0) * TileWidth;
+                    const x1 = (tx + 1) * TileWidth;
+                    const a = line1.testTile(x0, y0, x1, y1);
+                    const b = line2.testTile(x0, y0, x1, y1);
+                    const c = line3.testTile(x0, y0, x1, y1);
+                    if(0x0 == a && 0x0 == b && 0x0 == c) continue; //uncovered
+                    
+                    if(0xf == a && 0xf == b && 0xf == c)
+                    {
+                        //completely covered
+                        auto line = mBitmap[y0];
+                        foreach(y;y0..y1)
+                        {
+                            foreach(x;x0..x1)
+                            {
+                                line[x] = ColorRed;
+                            }
+                            ++line;
+                        }
+                    }
+                    else
+                    {
+                        //patrially covered
+                        line1.setXY(x0, y0);
+                        line2.setXY(x0, y0);
+                        line3.setXY(x0, y0);
+                        auto line = mBitmap[y0];
+                        foreach(y;y0..y1)
+                        {
+                            foreach(x;x0..x1)
+                            {
+                                if(line1.curr > 0 && line2.curr > 0 && line3.curr > 0)
+                                {
+                                    line[x] = ColorGreen;
+                                }
+                                line1.incX(1);
+                                line2.incX(1);
+                                line3.incX(1);
+                            }
+                            line1.incY(1);
+                            line2.incY(1);
+                            line3.incY(1);
+                            ++line;
+                        }
+                    }
+                }
+            }
+        }
+
+        const minTx = minX / MinTileWidth;
+        const maxTx = (maxX + MinTileWidth - 1) / MinTileWidth;
+        const minTy = minY / MinTileHeight;
+        const maxTy = (maxY + MinTileHeight - 1) / MinTileHeight;
         foreach(ty;minTy..maxTy)
         {
-            const y0 = (ty + 0) * TileHeight;
-            const y1 = (ty + 1) * TileHeight;
+            const y0 = (ty + 0) * MinTileHeight;
+            const y1 = (ty + 1) * MinTileHeight;
             foreach(tx;minTx..maxTx)
             {
-                const x0 = (tx + 0) * TileWidth;
-                const x1 = (tx + 1) * TileWidth;
+                const x0 = (tx + 0) * MinTileWidth;
+                const x1 = (tx + 1) * MinTileWidth;
+                const a = line1.testTile(x0, y0, x1, y1);
+                const b = line2.testTile(x0, y0, x1, y1);
+                const c = line3.testTile(x0, y0, x1, y1);
+                if(0x0 == a && 0x0 == b && 0x0 == c) continue;
+
+                if(0xf == a && 0xf == b && 0xf == c)
+                {
+                    //completely covered
+                    auto line = mBitmap[y0];
+                    foreach(y;y0..y1)
+                    {
+                        foreach(x;x0..x1)
+                        {
+                            line[x] = ColorRed;
+                        }
+                        ++line;
+                    }
+                }
+                else
+                {
+                    //patrially covered
+                    line1.setXY(x0, y0);
+                    line2.setXY(x0, y0);
+                    line3.setXY(x0, y0);
+                    auto line = mBitmap[y0];
+                    foreach(y;y0..y1)
+                    {
+                        foreach(x;x0..x1)
+                        {
+                            if(line1.curr > 0 && line2.curr > 0 && line3.curr > 0)
+                            {
+                                line[x] = ColorGreen;
+                            }
+                            line1.incX(1);
+                            line2.incX(1);
+                            line3.incX(1);
+                        }
+                        line1.incY(1);
+                        line2.incY(1);
+                        line3.incY(1);
+                        ++line;
+                    }
+                }
 
                 /*if(line1.curr > 0 &&
                    line2.curr > 0 &&
@@ -150,14 +333,9 @@ public:
                 {
                     line[x] = ColorRed;
                 }*/
-                line1.incX(1);
-                line2.incX(1);
-                line3.incX(1);
+
             }
-            line1.incY(1);
-            line2.incY(1);
-            line3.incY(1);
-            line++;
+            //line++;
         }
     }
 }
