@@ -4,6 +4,7 @@ import std.traits;
 import std.algorithm;
 
 import gamelib.util;
+import gamelib.math;
 
 import game.units;
 
@@ -16,6 +17,8 @@ private:
 
     enum MinTileWidth  = 16;
     enum MinTileHeight = 16;
+    enum MinTreeTileWidth = 64;
+    enum MinTreeTileHeight = 64;
     enum MaxTileWidth  = 2048;
     enum MaxTileHeight = 2048;
 
@@ -71,7 +74,8 @@ private:
 
     struct LinesPack(LineT)
     {
-        LineT[3] lines;
+        enum NumLines = 3;
+        LineT[NumLines] lines;
         this(VT)(in VT v1, in VT v2, in VT v3, int minX, int minY) pure nothrow
         {
             lines = [LineT(v1, v2, minX, minY),LineT(v2, v3, minX, minY),LineT(v3, v1, minX, minY)];
@@ -79,39 +83,40 @@ private:
 
         void incX(int val) pure nothrow
         {
-            foreach(ref line;lines)
+            foreach(i;TupleRange!(0,NumLines))
             {
-                line.incX(val);
+                lines[i].incX(val);
             }
         }
 
         void incY(int val) pure nothrow
         {
-            foreach(ref line;lines)
+            foreach(i;TupleRange!(0,NumLines))
             {
-                line.incY(val);
+                lines[i].incY(val);
             }
         }
 
         void setXY(int x, int y) pure nothrow
         {
-            foreach(ref line;lines)
+            foreach(i;TupleRange!(0,NumLines))
             {
-                line.setXY(x, y);
+                lines[i].setXY(x, y);
             }
         }
 
         auto check() const pure nothrow
         {
-            return all!"a.curr > 0"(lines[]);
+            //return all!"a.curr > 0"(lines[]);
+            return lines[0].curr > 0 && lines[1].curr > 0 && lines[2].curr > 0;
         }
 
         auto testTile(int x1, int y1, int x2, int y2) const pure nothrow
         {
             uint res = 0;
-            foreach(i,ref line;lines)
+            foreach(i;TupleRange!(0,NumLines))
             {
-                res |= (line.testTile(x1,y1,x2,y2) << (4 * i));
+                res |= (lines[i].testTile(x1,y1,x2,y2) << (4 * i));
             }
             return res;
         }
@@ -155,7 +160,7 @@ public:
         mClipRect = Rect(dstLeft, dstTop, dstRight - dstLeft, dstBottom - dstTop);
     }
     
-    void drawIndexedTriangle(bool HasTextures = false, bool HasColor = true,VertT,IndT)(in VertT[] verts, in IndT[3] indices) if(isIntegral!IndT)
+    void drawIndexedTriangle(bool HasTextures = false, bool HasColor = true,VertT,IndT)(in VertT[] verts, in IndT[3] indices) pure nothrow if(isIntegral!IndT)
     {
         const(VertT)*[3] pverts;
         foreach(i,ind; indices) pverts[i] = verts.ptr + ind;
@@ -174,7 +179,7 @@ public:
         if(affine) drawTriangle!(HasTextures, HasColor,true)(pverts);
         else       drawTriangle!(HasTextures, HasColor,false)(pverts);
     }
-    private void drawTriangle(bool HasTextures, bool HasColor,bool Affine,VertT)(in VertT[3] pverts)
+    private void drawTriangle(bool HasTextures, bool HasColor,bool Affine,VertT)(in VertT[3] pverts) pure nothrow
     {
         static assert(HasTextures != HasColor);
         alias PosT = Unqual!(typeof(VertT.pos.x));
@@ -203,8 +208,10 @@ public:
 
         auto pack = PackT(pverts[0], pverts[1], pverts[2], minX, minY);
 
+        /*int callCount = 0;
         void drawArea(int TileWidth, int TileHeight)(int x0, int y0, uint abc)
         {
+            ++callCount;
             if(0x0 == abc)
             {
                 //uncovered
@@ -214,7 +221,7 @@ public:
             {
                 //completely covered
                 auto line = mBitmap[y0];
-                foreach(y;y0..(x0 + TileHeight))
+                foreach(y;y0..(y0 + TileHeight))
                 {
                     foreach(x;x0..(x0 + TileWidth))
                     {
@@ -226,7 +233,7 @@ public:
             else
             {
                 //patrially covered
-                static if(TileWidth == MinTileWidth && TileHeight == MinTileHeight)
+                static if(TileWidth == MinTreeTileWidth && TileHeight == MinTreeTileHeight)
                 {
                     pack.setXY(x0,y0);
                     auto line = mBitmap[y0];
@@ -266,7 +273,7 @@ public:
 
         void clipArea(int TileWidth, int TileHeight)(int x0, int y0)
         {
-            static if(TileWidth == MinTileWidth && TileHeight == MinTileHeight)
+            static if(TileWidth == MinTreeTileWidth && TileHeight == MinTreeTileHeight)
             {
                 const abc = pack.testTile(x0,y0,x0 + TileWidth,y0 + TileHeight);
                 drawArea!(TileWidth, TileHeight)(x0, y0, abc);
@@ -288,17 +295,23 @@ public:
                 {
                     enum HalfTileWidth  = TileWidth / 2;
                     enum HalfTileHeight = TileHeight / 2;
-                    clipArea!(HalfTileWidth, HalfTileHeight)(minTx * HalfTileWidth, minTy * HalfTileHeight);
+                    clipArea!(HalfTileWidth, HalfTileHeight)(x0 + 0 * HalfTileWidth, y0 + 0 * HalfTileHeight);
+                    clipArea!(HalfTileWidth, HalfTileHeight)(x0 + 1 * HalfTileWidth, y0 + 0 * HalfTileHeight);
+                    clipArea!(HalfTileWidth, HalfTileHeight)(x0 + 0 * HalfTileWidth, y0 + 1 * HalfTileHeight);
+                    clipArea!(HalfTileWidth, HalfTileHeight)(x0 + 1 * HalfTileWidth, y0 + 1 * HalfTileHeight);
                 }
             }
-        }
+        }*/
 
-        clipArea!(MaxTileWidth,MaxTileHeight)(0,0);
+        //debugOut("lll");
+        //clipArea!(MaxTileWidth,MaxTileHeight)(0,0);
 
         //const abc = pack.testTile(0,0,2048,2048);
         //drawArea!(2048,2048)(0,0,abc);
 
-        /*const minTx = minX / MinTileWidth;
+        //debugOut(callCount);
+
+        const minTx = minX / MinTileWidth;
         const maxTx = (maxX + MinTileWidth - 1) / MinTileWidth;
         const minTy = minY / MinTileHeight;
         const maxTy = (maxY + MinTileHeight - 1) / MinTileHeight;
@@ -346,6 +359,7 @@ public:
                     }
                 }
             }
-        }*/
+        }
+        //end
     }
 }
