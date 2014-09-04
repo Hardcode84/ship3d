@@ -203,11 +203,12 @@ public:
 
         auto pack = PackT(pverts[0], pverts[1], pverts[2], minX, minY);
 
-        /*void drawArea(int TileWidth, int TileHeight)(in int x0, in int y0, in uint abc)
+        void drawArea(int TileWidth, int TileHeight)(int x0, int y0, uint abc)
         {
             if(0x0 == abc)
             {
                 //uncovered
+                return;
             }
             else if(0xfff == abc)
             {
@@ -227,98 +228,77 @@ public:
                 //patrially covered
                 static if(TileWidth == MinTileWidth && TileHeight == MinTileHeight)
                 {
-                    line1.setXY(x0, y0);
-                    line2.setXY(x0, y0);
-                    line3.setXY(x0, y0);
+                    pack.setXY(x0,y0);
                     auto line = mBitmap[y0];
                     foreach(y;y0..(y0 + TileHeight))
                     {
                         foreach(x;x0..(x0 + TileWidth))
                         {
-                            if(line1.curr > 0 && line2.curr > 0 && line3.curr > 0)
+                            if(pack.check())
                             {
                                 line[x] = ColorGreen;
                             }
-                            line1.incX(1);
-                            line2.incX(1);
-                            line3.incX(1);
+                            pack.incX(1);
                         }
-                        line1.incY(1);
-                        line2.incY(1);
-                        line3.incY(1);
+                        pack.incY(1);
                         ++line;
                     }
                 }
                 else
                 {
-                    enum NewTileWidth = TileWidth / 2;
+                    enum NewTileWidth  = TileWidth / 2;
                     enum NewTileHeight = TileHeight / 2;
                     const x1 = x0 + NewTileWidth;
                     const y1 = y0 + NewTileHeight;
+                    const x2 = x1 + NewTileWidth;
+                    const y2 = y1 + NewTileHeight;
+                    const abc00 = pack.testTile(x0,y0,x1,y1);
+                    const abc10 = pack.testTile(x1,y0,x2,y1);
+                    const abc01 = pack.testTile(x0,y1,x1,y2);
+                    const abc11 = pack.testTile(x1,y1,x2,y2);
+                    drawArea!(NewTileWidth, NewTileHeight)(x0,y0,abc00);
+                    drawArea!(NewTileWidth, NewTileHeight)(x1,y0,abc10);
+                    drawArea!(NewTileWidth, NewTileHeight)(x0,y1,abc01);
+                    drawArea!(NewTileWidth, NewTileHeight)(x1,y1,abc11);
                 }
             }
+        }
 
-
-            const minTx = minX / TileWidth;
-            const maxTx = (maxX + TileWidth - 1) / TileWidth;
-            const minTy = minY / TileHeight;
-            const maxTy = (maxY + TileHeight - 1) / TileHeight;
-            foreach(ty;minTy..maxTy)
+        void clipArea(int TileWidth, int TileHeight)(int x0, int y0)
+        {
+            static if(TileWidth == MinTileWidth && TileHeight == MinTileHeight)
             {
-                const y0 = (ty + 0) * TileHeight;
-                const y1 = (ty + 1) * TileHeight;
-                foreach(tx;minTx..maxTx)
+                const abc = pack.testTile(x0,y0,x0 + TileWidth,y0 + TileHeight);
+                drawArea!(TileWidth, TileHeight)(x0, y0, abc);
+            }
+            else
+            {
+                const minTx = minX / TileWidth;
+                const maxTx = maxX / TileWidth;
+                const minTy = minY / TileHeight;
+                const maxTy = maxY / TileHeight;
+                const dTx = maxTx - minTx;
+                const dTy = maxTy - minTy;
+                if(dTx > 0 || dTy > 0)
                 {
-                    const x0 = (tx + 0) * TileWidth;
-                    const x1 = (tx + 1) * TileWidth;
-                    const a = line1.testTile(x0, y0, x1, y1);
-                    const b = line2.testTile(x0, y0, x1, y1);
-                    const c = line3.testTile(x0, y0, x1, y1);
-                    if(0x0 == a && 0x0 == b && 0x0 == c) continue; //uncovered
-                    
-                    if(0xf == a && 0xf == b && 0xf == c)
-                    {
-                        //completely covered
-                        auto line = mBitmap[y0];
-                        foreach(y;y0..y1)
-                        {
-                            foreach(x;x0..x1)
-                            {
-                                line[x] = ColorRed;
-                            }
-                            ++line;
-                        }
-                    }
-                    else
-                    {
-                        //patrially covered
-                        line1.setXY(x0, y0);
-                        line2.setXY(x0, y0);
-                        line3.setXY(x0, y0);
-                        auto line = mBitmap[y0];
-                        foreach(y;y0..y1)
-                        {
-                            foreach(x;x0..x1)
-                            {
-                                if(line1.curr > 0 && line2.curr > 0 && line3.curr > 0)
-                                {
-                                    line[x] = ColorGreen;
-                                }
-                                line1.incX(1);
-                                line2.incX(1);
-                                line3.incX(1);
-                            }
-                            line1.incY(1);
-                            line2.incY(1);
-                            line3.incY(1);
-                            ++line;
-                        }
-                    }
+                    const abc = pack.testTile(x0,y0,x0 + TileWidth,y0 + TileHeight);
+                    drawArea!(TileWidth,TileHeight)(x0, y0,abc);
+                }
+                else
+                {
+                    enum HalfTileWidth  = TileWidth / 2;
+                    enum HalfTileHeight = TileHeight / 2;
+                    clipArea!(HalfTileWidth, HalfTileHeight)(minTx * HalfTileWidth, minTy * HalfTileHeight);
                 }
             }
-        }*/
+        }
 
-        const minTx = minX / MinTileWidth;
+        clipArea!(MaxTileWidth,MaxTileHeight)(0,0);
+
+        //const abc = pack.testTile(0,0,2048,2048);
+        //drawArea!(2048,2048)(0,0,abc);
+
+        /*const minTx = minX / MinTileWidth;
         const maxTx = (maxX + MinTileWidth - 1) / MinTileWidth;
         const minTy = minY / MinTileHeight;
         const maxTy = (maxY + MinTileHeight - 1) / MinTileHeight;
@@ -366,6 +346,6 @@ public:
                     }
                 }
             }
-        }
+        }*/
     }
 }
