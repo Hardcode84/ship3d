@@ -17,8 +17,8 @@ private:
 
     enum MinTileWidth  = 16;
     enum MinTileHeight = 16;
-    enum MinTreeTileWidth = 64;
-    enum MinTreeTileHeight = 64;
+    enum MinTreeTileWidth = 128;
+    enum MinTreeTileHeight = 128;
     enum MaxTileWidth  = 2048;
     enum MaxTileHeight = 2048;
 
@@ -208,10 +208,51 @@ public:
 
         auto pack = PackT(pverts[0], pverts[1], pverts[2], minX, minY);
 
-        /*int callCount = 0;
+        void fillTile(int TileWidth, int TileHeight, int x0, int y0)
+        {
+            auto line = mBitmap[y0];
+            foreach(y;y0..(y0 + TileHeight))
+            {
+                foreach(x;x0..(x0 + TileWidth))
+                {
+                    line[x] = ColorRed;
+                }
+                ++line;
+            }
+        }
+
+        void drawTile(int TileWidth, int TileHeight, int x0, int y0)
+        {
+            assert(0 == x0 % TileWidth);
+            assert(0 == y0 % TileHeight);
+            assert(x0 >= 0, debugConv(x0));
+            assert(y0 >= 0, debugConv(y0));
+            pack.setXY(x0,y0);
+            auto line = mBitmap[y0];
+            const x1 = x0 + TileWidth;
+            const y1 = y0 + TileHeight;
+            assert(x1 < (maxX + TileWidth), debugConv(x1)~" "~debugConv(maxX));
+            assert(y1 < (maxY + TileHeight), debugConv(y1)~" "~debugConv(maxY));
+            foreach(y;y0..y1)
+            {
+                foreach(x;x0..x1)
+                {
+                    if(pack.check())
+                    {
+                        line[x] = ColorGreen;
+                    }
+                    pack.incX(1);
+                }
+                //line[x0] = ColorBlue;
+                pack.incY(1);
+                ++line;
+            }
+        }
+
+        //int callCount = 0;
         void drawArea(int TileWidth, int TileHeight)(int x0, int y0, uint abc)
         {
-            ++callCount;
+            //++callCount;
             if(0x0 == abc)
             {
                 //uncovered
@@ -220,35 +261,40 @@ public:
             else if(0xfff == abc)
             {
                 //completely covered
-                auto line = mBitmap[y0];
-                foreach(y;y0..(y0 + TileHeight))
-                {
-                    foreach(x;x0..(x0 + TileWidth))
-                    {
-                        line[x] = ColorRed;
-                    }
-                    ++line;
-                }
+                fillTile(TileWidth,TileHeight,x0,y0);
             }
             else
             {
                 //patrially covered
-                static if(TileWidth == MinTreeTileWidth && TileHeight == MinTreeTileHeight)
+                static if(TileWidth <= MinTreeTileWidth && TileHeight <= MinTreeTileHeight)
                 {
-                    pack.setXY(x0,y0);
-                    auto line = mBitmap[y0];
-                    foreach(y;y0..(y0 + TileHeight))
+                    const x1 = x0 + TileWidth;
+                    const y1 = y0 + TileHeight;
+                    const tx0 = max(minX, x0) / MinTileWidth;
+                    const ty0 = max(minY, y0) / MinTileHeight;
+                    const tx1 = 1 + min(maxX, x1) / MinTileWidth;
+                    const ty1 = 1 + min(maxY, y1) / MinTileHeight;
+
+                    foreach(ty;ty0..ty1)
                     {
-                        foreach(x;x0..(x0 + TileWidth))
+                        const y = ty * MinTileHeight;
+                        foreach(tx;tx0..tx1)
                         {
-                            if(pack.check())
+                            const x = tx * MinTileWidth;
+                            auto res = pack.testTile(x, y, x + MinTileWidth, y + MinTileHeight);
+                            if(0x0 == res) continue;
+                            
+                            if(0xfff == res)
                             {
-                                line[x] = ColorGreen;
+                                fillTile(MinTileWidth,MinTileHeight,x,y);
                             }
-                            pack.incX(1);
+                            else
+                            {
+                                //debugOut(x);
+                                //debugOut(y);
+                                drawTile(MinTileWidth,MinTileHeight,x,y);
+                            }
                         }
-                        pack.incY(1);
-                        ++line;
                     }
                 }
                 else
@@ -301,17 +347,19 @@ public:
                     clipArea!(HalfTileWidth, HalfTileHeight)(x0 + 1 * HalfTileWidth, y0 + 1 * HalfTileHeight);
                 }
             }
-        }*/
+        }
 
         //debugOut("lll");
-        //clipArea!(MaxTileWidth,MaxTileHeight)(0,0);
+        assert(mBitmap.width <= MaxTileWidth);
+        assert(mBitmap.height <= MaxTileHeight);
+        clipArea!(MaxTileWidth,MaxTileHeight)(0,0);
 
         //const abc = pack.testTile(0,0,2048,2048);
         //drawArea!(2048,2048)(0,0,abc);
 
         //debugOut(callCount);
 
-        const minTx = minX / MinTileWidth;
+        /*const minTx = minX / MinTileWidth;
         const maxTx = (maxX + MinTileWidth - 1) / MinTileWidth;
         const minTy = minY / MinTileHeight;
         const maxTy = (maxY + MinTileHeight - 1) / MinTileHeight;
@@ -359,7 +407,7 @@ public:
                     }
                 }
             }
-        }
+        }*/
         //end
     }
 }

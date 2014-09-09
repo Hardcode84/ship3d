@@ -143,6 +143,8 @@ private:
         }
         catch(ColorFormatException e)
         {
+            import std.stdio;
+            writeln(e);
             const s = mWindow.size;
             mSurface = new FFSurface!ColorT(s.x, s.y);
         }
@@ -202,7 +204,7 @@ private:
         }
         mRenderer.present();
         */
-        mWindow.updateSurface(mSurface);
+        //mWindow.updateSurface(mSurface);
     }
 
     mixin GenerateAutoDispose;
