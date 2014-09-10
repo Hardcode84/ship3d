@@ -1,4 +1,4 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Project DefaultTargets="Build" ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
     <Configuration Condition=" '$(Configuration)' == '' ">Debug</Configuration>
@@ -9,7 +9,6 @@
     <UseDefaultCompiler>true</UseDefaultCompiler>
     <IncrementalLinking>true</IncrementalLinking>
     <PreferOneStepBuild>true</PreferOneStepBuild>
-    <BaseDirectory>.</BaseDirectory>
     <Compiler>DMD2</Compiler>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
@@ -22,6 +21,11 @@
     <Externalconsole>true</Externalconsole>
     <Target>Executable</Target>
     <OutputName>ship3d</OutputName>
+    <Libs>
+      <Libs>
+        <Lib>gdi32.lib</Lib>
+      </Libs>
+    </Libs>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <OutputPath>bin\Release</OutputPath>
@@ -32,6 +36,11 @@
     <Externalconsole>true</Externalconsole>
     <Target>Executable</Target>
     <OutputName>ship3d</OutputName>
+    <Libs>
+      <Libs>
+        <Lib>gdi32.lib</Lib>
+      </Libs>
+    </Libs>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Unittest|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -47,8 +56,8 @@
   <ItemGroup>
     <Compile Include="main.d" />
     <Compile Include="game\game.d" />
-    <Compile Include="game\world.d" />
     <Compile Include="game\units.d" />
+    <Compile Include="game\world.d" />
     <Compile Include="game\renderer\rasterizer.d" />
     <Compile Include="game\renderer\texture.d" />
     <Compile Include="gamelib\autodispose.d" />

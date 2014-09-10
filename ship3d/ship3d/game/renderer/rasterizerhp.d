@@ -352,7 +352,7 @@ public:
         //debugOut("lll");
         assert(mBitmap.width <= MaxTileWidth);
         assert(mBitmap.height <= MaxTileHeight);
-        clipArea!(MaxTileWidth,MaxTileHeight)(0,0);
+        //clipArea!(MaxTileWidth,MaxTileHeight)(0,0);
 
         //const abc = pack.testTile(0,0,2048,2048);
         //drawArea!(2048,2048)(0,0,abc);
@@ -408,6 +408,40 @@ public:
                 }
             }
         }*/
+
+        const minTx = minX / MinTreeTileWidth;
+        const maxTx = (maxX + MinTreeTileWidth - 1) / MinTreeTileWidth;
+        const minTy = minY / MinTreeTileHeight;
+        const maxTy = (maxY + MinTreeTileHeight - 1) / MinTreeTileHeight;
+        void drawAreaLvel(int TileWidth, int TileHeight)(int tx0, int ty0, int tx1, int ty1)
+        {
+            foreach(ty;ty0..ty1)
+            {
+                const y0 = (ty + 0) * TileHeight;
+                const y1 = (ty + 1) * TileHeight;
+                foreach(tx;tx0..tx1)
+                {
+                    const x0 = (tx + 0) * TileWidth;
+                    const x1 = (tx + 1) * TileWidth;
+                    auto res = pack.testTile(x0, y0, x1, y1);
+                    if(0x0 == res) continue; //uncovered
+
+                    enum NextTileWidth  = TileWidth  / 4;
+                    enum NextTileHeight = TileHeight / 4;
+                    static assert(NextTileWidth  >= MinTileWidth);
+                    static assert(NextTileHeight >= MinTileHeight);
+                    if(0xfff == res)
+                    {
+                        //completely covered
+                    }
+                    else
+                    {
+                        //patrially covered
+
+                    }
+                }
+            }
+        }
         //end
     }
 }
