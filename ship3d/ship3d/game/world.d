@@ -37,7 +37,7 @@ public:
 
     void draw(SurfT surf)
     {
-        surf.fill(ColorBlack);
+        surf.fill(ColorWhite);
         Vertex[4] verts;
 
         verts[0].pos  = vec4(-1,-1,0,1);
