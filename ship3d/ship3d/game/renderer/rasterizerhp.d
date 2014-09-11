@@ -15,10 +15,10 @@ private:
     TextureT mTexture;
     Rect mClipRect;
 
-    enum MinTileWidth  = 16;
-    enum MinTileHeight = 16;
-    enum MinTreeTileWidth = 128;
-    enum MinTreeTileHeight = 128;
+    enum MinTileWidth  = 8;
+    enum MinTileHeight = 8;
+    enum MinTreeTileWidth = 512;
+    enum MinTreeTileHeight = 512;
     enum MaxTileWidth  = 2048;
     enum MaxTileHeight = 2048;
 
@@ -26,7 +26,7 @@ private:
     {
         immutable PosT dx, dy, c;
         PosT cx, cy;
-        this(VT)(in VT v1, in VT v2, int minX, int minY) pure nothrow
+        this(VT)(in VT v1, in VT v2, in VT v3, int minX, int minY) pure nothrow
         {
             const x1 = v1.pos.x;
             const x2 = v2.pos.x;
@@ -78,7 +78,7 @@ private:
         LineT[NumLines] lines;
         this(VT)(in VT v1, in VT v2, in VT v3, int minX, int minY) pure nothrow
         {
-            lines = [LineT(v1, v2, minX, minY),LineT(v2, v3, minX, minY),LineT(v3, v1, minX, minY)];
+            lines = [LineT(v1, v2, v3, minX, minY),LineT(v2, v3, v1, minX, minY),LineT(v3, v1, v2, minX, minY)];
         }
 
         void incX(int val) pure nothrow
@@ -122,11 +122,19 @@ private:
         }
     }
 
+    struct Tiles(int W, int H, PosT)
+    {
+
+    }
+
     struct Tile(int W, int H, PosT)
     {
-        immutable int x0, x1;
-        immutable int y0, y1;
-        this(int i)
+        PosT swCurr;
+        immutable PosT swDelta;
+
+        int tx0, tx1;
+        int ty0, ty1;
+        this(int tx, int ty)
         {
         }
     }
@@ -212,7 +220,7 @@ public:
 
         auto pack = PackT(pverts[0], pverts[1], pverts[2], minX, minY);
 
-        void drawTile(int TileWidth, int TileHeight, int x0, int y0)
+        void drawTile(bool Fill = false)(int TileWidth, int TileHeight, int x0, int y0)
         {
             assert(0 == x0 % TileWidth);
             assert(0 == y0 % TileHeight);
@@ -222,20 +230,20 @@ public:
             auto line = mBitmap[y0];
             const x1 = x0 + TileWidth;
             const y1 = y0 + TileHeight;
-            assert(x1 < (maxX + TileWidth),  debugConv(x1)~" "~debugConv(maxX));
-            assert(y1 < (maxY + TileHeight), debugConv(y1)~" "~debugConv(maxY));
+            //assert(x1 < (maxX + TileWidth),  debugConv(x1)~" "~debugConv(maxX));
+            //assert(y1 < (maxY + TileHeight), debugConv(y1)~" "~debugConv(maxY));
             foreach(y;y0..y1)
             {
                 foreach(x;x0..x1)
                 {
-                    if(pack.check())
+                    if(Fill || pack.check())
                     {
-                        line[x] = ColorGreen;
+                        line[x] = Fill ? ColorRed : ColorGreen;
                     }
-                    else if(x < mClipRect.w && y < mClipRect.h)
+                    /*else if(x < mClipRect.w && y < mClipRect.h)
                     {
                         line[x] = ColorBlue;
-                    }
+                    }*/
                     pack.incX(1);
                 }
                 //line[x0] = ColorBlue;
@@ -246,19 +254,11 @@ public:
 
         void fillTile(int TileWidth, int TileHeight, int x0, int y0)
         {
-            auto line = mBitmap[y0];
-            foreach(y;y0..(y0 + TileHeight))
-            {
-                foreach(x;x0..(x0 + TileWidth))
-                {
-                    line[x] = ColorRed;
-                }
-                ++line;
-            }
+            drawTile!true(TileWidth, TileHeight, x0, y0);
         }
 
         //int callCount = 0;
-        void drawArea(int TileWidth, int TileHeight)(int x0, int y0, uint abc)
+        /*void drawArea(int TileWidth, int TileHeight)(int x0, int y0, uint abc)
         {
             //++callCount;
             if((0 == (abc & 0xf)) || (0 == (abc & 0xf0)) || (0 == (abc & 0xf00))) 
@@ -353,7 +353,7 @@ public:
                     clipArea!(HalfTileWidth, HalfTileHeight)(x0 + 1 * HalfTileWidth, y0 + 1 * HalfTileHeight);
                 }
             }
-        }
+        }*/
 
         //debugOut("lll");
         //assert(mBitmap.width <= MaxTileWidth);
@@ -393,12 +393,11 @@ public:
             }
         }*/
 
-        void drawAreaLevel(int TileWidth, int TileHeight)(int x0, int y0, int x1, int y1)
+        void drawAreaLevel(int TileWidth, int TileHeight)(int tx0, int ty0, int tx1, int ty1)
         {
-            const tx0 = x0 / TileWidth;
-            const tx1 = (x1 + TileWidth - 1) / TileWidth;
-            const ty0 = y0 / TileHeight;
-            const ty1 = (y1 + TileHeight - 1) / TileHeight;
+            static assert(TileWidth  >= MinTileWidth);
+            static assert(TileHeight >= MinTileHeight);
+            enum FinalLevel = (TileWidth == MinTileWidth && TileHeight == MinTileHeight);
             auto yt0 = ty0 * TileHeight;
             foreach(ty;ty0..ty1)
             {
@@ -420,13 +419,18 @@ public:
                     else
                     {
                         //patrially covered
-                        static if(TileWidth > MinTileWidth && TileHeight > MinTileHeight)
+                        static if(!FinalLevel)
                         {
-                            enum NextTileWidth  = TileWidth  / 4;
-                            enum NextTileHeight = TileHeight / 4;
+                            enum Coeff = 4;
+                            enum NextTileWidth  = TileWidth  / Coeff;
+                            enum NextTileHeight = TileHeight / Coeff;
                             static assert(NextTileWidth  >= MinTileWidth);
                             static assert(NextTileHeight >= MinTileHeight);
-                            drawAreaLevel!(NextTileWidth, NextTileHeight)(xt0, yt0, xt1, yt1);
+                            const ntx0 = tx * Coeff;
+                            const nty0 = ty * Coeff;
+                            const ntx1 = ntx0 + Coeff;
+                            const nty1 = nty0 + Coeff;
+                            drawAreaLevel!(NextTileWidth, NextTileHeight)(ntx0, nty0, ntx1, nty1);
                         }
                         else
                         {
@@ -437,7 +441,16 @@ public:
             }
         }
 
-        drawAreaLevel!(64,64)(minX,minY,maxX,maxY);
+        void clipAreaLevel(int TileWidth, int TileHeight)(int x0, int y0, int x1, int y1)
+        {
+            const tx0 = x0 / TileWidth;
+            const tx1 = (x1 + TileWidth - 1) / TileWidth;
+            const ty0 = y0 / TileHeight;
+            const ty1 = (y1 + TileHeight - 1) / TileHeight;
+            drawAreaLevel!(TileWidth, TileHeight)(tx0,ty0,tx1,ty1);
+        }
+
+        clipAreaLevel!(MinTreeTileWidth,MinTreeTileHeight)(minX,minY,maxX,maxY);
 
         //end
     }
