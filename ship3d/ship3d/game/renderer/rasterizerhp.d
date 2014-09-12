@@ -78,17 +78,19 @@ private:
         }
     }
 
-    struct LinesPack(LineT)
+    struct LinesPack(PosT,LineT)
     {
         enum NumLines = 3;
         LineT[NumLines] lines;
+        immutable PosT[NumLines] w;
         this(VT)(in VT v1, in VT v2, in VT v3, int minX, int minY) pure nothrow
         {
-            const invDenom = 1 / ((v2.pos - v1.pos) * (v3.pos - v1.pos));
+            const invDenom = 1 / ((v2.pos - v1.pos).xy.wedge((v3.pos - v1.pos).xy));
             lines = [
                 LineT(v1, v2, minX, minY, invDenom),
                 LineT(v2, v3, minX, minY, invDenom),
                 LineT(v3, v1, minX, minY, invDenom)];
+            w = [v1.pos.w, v2.pos.w, v3.pos.w];
         }
 
         void incX(int val) pure nothrow
@@ -131,13 +133,28 @@ private:
             return res;
         }
 
-        void getBarycentric(PosT)(int x, int y, PosT[] ret) const pure nothrow
+        void getBarycentric(int x, int y, PosT[] ret) const pure nothrow
+        in
         {
-            foreach(i;TupleRange!(0,NumLines))
+            assert(ret.length == NumLines);
+        }
+        out
+        {
+            assert(almost_equal(cast(PosT)1, ret.sum), debugConv(ret.sum));
+            foreach(i,b;ret)
+            {
+                //debugOut(i);
+                //assert(b >= 0, debugConv(b));
+            }
+        }
+        body
+        {
+            foreach(i;TupleRange!(1,NumLines))
             {
                 //debugOut(lines[i].barycentric(x,y));
                 ret[i] = lines[(i + 1) % NumLines].barycentric(x,y);
             }
+            ret[0] = cast(PosT)1 - ret[1] - ret[2];
         }
     }
 
@@ -219,7 +236,7 @@ public:
             alias ColT = void;
         }
         alias LineT = Line!(PosT);
-        alias PackT = LinesPack!(LineT);
+        alias PackT = LinesPack!(PosT,LineT);
 
         int minY = cast(int)min(pverts[0].pos.y, pverts[1].pos.y, pverts[2].pos.y);
         int maxY = cast(int)max(pverts[0].pos.y, pverts[1].pos.y, pverts[2].pos.y);
@@ -254,12 +271,11 @@ public:
                         PosT[3] bary;
                         pack.getBarycentric(x,y, bary);
                         ColT[3] colors;
-                        colors[0] = ColT.lerp(pverts[0].color, ColorBlack, bary[0]);
-                        colors[1] = ColT.lerp(pverts[1].color, ColorBlack, bary[1]);
-                        colors[2] = ColT.lerp(pverts[2].color, ColorBlack, bary[2]);
-                        //colors[0] = pverts[0].color * bary[0];
-                        //colors[1] = pverts[1].color * bary[0];
-                        //colors[2] = pverts[2].color * bary[0];
+                        //bary[2] = 0;
+                        //bary[2] = 0;
+                        colors[0] = pverts[0].color * bary[0];
+                        colors[1] = pverts[1].color * bary[1];
+                        colors[2] = pverts[2].color * bary[2];
                         line[x] = colors[0] + colors[1] + colors[2];
                         //line[x] = Fill ? ColorRed : ColorGreen;
                     }
