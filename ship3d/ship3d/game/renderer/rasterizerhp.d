@@ -19,47 +19,48 @@ private:
     enum MinTileHeight = 8;
     enum MinTreeTileWidth = 512;
     enum MinTreeTileHeight = 512;
-    enum MaxTileWidth  = 2048;
-    enum MaxTileHeight = 2048;
 
     struct Line(PosT)
     {
+        immutable PosT x1, y1;
+        immutable PosT invDenom;
         immutable PosT dx, dy, c;
         PosT cx, cy;
-        this(VT)(in VT v1, in VT v2, in VT v3, int minX, int minY) pure nothrow
+        this(VT)(in VT v1, in VT v2, int minX, int minY, PosT baryInvDenom) pure nothrow
         {
-            const x1 = v1.pos.x;
+            /*const*/ x1 = v1.pos.x;
             const x2 = v2.pos.x;
-            const y1 = v1.pos.y;
+            /*const*/ y1 = v1.pos.y;
             const y2 = v2.pos.y;
             dx = x2 - x1;
             dy = y2 - y1;
             c = (dy * x1 - dx * y1);
+            invDenom = baryInvDenom;
             setXY(minX, minY);
         }
-
+        
         void setXY(int x, int y) pure nothrow
         {
             cy = val(x, y);
             cx = cy;
         }
-
+        
         void incX(int val) pure nothrow
         {
             cx -= dy * val;
         }
-
+        
         void incY(int val) pure nothrow
         {
             cy += dx * val;
             cx = cy;
         }
-
+        
         auto val(int x, int y) const pure nothrow
         {
             return c + dx * y - dy * x;
         }
-
+        
         uint testTile(int x1, int y1, int x2, int y2) const pure nothrow
         {
             bool a00 = (val(x1, y1) > 0);
@@ -68,8 +69,13 @@ private:
             bool a11 = (val(x2, y2) > 0);
             return (a00 << 0) | (a10 << 1) | (a01 << 2) | (a11 << 3);
         }
+        
+        @property auto curr() const pure nothrow { return cx; }
 
-        @property auto curr() const pure nothrow { return cx; } 
+        @property auto barycentric(int x, int y) const pure nothrow
+        {
+            return (dx * (y - y1) - dy * (x - x1)) * invDenom;
+        }
     }
 
     struct LinesPack(LineT)
@@ -78,7 +84,11 @@ private:
         LineT[NumLines] lines;
         this(VT)(in VT v1, in VT v2, in VT v3, int minX, int minY) pure nothrow
         {
-            lines = [LineT(v1, v2, v3, minX, minY),LineT(v2, v3, v1, minX, minY),LineT(v3, v1, v2, minX, minY)];
+            const invDenom = 1 / ((v2.pos - v1.pos) * (v3.pos - v1.pos));
+            lines = [
+                LineT(v1, v2, minX, minY, invDenom),
+                LineT(v2, v3, minX, minY, invDenom),
+                LineT(v3, v1, minX, minY, invDenom)];
         }
 
         void incX(int val) pure nothrow
@@ -119,6 +129,15 @@ private:
                 res |= (lines[i].testTile(x1,y1,x2,y2) << (4 * i));
             }
             return res;
+        }
+
+        void getBarycentric(PosT)(int x, int y, PosT[] ret) const pure nothrow
+        {
+            foreach(i;TupleRange!(0,NumLines))
+            {
+                //debugOut(lines[i].barycentric(x,y));
+                ret[i] = lines[(i + 1) % NumLines].barycentric(x,y);
+            }
         }
     }
 
@@ -211,12 +230,6 @@ public:
         maxX = min(mClipRect.x + mClipRect.w, maxX);
         minY = max(mClipRect.y, minY);
         maxY = min(mClipRect.y + mClipRect.h, maxY);
-        //debugOut(minX);
-        //debugOut(maxX);
-        //debugOut(minY);
-        //debugOut(maxY);
-
-        //auto line = mBitmap[minY];
 
         auto pack = PackT(pverts[0], pverts[1], pverts[2], minX, minY);
 
@@ -238,7 +251,17 @@ public:
                 {
                     if(Fill || pack.check())
                     {
-                        line[x] = Fill ? ColorRed : ColorGreen;
+                        PosT[3] bary;
+                        pack.getBarycentric(x,y, bary);
+                        ColT[3] colors;
+                        colors[0] = ColT.lerp(pverts[0].color, ColorBlack, bary[0]);
+                        colors[1] = ColT.lerp(pverts[1].color, ColorBlack, bary[1]);
+                        colors[2] = ColT.lerp(pverts[2].color, ColorBlack, bary[2]);
+                        //colors[0] = pverts[0].color * bary[0];
+                        //colors[1] = pverts[1].color * bary[0];
+                        //colors[2] = pverts[2].color * bary[0];
+                        line[x] = colors[0] + colors[1] + colors[2];
+                        //line[x] = Fill ? ColorRed : ColorGreen;
                     }
                     /*else if(x < mClipRect.w && y < mClipRect.h)
                     {
@@ -246,7 +269,6 @@ public:
                     }*/
                     pack.incX(1);
                 }
-                //line[x0] = ColorBlue;
                 pack.incY(1);
                 ++line;
             }
@@ -256,114 +278,6 @@ public:
         {
             drawTile!true(TileWidth, TileHeight, x0, y0);
         }
-
-        //int callCount = 0;
-        /*void drawArea(int TileWidth, int TileHeight)(int x0, int y0, uint abc)
-        {
-            //++callCount;
-            if((0 == (abc & 0xf)) || (0 == (abc & 0xf0)) || (0 == (abc & 0xf00))) 
-            {
-                //uncovered
-                return;
-            }
-            else if(0xfff == abc)
-            {
-                //completely covered
-                fillTile(TileWidth,TileHeight,x0,y0);
-            }
-            else
-            {
-                //patrially covered
-                static if(TileWidth <= MinTreeTileWidth && TileHeight <= MinTreeTileHeight)
-                {
-                    const x1 = x0 + TileWidth;
-                    const y1 = y0 + TileHeight;
-                    const tx0 = max(minX, x0) / MinTileWidth;
-                    const ty0 = max(minY, y0) / MinTileHeight;
-                    const tx1 = 1 + min(maxX, x1) / MinTileWidth;
-                    const ty1 = 1 + min(maxY, y1) / MinTileHeight;
-
-                    foreach(ty;ty0..ty1)
-                    {
-                        const y = ty * MinTileHeight;
-                        foreach(tx;tx0..tx1)
-                        {
-                            const x = tx * MinTileWidth;
-                            auto res = pack.testTile(x, y, x + MinTileWidth, y + MinTileHeight);
-                            if((0 == (res & 0xf)) || (0 == (res & 0xf0)) || (0 == (res & 0xf00)))  continue;
-                            
-                            if(0xfff == res)
-                            {
-                                fillTile(MinTileWidth,MinTileHeight,x,y);
-                            }
-                            else
-                            {
-                                drawTile(MinTileWidth,MinTileHeight,x,y);
-                            }
-                        }
-                    }
-                }
-                else
-                {
-                    enum NewTileWidth  = TileWidth / 2;
-                    enum NewTileHeight = TileHeight / 2;
-                    const x1 = x0 + NewTileWidth;
-                    const y1 = y0 + NewTileHeight;
-                    const x2 = x1 + NewTileWidth;
-                    const y2 = y1 + NewTileHeight;
-                    const abc00 = pack.testTile(x0,y0,x1,y1);
-                    const abc10 = pack.testTile(x1,y0,x2,y1);
-                    const abc01 = pack.testTile(x0,y1,x1,y2);
-                    const abc11 = pack.testTile(x1,y1,x2,y2);
-                    drawArea!(NewTileWidth, NewTileHeight)(x0,y0,abc00);
-                    drawArea!(NewTileWidth, NewTileHeight)(x1,y0,abc10);
-                    drawArea!(NewTileWidth, NewTileHeight)(x0,y1,abc01);
-                    drawArea!(NewTileWidth, NewTileHeight)(x1,y1,abc11);
-                }
-            }
-        }
-
-        void clipArea(int TileWidth, int TileHeight)(int x0, int y0)
-        {
-            static if(TileWidth == MinTreeTileWidth && TileHeight == MinTreeTileHeight)
-            {
-                const abc = pack.testTile(x0,y0,x0 + TileWidth,y0 + TileHeight);
-                drawArea!(TileWidth, TileHeight)(x0, y0, abc);
-            }
-            else
-            {
-                const minTx = minX / TileWidth;
-                const maxTx = maxX / TileWidth;
-                const minTy = minY / TileHeight;
-                const maxTy = maxY / TileHeight;
-                const dTx = maxTx - minTx;
-                const dTy = maxTy - minTy;
-                if(dTx > 0 || dTy > 0)
-                {
-                    const abc = pack.testTile(x0,y0,x0 + TileWidth,y0 + TileHeight);
-                    drawArea!(TileWidth,TileHeight)(x0, y0,abc);
-                }
-                else
-                {
-                    enum HalfTileWidth  = TileWidth / 2;
-                    enum HalfTileHeight = TileHeight / 2;
-                    clipArea!(HalfTileWidth, HalfTileHeight)(x0 + 0 * HalfTileWidth, y0 + 0 * HalfTileHeight);
-                    clipArea!(HalfTileWidth, HalfTileHeight)(x0 + 1 * HalfTileWidth, y0 + 0 * HalfTileHeight);
-                    clipArea!(HalfTileWidth, HalfTileHeight)(x0 + 0 * HalfTileWidth, y0 + 1 * HalfTileHeight);
-                    clipArea!(HalfTileWidth, HalfTileHeight)(x0 + 1 * HalfTileWidth, y0 + 1 * HalfTileHeight);
-                }
-            }
-        }*/
-
-        //debugOut("lll");
-        //assert(mBitmap.width <= MaxTileWidth);
-        //assert(mBitmap.height <= MaxTileHeight);
-        //clipArea!(MaxTileWidth,MaxTileHeight)(0,0);
-
-        //const abc = pack.testTile(0,0,2048,2048);
-        //drawArea!(2048,2048)(0,0,abc);
-
-        //debugOut(callCount);
 
         /*const minTx = minX / MinTileWidth;
         const maxTx = (maxX + MinTileWidth - 1) / MinTileWidth;

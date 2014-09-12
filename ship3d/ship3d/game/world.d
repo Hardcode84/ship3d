@@ -37,7 +37,7 @@ public:
 
     void draw(SurfT surf)
     {
-        surf.fill(ColorWhite);
+        surf.fill(ColorBlack);
         Vertex[4] verts;
 
         verts[0].pos  = vec4(-1,-1,0,1);
@@ -70,7 +70,7 @@ public:
         rast.texture = mTexture;
         foreach(i;0..1)
         {
-            rast.drawIndexedTriangle(verts, [0,1,2]);
+            //rast.drawIndexedTriangle(verts, [0,1,2]);
             rast.drawIndexedTriangle(verts, [0,2,3]);
         }
     }
