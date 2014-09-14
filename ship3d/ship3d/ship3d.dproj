@@ -41,6 +41,7 @@
         <Lib>gdi32.lib</Lib>
       </Libs>
     </Libs>
+    <ExtraCompilerArguments>-boundscheck=off</ExtraCompilerArguments>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Unittest|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -52,6 +53,11 @@
     <Externalconsole>true</Externalconsole>
     <Target>Executable</Target>
     <OutputName>ship3d</OutputName>
+    <Libs>
+      <Libs>
+        <Lib>gdi32.lib</Lib>
+      </Libs>
+    </Libs>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="main.d" />

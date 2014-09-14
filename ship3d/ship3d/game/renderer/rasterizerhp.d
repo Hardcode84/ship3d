@@ -2,6 +2,10 @@
 
 import std.traits;
 import std.algorithm;
+import std.array;
+import std.string;
+import std.functional;
+import std.range;
 
 import gamelib.util;
 import gamelib.math;
@@ -17,15 +21,21 @@ private:
 
     enum MinTileWidth  = 8;
     enum MinTileHeight = 8;
+    enum TreeCoeff = 4;
     enum MinTreeTileWidth = 512;
     enum MinTreeTileHeight = 512;
 
-    struct Line(PosT)
+    struct Line(PosT,bool Affine)
     {
         immutable PosT x1, y1;
         immutable PosT invDenom;
         immutable PosT dx, dy, c;
         PosT cx, cy;
+        static if(!Affine)
+        {
+            immutable PosT w1, w2;
+        }
+
         this(VT)(in VT v1, in VT v2, int minX, int minY, PosT baryInvDenom) pure nothrow
         {
             /*const*/ x1 = v1.pos.x;
@@ -141,37 +151,148 @@ private:
         out
         {
             assert(almost_equal(cast(PosT)1, ret.sum), debugConv(ret.sum));
-            foreach(i,b;ret)
-            {
-                //debugOut(i);
-                //assert(b >= 0, debugConv(b));
-            }
         }
         body
         {
             foreach(i;TupleRange!(1,NumLines))
             {
-                //debugOut(lines[i].barycentric(x,y));
                 ret[i] = lines[(i + 1) % NumLines].barycentric(x,y);
             }
             ret[0] = cast(PosT)1 - ret[1] - ret[2];
         }
     }
 
-    struct Tiles(int W, int H, PosT)
+
+    struct Tile(int W, int H, PosT, ColT)
     {
+        static assert(ispow2(W));
+        static assert(ispow2(H));
+        enum HasColor = !is(ColT : void);
+        enum NumLines = 3;
 
-    }
+        immutable int xStart;
+        int x0;
+        int y0;
 
-    struct Tile(int W, int H, PosT)
-    {
-        PosT swCurr;
-        immutable PosT swDelta;
+        enum ind = TypeTuple!("00","10","01","11");
+        PosT[NumLines] bary00, bary10, bary01, bary11;
+        PosT[NumLines] bary01t, bary11t;
 
-        int tx0, tx1;
-        int ty0, ty1;
-        this(int tx, int ty)
+        static if(HasColor)
         {
+            private static auto calcColor(VT)(in VT[] v, in PosT[] c) pure nothrow
+            in
+            {
+                assert(v.length == NumLines);
+                assert(c.length == NumLines);
+            }
+            body
+            {
+                ColT ret = v[0] * c[0];
+                foreach(i;TupleRange(1,NumLines))
+                {
+                    ret += v[i] * c[i];
+                }
+                return ret;
+            }
+            private auto interpolateColor(PosT[] bary) const pure nothrow @nogc
+            {
+                return colors[0] * bary[0] + colors[1] * bary[1] + colors[2] * bary[2];
+            }
+            immutable ColT[NumLines] colors;
+            ColT col00, col10, col01, col11;
+            ColT[H] cols0, cols1;
+            ColT col01t, col11t;
+        }
+        this(PackT,VT)(in PackT pack, in VT[] v, int x, int y) pure nothrow
+        {
+            xStart = x;
+            x0 = x;
+            y0 = y;
+            pack.getBarycentric(x0,y0,bary00);
+            pack.getBarycentric(x1,y0,bary10);
+            pack.getBarycentric(x0,y1,bary01);
+            pack.getBarycentric(x1,y1,bary11);
+            bary01t = bary01;
+            bary11t = bary11;
+            static if(HasColor)
+            {
+                colors = [v[0].color,v[1].color,v[2].color];
+                foreach(i;ind)
+                {
+                    mixin(format("col%1$s = interpolateColor(bary%1$s);",i));
+                }
+                ColT.interpolateLine!H(cols0[],col00,col01);
+                ColT.interpolateLine!H(cols1[],col10,col11);
+                col01t = col01;
+                col11t = col11;
+            }
+        }
+
+        @property auto x1() const pure nothrow { return x0 + W; }
+        @property auto y1() const pure nothrow { return y0 + H; }
+
+        void incX(PackT)(in PackT pack) pure nothrow
+        {
+            x0 += W;
+            bary00 = bary10;
+            bary01 = bary11;
+            pack.getBarycentric(x1,y0,bary10);
+            pack.getBarycentric(x1,y1,bary11);
+            static if(HasColor)
+            {
+                col00 = col10;
+                col01 = col11;
+                col10 = interpolateColor(bary10);
+                col11 = interpolateColor(bary11);
+                cols0 = cols1;
+                ColT.interpolateLine!H(cols1[],col10,col11);
+            }
+        }
+
+        void incY(PackT)(in PackT pack) pure nothrow
+        {
+            x0 = xStart;
+            y0 += H;
+            bary00 = bary01t;
+            bary10 = bary11t;
+            pack.getBarycentric(x0,y1,bary01);
+            pack.getBarycentric(x1,y1,bary11);
+            bary01t = bary01;
+            bary11t = bary11;
+            static if(HasColor)
+            {
+                col00 = col01t;
+                col10 = col11t;
+                col01 = interpolateColor(bary01);
+                col11 = interpolateColor(bary11);
+                col01t = col01;
+                col11t = col11;
+                ColT.interpolateLine!H(cols0[],col00,col01);
+                ColT.interpolateLine!H(cols1[],col10,col11);
+            }
+        }
+
+        static if(HasColor)
+        {
+            void fillColorLine(T)(auto ref T line, int y) const pure nothrow
+            in
+            {
+                assert(y >= 0);
+                assert(y < H);
+            }
+            body
+            {
+                /*const b = (0 == (y % 2));
+                auto c0 = b ? cols0[y] : cols1[y];
+                auto c1 = b ? cols1[y] : cols0[y];
+                for(int x = 0; x < W; x += 2)
+                {
+                    line[x + 0] = c0;
+                    line[x + 1] = c1;
+                }*/
+                ColT.interpolateLine!H(line,cols0[y],cols1[y]);
+            }
         }
     }
 public:
@@ -235,8 +356,9 @@ public:
         {
             alias ColT = void;
         }
-        alias LineT = Line!(PosT);
+        alias LineT = Line!(PosT,Affine);
         alias PackT = LinesPack!(PosT,LineT);
+        alias TileT = Tile!(MinTileWidth,MinTileHeight,PosT,ColT);
 
         int minY = cast(int)min(pverts[0].pos.y, pverts[1].pos.y, pverts[2].pos.y);
         int maxY = cast(int)max(pverts[0].pos.y, pverts[1].pos.y, pverts[2].pos.y);
@@ -250,43 +372,70 @@ public:
 
         auto pack = PackT(pverts[0], pverts[1], pverts[2], minX, minY);
 
-        void drawTile(bool Fill = false)(int TileWidth, int TileHeight, int x0, int y0)
+        void drawFixedSizeTile(bool Fill, int TileWidth, int TileHeight, T)(in T tile, int x0, int y0)
         {
-            assert(0 == x0 % TileWidth);
-            assert(0 == y0 % TileHeight);
-            assert(x0 >= 0, debugConv(x0));
-            assert(y0 >= 0, debugConv(y0));
-            pack.setXY(x0,y0);
             auto line = mBitmap[y0];
-            const x1 = x0 + TileWidth;
-            const y1 = y0 + TileHeight;
-            //assert(x1 < (maxX + TileWidth),  debugConv(x1)~" "~debugConv(maxX));
-            //assert(y1 < (maxY + TileHeight), debugConv(y1)~" "~debugConv(maxY));
-            foreach(y;y0..y1)
+            static if(!Fill)
             {
-                foreach(x;x0..x1)
+                pack.setXY(x0,y0);
+            }
+            foreach(y;y0..(y0 + TileHeight))
+            {
+                static if(Fill && HasColor)
                 {
-                    if(Fill || pack.check())
+                    tile.fillColorLine(line[x0..(x0+TileWidth)],y % TileHeight);
+                }
+                foreach(x;x0..(x0 + TileWidth))
+                {
+                    if(!Fill && pack.check())
                     {
                         PosT[3] bary;
                         pack.getBarycentric(x,y, bary);
                         ColT[3] colors;
-                        //bary[2] = 0;
-                        //bary[2] = 0;
                         colors[0] = pverts[0].color * bary[0];
                         colors[1] = pverts[1].color * bary[1];
                         colors[2] = pverts[2].color * bary[2];
                         line[x] = colors[0] + colors[1] + colors[2];
                         //line[x] = Fill ? ColorRed : ColorGreen;
                     }
-                    /*else if(x < mClipRect.w && y < mClipRect.h)
+                    /+else if(x < mClipRect.w && y < mClipRect.h)
                     {
                         line[x] = ColorBlue;
-                    }*/
-                    pack.incX(1);
+                    }+/
+                    static if(!Fill)
+                    {
+                        pack.incX(1);
+                    }
                 }
-                pack.incY(1);
+                static if(!Fill)
+                {
+                    pack.incY(1);
+                }
                 ++line;
+            }
+        }
+
+        void drawTile(bool Fill = false)(int TileWidth, int TileHeight, int x0, int y0)
+        {
+            assert(TileWidth > 0);
+            assert(TileHeight > 0);
+            assert(0 == x0 % TileWidth);
+            assert(0 == y0 % TileHeight);
+            assert(x0 >= 0, debugConv(x0));
+            assert(y0 >= 0, debugConv(y0));
+            const x1 = x0 + TileWidth;
+            const y1 = y0 + TileHeight;
+            //assert(x1 < (maxX + TileWidth),  debugConv(x1)~" "~debugConv(maxX));
+            //assert(y1 < (maxY + TileHeight), debugConv(y1)~" "~debugConv(maxY));
+            auto tile = TileT(pack,pverts,x0,y0);
+            for(auto y = y0; y < y1; y += MinTileHeight)
+            {
+                for(auto x = x0; x < x1; x += MinTileWidth)
+                {
+                    drawFixedSizeTile!(Fill,MinTileWidth,MinTileHeight)(tile,x,y);
+                    tile.incX(pack);
+                }
+                tile.incY(pack);
             }
         }
 
@@ -351,7 +500,7 @@ public:
                         //patrially covered
                         static if(!FinalLevel)
                         {
-                            enum Coeff = 4;
+                            enum Coeff = TreeCoeff;
                             enum NextTileWidth  = TileWidth  / Coeff;
                             enum NextTileHeight = TileHeight / Coeff;
                             static assert(NextTileWidth  >= MinTileWidth);
