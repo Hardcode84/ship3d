@@ -104,7 +104,10 @@ public:
 
                 auto totalSeconds = mUpdateCounter * UpdateInterval / 1000.0f;
                 import std.string: format;
-                mWindow.title = format("%s %s %s", mFPS, totalSeconds, mUpdateCounter);
+                auto str = format("%s %s %s", mFPS, totalSeconds, mUpdateCounter);
+                mWindow.title = str;
+                import std.stdio;
+                writeln(str);
             }
             present();
         }

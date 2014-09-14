@@ -95,12 +95,12 @@ private:
         immutable PosT[NumLines] w;
         this(VT)(in VT v1, in VT v2, in VT v3, int minX, int minY) pure nothrow
         {
-            const invDenom = 1 / ((v2.pos - v1.pos).xy.wedge((v3.pos - v1.pos).xy));
+            const invDenom = cast(PosT)(1 / ((v2.pos - v1.pos).xy.wedge((v3.pos - v1.pos).xy)));
             lines = [
                 LineT(v1, v2, minX, minY, invDenom),
                 LineT(v2, v3, minX, minY, invDenom),
                 LineT(v3, v1, minX, minY, invDenom)];
-            w = [v1.pos.w, v2.pos.w, v3.pos.w];
+            w = [cast(PosT)v1.pos.w, cast(PosT)v2.pos.w, cast(PosT)v3.pos.w];
         }
 
         void incX(int val) pure nothrow
@@ -195,7 +195,7 @@ private:
                 }
                 return ret;
             }
-            private auto interpolateColor(PosT[] bary) const pure nothrow @nogc
+            private auto interpolateColor(PosT[] bary) const pure nothrow
             {
                 return colors[0] * bary[0] + colors[1] * bary[1] + colors[2] * bary[2];
             }
@@ -275,7 +275,7 @@ private:
 
         static if(HasColor)
         {
-            void fillColorLine(T)(auto ref T line, int y) const pure nothrow
+            void fillColorLine(T)(auto ref T line, int y) const pure nothrow @nogc
             in
             {
                 assert(y >= 0);
@@ -283,15 +283,23 @@ private:
             }
             body
             {
-                /*const b = (0 == (y % 2));
-                auto c0 = b ? cols0[y] : cols1[y];
-                auto c1 = b ? cols1[y] : cols0[y];
-                for(int x = 0; x < W; x += 2)
+                immutable ColT[2] cols = [cols0[y], cols1[y]];
+                static immutable patterns = [
+                    [0,0,0,0,1,1,1,1],
+                    [0,0,0,1,0,1,1,1],
+                    [0,0,1,0,1,0,1,1],
+                    [0,1,0,1,0,1,0,1],
+
+                    [0,0,1,0,1,0,1,1],
+                    [0,0,1,0,1,0,1,1],
+                    [0,0,0,1,0,1,1,1],
+                    [0,0,0,0,1,1,1,1]];
+                const p = patterns[y % 8];
+                foreach(x;0..W)
                 {
-                    line[x + 0] = c0;
-                    line[x + 1] = c1;
-                }*/
-                ColT.interpolateLine!H(line,cols0[y],cols1[y]);
+                    line[x] = cols[p[x]];
+                }
+                //ColT.interpolateLine!H(line,cols0[y],cols1[y]);
             }
         }
     }
@@ -385,7 +393,7 @@ public:
                 {
                     tile.fillColorLine(line[x0..(x0+TileWidth)],y % TileHeight);
                 }
-                foreach(x;x0..(x0 + TileWidth))
+                else foreach(x;x0..(x0 + TileWidth))
                 {
                     if(!Fill && pack.check())
                     {

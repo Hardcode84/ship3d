@@ -12,7 +12,7 @@ final class World
 {
 private:
     bool mQuitReq = false;
-    immutable mat4 mProjMat;
+    immutable mat4_t mProjMat;
     immutable Size mSize;
     Texture!ColorT mTexture;
 public:
@@ -40,21 +40,21 @@ public:
         surf.fill(ColorBlack);
         Vertex[4] verts;
 
-        verts[0].pos  = vec4(-1,-1,0,1);
-        verts[0].tpos = vec2(0,0);
+        verts[0].pos  = vec4_t(-1,-1,0,1);
+        verts[0].tpos = vec2_t(0,0);
         verts[0].color = ColorRed;
-        verts[1].pos  = vec4( 1,-1,0,1);
-        verts[1].tpos = vec2(1,0);
+        verts[1].pos  = vec4_t( 1,-1,0,1);
+        verts[1].tpos = vec2_t(1,0);
         verts[1].color = ColorBlue;
-        verts[2].pos  = vec4( 1, 1,0,1);
-        verts[2].tpos = vec2(1,1);
+        verts[2].pos  = vec4_t( 1, 1,0,1);
+        verts[2].tpos = vec2_t(1,1);
         verts[2].color = ColorGreen;
-        verts[3].pos  = vec4(-1, 1,0,1);
-        verts[3].tpos = vec2(0,1);
+        verts[3].pos  = vec4_t(-1, 1,0,1);
+        verts[3].tpos = vec2_t(0,1);
         verts[3].color = ColorWhite;
 
-        static float si = 1;
-        mat4 t = mProjMat * mat4.translation(0,0,-3) * mat4.yrotation(si);
+        static pos_t si = 1;
+        mat4_t t = mProjMat * mat4_t.translation(cast(pos_t)0,cast(pos_t)0,cast(pos_t)-3) * mat4_t.yrotation(si);
         //si += 0.005;
 
         foreach(i;0..verts.length)
