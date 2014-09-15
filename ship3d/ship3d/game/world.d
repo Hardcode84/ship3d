@@ -55,7 +55,7 @@ public:
 
         static pos_t si = 1;
         mat4_t t = mProjMat * mat4_t.translation(cast(pos_t)0,cast(pos_t)0,cast(pos_t)-3) * mat4_t.yrotation(si);
-        si += 0.005;
+        //si += 0.005;
 
         foreach(i;0..verts.length)
         {
