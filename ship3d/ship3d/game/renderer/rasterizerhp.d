@@ -101,7 +101,7 @@ private:
                 LineT(v3, v1, minX, minY, invDenom)];
             static if(!Affine)
             {
-                w = [cast(PosT)v3.pos.w, cast(PosT)v1.pos.w, cast(PosT)v2.pos.w];
+                w = [cast(PosT)v1.pos.w, cast(PosT)v2.pos.w, cast(PosT)v3.pos.w];
             }
         }
 
@@ -163,14 +163,14 @@ private:
             ret[0] = cast(PosT)1 - ret[1] - ret[2];
             static if(!Affine)
             {
-                PosT sw = ret[0] * w[0];
+                PosT sw = ret[0] / w[0];
                 foreach(i;TupleRange!(1,NumLines))
                 {
-                    sw += (ret[i] * w[i]);
+                    sw += (ret[i] / w[i]);
                 }
                 foreach(i;TupleRange!(0,NumLines))
                 {
-                    ret[i] = ret[i] / sw * w[i];
+                    ret[i] = ret[i] / (sw * w[i]);
                 }
             }
         }
