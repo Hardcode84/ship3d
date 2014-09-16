@@ -286,36 +286,6 @@ private:
                 ColT.interpolateLine!H(cols1[],col10,col11);
             }
         }
-
-        static if(HasColor)
-        {
-            void fillColorLine(T)(auto ref T line, int y) const pure nothrow @nogc
-            in
-            {
-                assert(y >= 0);
-                assert(y < H);
-            }
-            body
-            {
-                immutable ColT[2] cols = [cols0[y], cols1[y]];
-                static immutable patterns = [
-                    [0,0,0,0,1,1,1,1],
-                    [0,0,0,1,0,1,1,1],
-                    [0,0,1,0,1,0,1,1],
-                    [0,1,0,1,0,1,0,1],
-
-                    [0,0,1,0,1,0,1,1],
-                    [0,0,1,0,1,0,1,1],
-                    [0,0,0,1,0,1,1,1],
-                    [0,0,0,0,1,1,1,1]];
-                const p = patterns[y % 8];
-                foreach(x;0..W)
-                {
-                    line[x] = cols[p[x]];
-                }
-                //ColT.interpolateLine!H(line,cols0[y],cols1[y]);
-            }
-        }
     }
 public:
     this(BitmapT b)
@@ -369,6 +339,7 @@ public:
     private void drawTriangle(bool HasTextures, bool HasColor,bool Affine,VertT)(in VertT[3] pverts) pure nothrow
     {
         static assert(HasTextures != HasColor);
+        //alias PosT = FixedPoint!(24,8,int);
         alias PosT = Unqual!(typeof(VertT.pos.x));
         static if(HasColor)
         {
@@ -397,6 +368,34 @@ public:
 
         void drawFixedSizeTile(bool Fill, int TileWidth, int TileHeight, T)(in T tile, int x0, int y0)
         {
+            static if(HasColor)
+            {
+                void fillColorLine(T)(auto ref T line, int y, in ColT col1, in ColT col2) const pure nothrow @nogc
+                {
+                    enum W = 8;
+                    enum H = 8;
+                    immutable ColT[2] cols = [col1, col2];
+                    static immutable patterns = [
+                        [0,0,0,0,1,1,1,1],
+                        [0,0,0,1,0,1,1,1],
+                        [0,0,1,0,1,0,1,1],
+                        [0,1,0,1,0,1,0,1],
+                        
+                        [0,0,1,0,1,0,1,1],
+                        [0,0,1,0,1,0,1,1],
+                        [0,0,0,1,0,1,1,1],
+                        [0,0,0,0,1,1,1,1]];
+                    static assert(patterns.length == H);
+                    static assert(patterns[0].length == W);
+                    const p = patterns[y % H];
+                    foreach(x;0..line.length)
+                    {
+                        const xw = x % W;
+                        line[xw] = cols[p[xw]];
+                    }
+                    //ColT.interpolateLine!H(line,cols0[y],cols1[y]);
+                }
+            }
             auto line = mBitmap[y0];
             const y1 = (y0 + TileHeight);
             const x1 = (x0 + TileWidth);
@@ -406,7 +405,9 @@ public:
                 {
                     static if(HasColor)
                     {
-                        tile.fillColorLine(line[x0..(x0+TileWidth)],y % TileHeight);
+                        const col1 = tile.cols0[y % 8];
+                        const col2 = tile.cols1[y % 8];
+                        fillColorLine(line[x0..(x0+TileWidth)],y, col1,col2);
                     }
                     ++line;
                 }
@@ -466,26 +467,12 @@ public:
                                 divLine(x1, x , col1, col);
                                 divLine(x , x2, col , col2);
                             }
-                            divLine(xStart - 1, xEnd, col1, col2);
+                            //divLine(xStart - 1, xEnd, col1, col2);
                             //ColT.interpolateLine(xEnd-xStart,line[xStart..xEnd],col1,col2);
                             //line[xStart..xEnd] = ColorRed;
+                            fillColorLine(line[xStart..xEnd],y,col1,col2);
                         }
                     }
-
-                    /*foreach(x;x0..x1)
-                    {
-                        if(pack.check())
-                        {
-                            PosT[3] bary = void;
-                            pack.getBarycentric(x,y, bary);
-                            ColT[3] colors = void;
-                            colors[0] = pverts[0].color * bary[0];
-                            colors[1] = pverts[1].color * bary[1];
-                            colors[2] = pverts[2].color * bary[2];
-                            line[x] = colors[0] + colors[1] + colors[2];
-                        }
-                        pack.incX(1);
-                    }*/
                     pack.incY(1);
                     ++line;
                 }
