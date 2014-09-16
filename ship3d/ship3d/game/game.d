@@ -181,6 +181,10 @@ private:
             mWorld.processAction(ac, event.type == SDL_KEYDOWN);
         }
         */
+        if(event.type == SDL_KEYDOWN)
+        {
+            mWorld.processKey(event.keysym.scancode);
+        }
     }
 
     bool update()

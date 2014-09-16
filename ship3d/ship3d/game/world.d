@@ -14,6 +14,7 @@ private:
     bool mQuitReq = false;
     immutable mat4_t mProjMat;
     immutable Size mSize;
+    pos_t mRot = 1;
     Texture!ColorT mTexture;
 public:
     alias SurfT  = FFSurface!ColorT;
@@ -35,6 +36,19 @@ public:
         return !mQuitReq;
     }
 
+    void processKey(int key) pure nothrow
+    {
+        const spd = 0.02;
+        if(SDL_SCANCODE_LEFT == key)
+        {
+            mRot += spd;
+        }
+        else if(SDL_SCANCODE_RIGHT == key)
+        {
+            mRot -= spd;
+        }
+    }
+
     void draw(SurfT surf)
     {
         surf.fill(ColorBlack);
@@ -53,9 +67,7 @@ public:
         verts[3].tpos = vec2_t(0,1);
         verts[3].color = ColorWhite;
 
-        static pos_t si = 1;
-        mat4_t t = mProjMat * mat4_t.translation(cast(pos_t)0,cast(pos_t)0,cast(pos_t)-3) * mat4_t.yrotation(si);
-        //si += 0.005;
+        mat4_t t = mProjMat * mat4_t.translation(cast(pos_t)0,cast(pos_t)0,cast(pos_t)-3) * mat4_t.yrotation(mRot);
 
         foreach(i;0..verts.length)
         {

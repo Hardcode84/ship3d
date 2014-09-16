@@ -405,8 +405,8 @@ public:
                 {
                     static if(HasColor)
                     {
-                        const col1 = tile.cols0[y % 8];
-                        const col2 = tile.cols1[y % 8];
+                        const col1 = tile.cols0[y % TileHeight];
+                        const col2 = tile.cols1[y % TileHeight];
                         fillColorLine(line[x0..(x0+TileWidth)],y, col1,col2);
                     }
                     ++line;
@@ -457,17 +457,6 @@ public:
                             }
                             const col1 = calcColor(xStart);
                             const col2 = calcColor(xEnd - 1);
-                            const len = xEnd - xStart;
-                            void divLine(int x1, int x2, in ColT col1, in ColT col2)
-                            {
-                                if((x2 - x1) <= 1) return;
-                                const x = x1 + (x2 - x1) / 2;
-                                const col = ColT.average(col1, col2);
-                                line[x] = col;
-                                divLine(x1, x , col1, col);
-                                divLine(x , x2, col , col2);
-                            }
-                            //divLine(xStart - 1, xEnd, col1, col2);
                             //ColT.interpolateLine(xEnd-xStart,line[xStart..xEnd],col1,col2);
                             //line[xStart..xEnd] = ColorRed;
                             fillColorLine(line[xStart..xEnd],y,col1,col2);
