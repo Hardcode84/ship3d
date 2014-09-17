@@ -12,6 +12,8 @@ import gamelib.math;
 
 import game.units;
 
+@nogc:
+
 struct RasterizerHP(BitmapT,TextureT)
 {
 private:
@@ -21,9 +23,9 @@ private:
 
     enum MinTileWidth  = 8;
     enum MinTileHeight = 8;
-    enum TreeCoeff = 4;
-    enum MinTreeTileWidth = 512;
-    enum MinTreeTileHeight = 512;
+    enum TreeCoeff = 2;
+    enum MinTreeTileWidth = 64;
+    enum MinTreeTileHeight = 64;
 
     struct Line(PosT,bool Affine)
     {
@@ -34,13 +36,14 @@ private:
 
         this(VT)(in VT v1, in VT v2, int minX, int minY, PosT baryInvDenom) pure nothrow
         {
-            /*const*/ x1 = v1.pos.x;
+            x1 = v1.pos.x;
             const x2 = v2.pos.x;
-            /*const*/ y1 = v1.pos.y;
+            y1 = v1.pos.y;
             const y2 = v2.pos.y;
             dx = x2 - x1;
             dy = y2 - y1;
-            c = (dy * x1 - dx * y1);
+            const inc = (dy < 0 || (dy == 0 && dx > 0)) ? cast(PosT)1 / cast(PosT)16 : cast(PosT)0;
+            c = (dy * x1 - dx * y1) + inc;
             invDenom = baryInvDenom;
             setXY(minX, minY);
         }
@@ -188,9 +191,8 @@ private:
         int x0;
         int y0;
 
-        enum ind = TypeTuple!("00","10","01","11");
-        PosT[NumLines] bary00, bary10, bary01, bary11;
-        PosT[NumLines] bary01t, bary11t;
+        PosT[NumLines] bary00 = void, bary10 = void, bary01 = void, bary11 = void;
+        PosT[NumLines] bary11t = void;
 
         static if(HasColor)
         {
@@ -214,31 +216,26 @@ private:
                 return colors[0] * bary[0] + colors[1] * bary[1] + colors[2] * bary[2];
             }
             immutable ColT[NumLines] colors;
-            ColT col00, col10, col01, col11;
-            ColT[H] cols0, cols1;
-            ColT col01t, col11t;
+            ColT col00 = void, col10 = void, col01 = void, col11 = void;
+            ColT[H] cols0 = void, cols1 = void;
+            ColT /*col01t,*/ col11t = void;
         }
         this(PackT,VT)(in PackT pack, in VT[] v, int x, int y) pure nothrow
+        in
         {
-            xStart = x;
-            x0 = x;
-            y0 = y;
-            pack.getBarycentric(x0,y0,bary00);
-            pack.getBarycentric(x1,y0,bary10);
-            pack.getBarycentric(x0,y1,bary01);
+            assert(v.length == NumLines);
+        }
+        body
+        {
+            xStart = x - W;
+            x0 = x - W;
+            y0 = y - H;
             pack.getBarycentric(x1,y1,bary11);
-            bary01t = bary01;
             bary11t = bary11;
             static if(HasColor)
             {
                 colors = [v[0].color,v[1].color,v[2].color];
-                foreach(i;ind)
-                {
-                    mixin(format("col%1$s = interpolateColor(bary%1$s);",i));
-                }
-                ColT.interpolateLine!H(cols0[],col00,col01);
-                ColT.interpolateLine!H(cols1[],col10,col11);
-                col01t = col01;
+                col11 = interpolateColor(bary11);
                 col11t = col11;
             }
         }
@@ -268,21 +265,16 @@ private:
         {
             x0 = xStart;
             y0 += H;
-            bary00 = bary01t;
             bary10 = bary11t;
             pack.getBarycentric(x0,y1,bary01);
             pack.getBarycentric(x1,y1,bary11);
-            bary01t = bary01;
             bary11t = bary11;
             static if(HasColor)
             {
-                col00 = col01t;
                 col10 = col11t;
                 col01 = interpolateColor(bary01);
                 col11 = interpolateColor(bary11);
-                col01t = col01;
                 col11t = col11;
-                ColT.interpolateLine!H(cols0[],col00,col01);
                 ColT.interpolateLine!H(cols1[],col10,col11);
             }
         }
@@ -319,6 +311,12 @@ public:
     
     void drawIndexedTriangle(bool HasTextures = false, bool HasColor = true,VertT,IndT)(in VertT[] verts, in IndT[3] indices) pure nothrow if(isIntegral!IndT)
     {
+        const c = (verts[1].pos.xyz - verts[0].pos.xyz).cross(verts[2].pos.xyz - verts[0].pos.xyz);
+        if(c.z <= 0)
+        {
+            //debugOut("out");
+            return;
+        }
         const(VertT)*[3] pverts;
         foreach(i,ind; indices) pverts[i] = verts.ptr + ind;
         //sort!("a.pos.y < b.pos.y")(pverts[0..$]);
@@ -339,7 +337,7 @@ public:
     private void drawTriangle(bool HasTextures, bool HasColor,bool Affine,VertT)(in VertT[3] pverts) pure nothrow
     {
         static assert(HasTextures != HasColor);
-        //alias PosT = FixedPoint!(24,8,int);
+        //alias PosT = FixedPoint!(28,4,int);
         alias PosT = Unqual!(typeof(VertT.pos.x));
         static if(HasColor)
         {
@@ -407,7 +405,7 @@ public:
                     {
                         const col1 = tile.cols0[y % TileHeight];
                         const col2 = tile.cols1[y % TileHeight];
-                        fillColorLine(line[x0..(x0+TileWidth)],y, col1,col2);
+                        fillColorLine(line[x0..x1], y, col1,col2);
                     }
                     ++line;
                 }
@@ -490,12 +488,12 @@ public:
             }
             for(auto y = y0; y < y1; y += MinTileHeight)
             {
+                tile.incY(pack);
                 for(auto x = x0; x < x1; x += MinTileWidth)
                 {
-                    drawFixedSizeTile!(Fill,MinTileWidth,MinTileHeight)(tile,x,y);
                     tile.incX(pack);
+                    drawFixedSizeTile!(Fill,MinTileWidth,MinTileHeight)(tile,x,y);
                 }
-                tile.incY(pack);
             }
         }
 
@@ -548,8 +546,11 @@ public:
                     const xt1 = xt0 + TileWidth;
                     scope(exit) xt0 = xt1;
                     const res = pack.testTile(xt0, yt0, xt1, yt1);
-                    if((0 == (res & 0xf)) || (0 == (res & 0xf0)) || (0 == (res & 0xf00))) continue; //uncovered
-
+                    if((0 == (res & 0xf)) || (0 == (res & 0xf0)) || (0 == (res & 0xf00))) 
+                    {
+                        //uncovered
+                        continue;
+                    }
                     else if(0xfff == res)
                     {
                         //completely covered
@@ -590,7 +591,6 @@ public:
         }
 
         clipAreaLevel!(MinTreeTileWidth,MinTreeTileHeight)(minX,minY,maxX,maxY);
-
         //end
     }
 }
