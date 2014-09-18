@@ -347,9 +347,9 @@ public:
         {
             alias ColT = void;
         }
-        alias LineT = Line!(PosT,Affine);
-        alias PackT = LinesPack!(PosT,LineT,Affine);
-        alias TileT = Tile!(MinTileWidth,MinTileHeight,PosT,ColT);
+        alias LineT   = Line!(PosT,Affine);
+        alias PackT   = LinesPack!(PosT,LineT,Affine);
+        alias TileT   = Tile!(MinTileWidth,MinTileHeight,PosT,ColT);
         alias TileNCT = Tile!(MinTileWidth,MinTileHeight,PosT,void); //no color
 
         int minY = cast(int)min(pverts[0].pos.y, pverts[1].pos.y, pverts[2].pos.y);
