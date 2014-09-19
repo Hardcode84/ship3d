@@ -36,8 +36,10 @@ private:
     struct Line(PosT,bool Affine)
     {
         immutable PosT x1, y1;
-        immutable PosT invDenom;
         immutable PosT dx, dy, c;
+        /*immutable FixedPoint!(28,4,int) x1, y1;
+        immutable FixedPoint!(28,4,int) invDenom;
+        immutable FixedPoint!(28,4,int) dx, dy, c;*/
         PosT cx, cy;
 
         this(VT)(in VT v1, in VT v2, int minX, int minY, PosT baryInvDenom) pure nothrow
@@ -46,11 +48,10 @@ private:
             const x2 = v2.pos.x;
             y1 = v1.pos.y;
             const y2 = v2.pos.y;
-            dx = x2 - x1;
-            dy = y2 - y1;
+            dx = (x2 - x1) * baryInvDenom;
+            dy = (y2 - y1) * baryInvDenom;
             const inc = (dy < 0 || (dy == 0 && dx > 0)) ? cast(PosT)1 / cast(PosT)16 : cast(PosT)0;
-            c = (dy * x1 - dx * y1) + inc;
-            invDenom = baryInvDenom;
+            c = (dy * x1 - dx * y1) + inc * baryInvDenom;
             setXY(minX, minY);
         }
 
@@ -89,7 +90,7 @@ private:
 
         @property auto barycentric(int x, int y) const pure nothrow
         {
-            return (dx * (y - y1) - dy * (x - x1)) * invDenom;
+            return (dx * (y - y1) - dy * (x - x1));
         }
     }
 
@@ -177,10 +178,11 @@ private:
                 {
                     sw += (ret[i] / w[i]);
                 }
-                foreach(i;TupleRange!(0,NumLines))
+                foreach(i;TupleRange!(1,NumLines))
                 {
                     ret[i] = ret[i] / (sw * w[i]);
                 }
+                ret[0] = cast(PosT)1 - ret[1] - ret[2];
             }
         }
     }
@@ -196,9 +198,6 @@ private:
         immutable int xStart;
         int x0;
         int y0;
-
-        PosT[NumLines] bary00 = void, bary10 = void, bary01 = void, bary11 = void;
-        PosT[NumLines] bary11t = void;
 
         static if(HasColor)
         {
@@ -222,7 +221,6 @@ private:
                 return colors[0] * bary[0] + colors[1] * bary[1] + colors[2] * bary[2];
             }
             immutable ColT[NumLines] colors;
-            ColT col00 = void, col10 = void, col01 = void, col11 = void;
             ColT[H] cols0 = void, cols1 = void;
             ColT col11t = void;
         }
@@ -236,13 +234,12 @@ private:
             xStart = x - W;
             x0 = x - W;
             y0 = y - H;
+            PosT[NumLines] bary11 = void;
             pack.getBarycentric(x1,y1,bary11);
-            bary11t = bary11;
             static if(HasColor)
             {
                 colors = [v[0].color,v[1].color,v[2].color];
-                col11 = interpolateColor(bary11);
-                col11t = col11;
+                col11t = interpolateColor(bary11);
             }
         }
 
@@ -252,16 +249,14 @@ private:
         void incX(PackT)(in PackT pack) pure nothrow
         {
             x0 += W;
-            bary00 = bary10;
-            bary01 = bary11;
+            PosT[NumLines] bary10 = void;
+            PosT[NumLines] bary11 = void;
             pack.getBarycentric(x1,y0,bary10);
             pack.getBarycentric(x1,y1,bary11);
             static if(HasColor)
             {
-                col00 = col10;
-                col01 = col11;
-                col10 = interpolateColor(bary10);
-                col11 = interpolateColor(bary11);
+                const col10 = interpolateColor(bary10);
+                const col11 = interpolateColor(bary11);
                 cols0 = cols1;
                 ColT.interpolateLine!H(cols1[],col10,col11);
             }
@@ -271,15 +266,12 @@ private:
         {
             x0 = xStart;
             y0 += H;
-            bary10 = bary11t;
-            pack.getBarycentric(x0,y1,bary01);
+            PosT[NumLines] bary11 = void;
             pack.getBarycentric(x1,y1,bary11);
-            bary11t = bary11;
             static if(HasColor)
             {
-                col10 = col11t;
-                col01 = interpolateColor(bary01);
-                col11 = interpolateColor(bary11);
+                const col10 = col11t;
+                const col11 = interpolateColor(bary11);
                 col11t = col11;
                 ColT.interpolateLine!H(cols1[],col10,col11);
             }
@@ -388,108 +380,6 @@ public:
 
         auto pack = PackT(pverts[0], pverts[1], pverts[2], minX, minY);
 
-        @nogc void drawFixedSizeTile(bool Fill, int TileWidth, int TileHeight, T)(in ref T tile, int x0, int y0, int x1, int y1)
-        {
-            auto line = mBitmap[y0];
-            static if(HasColor)
-            {
-                @nogc void fillColorLine(int x0, int x1, int y, in ColT col1, in ColT col2) nothrow
-                {
-                    enum W = 8;
-                    enum H = 8;
-                    immutable ColT[2] cols = [col1, col2];
-                    static immutable patterns = [
-                        [0,0,0,0,1,1,1,1],
-                        [0,0,0,1,0,1,1,1],
-                        [0,0,1,0,1,0,1,1],
-                        [0,1,0,1,0,1,0,1],
-                        
-                        [0,0,1,0,1,0,1,1],
-                        [0,1,0,1,0,1,0,1],
-                        [0,0,1,0,1,0,1,1],
-                        [0,0,0,1,0,1,1,1]];
-                    static assert(patterns.length    == H);
-                    static assert(patterns[0].length == W);
-                    const p = patterns[y % H];
-                    auto l = line[x0..x1];
-                    foreach(x;0..l.length)
-                    {
-                        const xw = x % W;
-                        l[x] = cols[p[xw]];
-                    }
-                    //ColT.interpolateLine!H(line,cols0[y],cols1[y]);
-                }
-            }
-            static if(Fill)
-            {
-                foreach(y;y0..y1)
-                {
-                    static if(HasColor)
-                    {
-                        const col1 = tile.cols0[y % TileHeight];
-                        const col2 = tile.cols1[y % TileHeight];
-                        fillColorLine(x0, x1, y, col1,col2);
-                    }
-                    ++line;
-                }
-            }
-            else
-            {
-                auto pck = pack;
-                pck.setXY(x0,y0);
-                foreach(y;y0..y1)
-                {
-                    int xStart = x1;
-                    foreach(x;x0..x1)
-                    {
-                        if(pck.check())
-                        {
-                            xStart = x;
-                            break;
-                        }
-                        pck.incX();
-                    }
-                    pck.incX();
-                    int xEnd = x1;
-                    foreach(x;(xStart + 1)..x1)
-                    {
-                        if(!pck.check())
-                        {
-                            xEnd = x;
-                            break;
-                        }
-                        pck.incX();
-                    }
-                    //assert(xStart >= x0);
-                    //assert(xEnd   <= x1);
-
-                    if(xEnd > xStart)
-                    {
-                        static if(HasColor)
-                        {
-                            auto calcColor(int xt)
-                            {
-                                PosT[3] bary = void;
-                                pck.getBarycentric(xt,y, bary);
-                                ColT[3] colors = void;
-                                colors[0] = pverts[0].color * bary[0];
-                                colors[1] = pverts[1].color * bary[1];
-                                colors[2] = pverts[2].color * bary[2];
-                                return colors[0] + colors[1] + colors[2];
-                            }
-                            const col1 = calcColor(xStart);
-                            const col2 = calcColor(xEnd - 1);
-                            //ColT.interpolateLine(xEnd-xStart,line[xStart..xEnd],col1,col2);
-                            //line[xStart..xEnd] = ColorRed;
-                            fillColorLine(xStart,xEnd,y,col1,col2);
-                        }
-                    }
-                    pck.incY();
-                    ++line;
-                }
-            }
-        }
-
         @nogc void drawTile(bool Fill = false)(int TileWidth, int TileHeight, int x0, int y0)
         {
             assert(TileWidth > 0);
@@ -506,24 +396,120 @@ public:
             {
                 auto tile = TileT(pack,pverts,x0,y0);
             }
-            else
-            {
-                auto tile = TileNCT(pack,pverts,x0,y0);
-            }
             for(auto y = y0; y < y1; y += MinTileHeight)
             {
-                tile.incY(pack);
+                static if(Fill) tile.incY(pack);
                 const cy0 = max(minY,y);
                 const cy1 = min(maxY,y + MinTileHeight);
                 if(cy0 >= cy1) continue;
                 for(auto x = x0; x < x1; x += MinTileWidth)
                 {
-                    tile.incX(pack);
+                    static if(Fill) tile.incX(pack);
                     const cx0 = max(minX,x);
                     const cx1 = min(maxX,x + MinTileWidth);
                     if(cx0 >= cx1) continue;
-                    //drawFixedSizeTile!(Fill,MinTileWidth,MinTileHeight)(tile,x,y);
-                    drawFixedSizeTile!(Fill,MinTileWidth,MinTileHeight)(tile,cx0,cy0,cx1,cy1);
+                    @nogc void drawFixedSizeTile(bool Fill, int TileWidth, int TileHeight)(int x0, int y0, int x1, int y1)
+                    {
+                        auto line = mBitmap[y0];
+                        static if(HasColor)
+                        {
+                            @nogc void fillColorLine(int x0, int x1, int y, in ColT col1, in ColT col2) nothrow
+                            {
+                                enum W = 8;
+                                enum H = 8;
+                                immutable ColT[2] cols = [col1, col2];
+                                static immutable patterns = [
+                                    [0,0,0,0,1,1,1,1],
+                                    [0,0,0,1,0,1,1,1],
+                                    [0,0,1,0,1,0,1,1],
+                                    [0,1,0,1,0,1,0,1],
+                                    
+                                    [0,0,1,0,1,0,1,1],
+                                    [0,1,0,1,0,1,0,1],
+                                    [0,0,1,0,1,0,1,1],
+                                    [0,0,0,1,0,1,1,1]];
+                                static assert(patterns.length    == H);
+                                static assert(patterns[0].length == W);
+                                const p = patterns[y % H];
+                                auto l = line[x0..x1];
+                                foreach(x;0..l.length)
+                                {
+                                    const xw = x % W;
+                                    l[x] = cols[p[xw]];
+                                }
+                                //ColT.interpolateLine!H(line[x0..x1],col1,col2);
+                            }
+                        }
+                        static if(Fill)
+                        {
+                            foreach(y;y0..y1)
+                            {
+                                static if(HasColor)
+                                {
+                                    const col1 = tile.cols0[y % TileHeight];
+                                    const col2 = tile.cols1[y % TileHeight];
+                                    fillColorLine(x0, x1, y, col1,col2);
+                                }
+                                ++line;
+                            }
+                        }
+                        else
+                        {
+                            auto pck = pack;
+                            pck.setXY(x0,y0);
+                            foreach(y;y0..y1)
+                            {
+                                int xStart = x1;
+                                foreach(x;x0..x1)
+                                {
+                                    if(pck.check())
+                                    {
+                                        xStart = x;
+                                        break;
+                                    }
+                                    pck.incX();
+                                }
+                                pck.incX();
+                                int xEnd = x1;
+                                foreach(x;(xStart + 1)..x1)
+                                {
+                                    if(!pck.check())
+                                    {
+                                        xEnd = x;
+                                        break;
+                                    }
+                                    pck.incX();
+                                }
+                                //assert(xStart >= x0);
+                                //assert(xEnd   <= x1);
+                                
+                                if(xEnd > xStart)
+                                {
+                                    static if(HasColor)
+                                    {
+                                        auto calcColor(int xt)
+                                        {
+                                            PosT[3] bary = void;
+                                            pck.getBarycentric(xt,y, bary);
+                                            ColT[3] colors = void;
+                                            colors[0] = pverts[0].color * bary[0];
+                                            colors[1] = pverts[1].color * bary[1];
+                                            colors[2] = pverts[2].color * bary[2];
+                                            return colors[0] + colors[1] + colors[2];
+                                        }
+                                        const col1 = calcColor(xStart);
+                                        const col2 = calcColor(xEnd - 1);
+                                        //ColT.interpolateLine(xEnd-xStart,line[xStart..xEnd],col1,col2);
+                                        //line[xStart..xEnd] = ColorRed;
+                                        fillColorLine(xStart,xEnd,y,col1,col2);
+                                    }
+                                }
+                                pck.incY();
+                                ++line;
+                            }
+                        }
+                    }
+                    drawFixedSizeTile!(Fill,MinTileWidth,MinTileHeight)(cx0,cy0,cx1,cy1);
                 }
             }
         }
@@ -533,35 +519,7 @@ public:
             drawTile!true(TileWidth, TileHeight, x0, y0);
         }
 
-        /*const minTx = minX / MinTileWidth;
-        const maxTx = (maxX + MinTileWidth - 1) / MinTileWidth;
-        const minTy = minY / MinTileHeight;
-        const maxTy = (maxY + MinTileHeight - 1) / MinTileHeight;
-        foreach(ty;minTy..maxTy)
-        {
-            const y0 = (ty + 0) * MinTileHeight;
-            const y1 = (ty + 1) * MinTileHeight;
-            foreach(tx;minTx..maxTx)
-            {
-                const x0 = (tx + 0) * MinTileWidth;
-                const x1 = (tx + 1) * MinTileWidth;
-                auto res = pack.testTile(x0, y0, x1, y1);
-                if((0 == (res & 0xf)) || (0 == (res & 0xf0)) || (0 == (res & 0xf00)))  continue;
-
-                if(0xfff == res)
-                {
-                    //completely covered
-                    fillTile(MinTileWidth, MinTileHeight, x0, y0);
-                }
-                else
-                {
-                    //patrially covered
-                    drawTile(MinTileWidth, MinTileHeight, x0, y0);
-                }
-            }
-        }*/
-
-        @nogc void drawAreaLevel(int TileWidth, int TileHeight)(int tx0, int ty0, int tx1, int ty1)
+        @nogc void drawAreaLevel(int TileWidth, int TileHeight)(int tx0, int ty0, int tx1, int ty1) nothrow
         {
             static assert(TileWidth  >= MinTileWidth);
             static assert(TileHeight >= MinTileHeight);
@@ -624,6 +582,34 @@ public:
         }
 
         clipAreaLevel!(MinTreeTileWidth,MinTreeTileHeight)(minX,minY,maxX,maxY);
+        //
+        /*const minTx = minX / MinTileWidth;
+        const maxTx = (maxX + MinTileWidth - 1) / MinTileWidth;
+        const minTy = minY / MinTileHeight;
+        const maxTy = (maxY + MinTileHeight - 1) / MinTileHeight;
+        foreach(ty;minTy..maxTy)
+        {
+            const y0 = (ty + 0) * MinTileHeight;
+            const y1 = (ty + 1) * MinTileHeight;
+            foreach(tx;minTx..maxTx)
+            {
+                const x0 = (tx + 0) * MinTileWidth;
+                const x1 = (tx + 1) * MinTileWidth;
+                auto res = pack.testTile(x0, y0, x1, y1);
+                if((0 == (res & 0xf)) || (0 == (res & 0xf0)) || (0 == (res & 0xf00)))  continue;
+
+                if(0xfff == res)
+                {
+                    //completely covered
+                    fillTile(MinTileWidth, MinTileHeight, x0, y0);
+                }
+                else
+                {
+                    //patrially covered
+                    drawTile(MinTileWidth, MinTileHeight, x0, y0);
+                }
+            }
+        }*/
         //end
     }
 }
