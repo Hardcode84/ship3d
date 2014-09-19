@@ -16,6 +16,7 @@ import game.units;
 
 struct RasterizerHP(BitmapT,TextureT,DepthT = void)
 {
+@nogc:
 private:
     BitmapT mBitmap;
     TextureT mTexture;
@@ -59,14 +60,14 @@ private:
             cx = cy;
         }
 
-        void incX(int val) pure nothrow
+        void incX() pure nothrow
         {
-            cx -= dy * val;
+            cx -= dy;
         }
 
-        void incY(int val) pure nothrow
+        void incY() pure nothrow
         {
-            cy += dx * val;
+            cy += dx;
             cx = cy;
         }
 
@@ -113,19 +114,19 @@ private:
             }
         }
 
-        void incX(int val) pure nothrow
+        void incX() pure nothrow
         {
             foreach(i;TupleRange!(0,NumLines))
             {
-                lines[i].incX(val);
+                lines[i].incX();
             }
         }
 
-        void incY(int val) pure nothrow
+        void incY() pure nothrow
         {
             foreach(i;TupleRange!(0,NumLines))
             {
-                lines[i].incY(val);
+                lines[i].incY();
             }
         }
 
@@ -298,7 +299,6 @@ public:
     }
     body
     {
-        b.lock();
         mBitmap = b;
         mClipRect = Rect(0, 0, mBitmap.width, mBitmap.height);
     }
@@ -319,11 +319,6 @@ public:
         }
     }
 
-    ~this()
-    {
-        mBitmap.unlock();
-    }
-
     @property auto texture() inout pure nothrow { return mTexture; }
     @property void texture(TextureT tex) pure nothrow { mTexture = tex; }
 
@@ -340,7 +335,7 @@ public:
         mClipRect = Rect(dstLeft, dstTop, dstRight - dstLeft, dstBottom - dstTop);
     }
 
-    void drawIndexedTriangle(bool HasTextures = false, bool HasColor = true,VertT,IndT)(in VertT[] verts, in IndT[3] indices) pure nothrow if(isIntegral!IndT)
+    void drawIndexedTriangle(bool HasTextures = false, bool HasColor = true,VertT,IndT)(in VertT[] verts, in IndT[3] indices) pure nothrow @nogc if(isIntegral!IndT)
     {
         const c = (verts[1].pos.xyz - verts[0].pos.xyz).cross(verts[2].pos.xyz - verts[0].pos.xyz);
         if(c.z <= 0)
@@ -363,7 +358,7 @@ public:
         if(affine) drawTriangle!(HasTextures, HasColor,true)(pverts);
         else       drawTriangle!(HasTextures, HasColor,false)(pverts);
     }
-    private void drawTriangle(bool HasTextures, bool HasColor,bool Affine,VertT)(in VertT[3] pverts) pure nothrow
+    private void drawTriangle(bool HasTextures, bool HasColor,bool Affine,VertT)(in VertT[3] pverts) pure nothrow @nogc
     {
         static assert(HasTextures != HasColor);
         //alias PosT = FixedPoint!(28,4,int);
@@ -393,11 +388,12 @@ public:
 
         auto pack = PackT(pverts[0], pverts[1], pverts[2], minX, minY);
 
-        void drawFixedSizeTile(bool Fill, int TileWidth, int TileHeight, T)(in T tile, int x0, int y0)
+        void drawFixedSizeTile(bool Fill, int TileWidth, int TileHeight, T)(in T tile, int x0, int y0, int x1, int y1) @nogc
         {
+            auto line = mBitmap[y0];
             static if(HasColor)
             {
-                void fillColorLine(T)(auto ref T line, int y, in ColT col1, in ColT col2) const pure nothrow @nogc
+                void fillColorLine(int x0, int x1, int y, in ColT col1, in ColT col2) nothrow @nogc
                 {
                     enum W = 8;
                     enum H = 8;
@@ -407,28 +403,23 @@ public:
                         [0,0,0,1,0,1,1,1],
                         [0,0,1,0,1,0,1,1],
                         [0,1,0,1,0,1,0,1],
-
+                        
                         [0,0,1,0,1,0,1,1],
                         [0,1,0,1,0,1,0,1],
                         [0,0,1,0,1,0,1,1],
                         [0,0,0,1,0,1,1,1]];
-                    static assert(patterns.length == H);
+                    static assert(patterns.length    == H);
                     static assert(patterns[0].length == W);
                     const p = patterns[y % H];
-                    foreach(x;0..line.length)
+                    auto l = line[x0..x1];
+                    foreach(x;0..l.length)
                     {
                         const xw = x % W;
-                        line[xw] = cols[p[xw]];
+                        l[x] = cols[p[xw]];
                     }
                     //ColT.interpolateLine!H(line,cols0[y],cols1[y]);
                 }
             }
-
-            const y1 = min(y0 + TileHeight, maxY);
-            const x1 = min(x0 + TileWidth,  maxX);
-            y0 = max(minY, y0);
-            x0 = max(minX, x0);
-            auto line = mBitmap[y0];
             static if(Fill)
             {
                 foreach(y;y0..y1)
@@ -437,7 +428,7 @@ public:
                     {
                         const col1 = tile.cols0[y % TileHeight];
                         const col2 = tile.cols1[y % TileHeight];
-                        fillColorLine(line[x0..x1], y, col1,col2);
+                        fillColorLine(x0, x1, y, col1,col2);
                     }
                     ++line;
                 }
@@ -455,9 +446,9 @@ public:
                             xStart = x;
                             break;
                         }
-                        pack.incX(1);
+                        pack.incX();
                     }
-                    pack.incX(1);
+                    pack.incX();
                     int xEnd = x1;
                     foreach(x;(xStart + 1)..x1)
                     {
@@ -466,7 +457,7 @@ public:
                             xEnd = x;
                             break;
                         }
-                        pack.incX(1);
+                        pack.incX();
                     }
                     //assert(xStart >= x0);
                     //assert(xEnd   <= x1);
@@ -489,16 +480,16 @@ public:
                             const col2 = calcColor(xEnd - 1);
                             //ColT.interpolateLine(xEnd-xStart,line[xStart..xEnd],col1,col2);
                             //line[xStart..xEnd] = ColorRed;
-                            fillColorLine(line[xStart..xEnd],y,col1,col2);
+                            fillColorLine(xStart,xEnd,y,col1,col2);
                         }
                     }
-                    pack.incY(1);
+                    pack.incY();
                     ++line;
                 }
             }
         }
 
-        void drawTile(bool Fill = false)(int TileWidth, int TileHeight, int x0, int y0)
+        void drawTile(bool Fill = false)(int TileWidth, int TileHeight, int x0, int y0) @nogc
         {
             assert(TileWidth > 0);
             assert(TileHeight > 0);
@@ -506,8 +497,8 @@ public:
             assert(0 == y0 % TileHeight);
             assert(x0 >= 0, debugConv(x0));
             assert(y0 >= 0, debugConv(y0));
-            const x1 = x0 + TileWidth;
-            const y1 = y0 + TileHeight;
+            const x1 = min(maxX,x0 + TileWidth);
+            const y1 = min(maxY,y0 + TileHeight);
             //assert(x1 < (maxX + TileWidth),  debugConv(x1)~" "~debugConv(maxX));
             //assert(y1 < (maxY + TileHeight), debugConv(y1)~" "~debugConv(maxY));
             static if(Fill)
@@ -521,15 +512,22 @@ public:
             for(auto y = y0; y < y1; y += MinTileHeight)
             {
                 tile.incY(pack);
+                const cy0 = max(minY,y);
+                const cy1 = min(maxY,y + MinTileHeight);
+                if(cy0 >= cy1) continue;
                 for(auto x = x0; x < x1; x += MinTileWidth)
                 {
                     tile.incX(pack);
-                    drawFixedSizeTile!(Fill,MinTileWidth,MinTileHeight)(tile,x,y);
+                    const cx0 = max(minX,x);
+                    const cx1 = min(maxX,x + MinTileWidth);
+                    if(cx0 >= cx1) continue;
+                    //drawFixedSizeTile!(Fill,MinTileWidth,MinTileHeight)(tile,x,y);
+                    drawFixedSizeTile!(Fill,MinTileWidth,MinTileHeight)(tile,cx0,cy0,cx1,cy1);
                 }
             }
         }
 
-        void fillTile(int TileWidth, int TileHeight, int x0, int y0)
+        void fillTile(int TileWidth, int TileHeight, int x0, int y0) @nogc
         {
             drawTile!true(TileWidth, TileHeight, x0, y0);
         }
@@ -562,7 +560,7 @@ public:
             }
         }*/
 
-        void drawAreaLevel(int TileWidth, int TileHeight)(int tx0, int ty0, int tx1, int ty1)
+        void drawAreaLevel(int TileWidth, int TileHeight)(int tx0, int ty0, int tx1, int ty1) @nogc
         {
             static assert(TileWidth  >= MinTileWidth);
             static assert(TileHeight >= MinTileHeight);
@@ -615,7 +613,7 @@ public:
             }
         }
 
-        void clipAreaLevel(int TileWidth, int TileHeight)(int x0, int y0, int x1, int y1)
+        void clipAreaLevel(int TileWidth, int TileHeight)(int x0, int y0, int x1, int y1) @nogc
         {
             const tx0 = x0 / TileWidth;
             const tx1 = (x1 + TileWidth - 1) / TileWidth;

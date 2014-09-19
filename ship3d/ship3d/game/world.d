@@ -65,23 +65,25 @@ public:
     void draw(SurfT surf)
     {
         surf.fill(ColorBlack);
-        Vertex[4] verts;
-
-        verts[0].pos  = vec4_t(-1,-1,0,1);
-        verts[0].tpos = vec2_t(0,0);
-        verts[0].color = ColorRed;
-        verts[1].pos  = vec4_t( 1,-1,0,1);
-        verts[1].tpos = vec2_t(1,0);
-        verts[1].color = ColorBlue;
-        verts[2].pos  = vec4_t( 1, 1,0,1);
-        verts[2].tpos = vec2_t(1,1);
-        verts[2].color = ColorGreen;
-        verts[3].pos  = vec4_t(-1, 1,0,1);
-        verts[3].tpos = vec2_t(0,1);
-        verts[3].color = ColorWhite;
-
+        surf.lock();
+        scope(exit) surf.unlock();
         foreach(j;0..1)
         {
+            Vertex[4] verts;
+
+            verts[0].pos  = vec4_t(-1,-1,0,1);
+            verts[0].tpos = vec2_t(0,0);
+            verts[0].color = ColorRed;
+            verts[1].pos  = vec4_t( 1,-1,0,1);
+            verts[1].tpos = vec2_t(1,0);
+            verts[1].color = ColorBlue;
+            verts[2].pos  = vec4_t( 1, 1,0,1);
+            verts[2].tpos = vec2_t(1,1);
+            verts[2].color = ColorGreen;
+            verts[3].pos  = vec4_t(-1, 1,0,1);
+            verts[3].tpos = vec2_t(0,1);
+            verts[3].color = ColorWhite;
+
             mat4_t t = mProjMat * mat4_t.translation(0,mYpos,-3) * mat4_t.yrotation(mRot);
 
             foreach(i;0..verts.length)

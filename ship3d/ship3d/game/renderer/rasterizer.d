@@ -13,7 +13,7 @@ private:
     BitmapT mBitmap;
     TextureT mTexture;
     Rect mClipRect;
-    enum AffineLength = 16;
+    enum AffineLength = 8;
     struct Edge(PosT, bool Affine, bool HasTextures, ColT)
     {
     private:
@@ -447,7 +447,34 @@ public:
                     divLine(x1, x , col1, col);
                     divLine(x , x2, col , col2);
                 }
-                divLine(x1, x2 + 1, span.colorStart, span.colorEnd);
+                //divLine(x1, x2 + 1, span.colorStart, span.colorEnd);
+                void fillColorLine(int x0, int x1, int y, in ColT col1, in ColT col2) nothrow @nogc
+                {
+                    enum W = 8;
+                    enum H = 8;
+                    immutable ColT[2] cols = [col1, col2];
+                    static immutable patterns = [
+                        [0,0,0,0,1,1,1,1],
+                        [0,0,0,1,0,1,1,1],
+                        [0,0,1,0,1,0,1,1],
+                        [0,1,0,1,0,1,0,1],
+                        
+                        [0,0,1,0,1,0,1,1],
+                        [0,1,0,1,0,1,0,1],
+                        [0,0,1,0,1,0,1,1],
+                        [0,0,0,1,0,1,1,1]];
+                    static assert(patterns.length    == H);
+                    static assert(patterns[0].length == W);
+                    const p = patterns[y % H];
+                    auto l = line[x0..x1];
+                    foreach(x;0..l.length)
+                    {
+                        const xw = x % W;
+                        l[x] = cols[p[xw]];
+                    }
+                    //ColT.interpolateLine!H(line,cols0[y],cols1[y]);
+                }
+                fillColorLine(x1,x2,y,span.colorStart, span.colorEnd);
                 //line[x1..x2] = span.colorStart;
                 /*foreach(x;x1..x2)
                 {
