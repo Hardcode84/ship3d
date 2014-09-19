@@ -448,7 +448,7 @@ public:
                     divLine(x , x2, col , col2);
                 }
                 //divLine(x1, x2 + 1, span.colorStart, span.colorEnd);
-                void fillColorLine(int x0, int x1, int y, in ColT col1, in ColT col2) nothrow @nogc
+                @nogc void fillColorLine(int x0, int x1, int y, in ColT col1, in ColT col2) nothrow
                 {
                     enum W = 8;
                     enum H = 8;

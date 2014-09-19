@@ -161,7 +161,7 @@ private:
         }
         out
         {
-            assert(almost_equal(cast(PosT)1, ret.sum, 1.0f/255.0f), debugConv(ret.sum));
+            //assert(almost_equal(cast(PosT)1, ret.sum, 1.0f/255.0f), debugConv(ret.sum));
         }
         body
         {
@@ -335,7 +335,7 @@ public:
         mClipRect = Rect(dstLeft, dstTop, dstRight - dstLeft, dstBottom - dstTop);
     }
 
-    void drawIndexedTriangle(bool HasTextures = false, bool HasColor = true,VertT,IndT)(in VertT[] verts, in IndT[3] indices) pure nothrow @nogc if(isIntegral!IndT)
+    void drawIndexedTriangle(bool HasTextures = false, bool HasColor = true,VertT,IndT)(in VertT[] verts, in IndT[3] indices) pure nothrow if(isIntegral!IndT)
     {
         const c = (verts[1].pos.xyz - verts[0].pos.xyz).cross(verts[2].pos.xyz - verts[0].pos.xyz);
         if(c.z <= 0)
@@ -358,7 +358,7 @@ public:
         if(affine) drawTriangle!(HasTextures, HasColor,true)(pverts);
         else       drawTriangle!(HasTextures, HasColor,false)(pverts);
     }
-    private void drawTriangle(bool HasTextures, bool HasColor,bool Affine,VertT)(in VertT[3] pverts) pure nothrow @nogc
+    @nogc private void drawTriangle(bool HasTextures, bool HasColor,bool Affine,VertT)(in VertT[3] pverts) pure nothrow
     {
         static assert(HasTextures != HasColor);
         //alias PosT = FixedPoint!(28,4,int);
@@ -388,12 +388,12 @@ public:
 
         auto pack = PackT(pverts[0], pverts[1], pverts[2], minX, minY);
 
-        void drawFixedSizeTile(bool Fill, int TileWidth, int TileHeight, T)(in T tile, int x0, int y0, int x1, int y1) @nogc
+        @nogc void drawFixedSizeTile(bool Fill, int TileWidth, int TileHeight, T)(in T tile, int x0, int y0, int x1, int y1)
         {
             auto line = mBitmap[y0];
             static if(HasColor)
             {
-                void fillColorLine(int x0, int x1, int y, in ColT col1, in ColT col2) nothrow @nogc
+                @nogc void fillColorLine(int x0, int x1, int y, in ColT col1, in ColT col2) nothrow
                 {
                     enum W = 8;
                     enum H = 8;
@@ -489,7 +489,7 @@ public:
             }
         }
 
-        void drawTile(bool Fill = false)(int TileWidth, int TileHeight, int x0, int y0) @nogc
+        @nogc void drawTile(bool Fill = false)(int TileWidth, int TileHeight, int x0, int y0)
         {
             assert(TileWidth > 0);
             assert(TileHeight > 0);
@@ -527,7 +527,7 @@ public:
             }
         }
 
-        void fillTile(int TileWidth, int TileHeight, int x0, int y0) @nogc
+        @nogc void fillTile(int TileWidth, int TileHeight, int x0, int y0)
         {
             drawTile!true(TileWidth, TileHeight, x0, y0);
         }
@@ -560,7 +560,7 @@ public:
             }
         }*/
 
-        void drawAreaLevel(int TileWidth, int TileHeight)(int tx0, int ty0, int tx1, int ty1) @nogc
+        @nogc void drawAreaLevel(int TileWidth, int TileHeight)(int tx0, int ty0, int tx1, int ty1)
         {
             static assert(TileWidth  >= MinTileWidth);
             static assert(TileHeight >= MinTileHeight);
@@ -613,7 +613,7 @@ public:
             }
         }
 
-        void clipAreaLevel(int TileWidth, int TileHeight)(int x0, int y0, int x1, int y1) @nogc
+        @nogc void clipAreaLevel(int TileWidth, int TileHeight)(int x0, int y0, int x1, int y1)
         {
             const tx0 = x0 / TileWidth;
             const tx1 = (x1 + TileWidth - 1) / TileWidth;

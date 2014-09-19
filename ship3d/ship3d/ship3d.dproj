@@ -6,10 +6,10 @@
     <ProductVersion>8.0.30703</ProductVersion>
     <SchemaVersion>2.0</SchemaVersion>
     <ProjectGuid>{F788B2C5-9536-4E82-9FFC-A6E30C9AC567}</ProjectGuid>
-    <UseDefaultCompiler>true</UseDefaultCompiler>
+    <UseDefaultCompiler>false</UseDefaultCompiler>
     <IncrementalLinking>true</IncrementalLinking>
     <PreferOneStepBuild>true</PreferOneStepBuild>
-    <Compiler>DMD2</Compiler>
+    <Compiler>ldc2</Compiler>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -26,6 +26,7 @@
         <Lib>gdi32.lib</Lib>
       </Libs>
     </Libs>
+    <ExtraCompilerArguments>-oq</ExtraCompilerArguments>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <OutputPath>bin\Release</OutputPath>
@@ -41,7 +42,7 @@
         <Lib>gdi32.lib</Lib>
       </Libs>
     </Libs>
-    <ExtraCompilerArguments>-boundscheck=off</ExtraCompilerArguments>
+    <ExtraCompilerArguments>-oq</ExtraCompilerArguments>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Unittest|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -58,6 +59,7 @@
         <Lib>gdi32.lib</Lib>
       </Libs>
     </Libs>
+    <ExtraCompilerArguments>-oq</ExtraCompilerArguments>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="main.d" />
