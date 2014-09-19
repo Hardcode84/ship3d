@@ -162,7 +162,7 @@ private:
         }
         out
         {
-            //assert(almost_equal(cast(PosT)1, ret.sum, 1.0f/255.0f), debugConv(ret.sum));
+            assert(almost_equal(cast(PosT)1, ret.reduce!"a + b", 1.0f/255.0f), debugConv(ret.reduce!"a + b"));
         }
         body
         {
