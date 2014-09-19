@@ -22,6 +22,8 @@ public:
         {
             CViewT cview;
             DViewT dview;
+            alias cview this;
+
         } view_t;
         view_t view = {cview:mColorBuff[y], dview:mDepthBuff[y]};
         return view[y];

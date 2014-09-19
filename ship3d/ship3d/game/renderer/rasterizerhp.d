@@ -14,11 +14,16 @@ import game.units;
 
 @nogc:
 
-struct RasterizerHP(BitmapT,TextureT)
+struct RasterizerHP(BitmapT,TextureT,DepthT = void)
 {
 private:
     BitmapT mBitmap;
     TextureT mTexture;
+    enum HasDepth = !is(DepthT : void);
+    static if(HasDepth)
+    {
+        DepthT mDepthMap;
+    }
     Rect mClipRect;
 
     enum MinTileWidth  = 8;
@@ -47,38 +52,38 @@ private:
             invDenom = baryInvDenom;
             setXY(minX, minY);
         }
-        
+
         void setXY(int x, int y) pure nothrow
         {
             cy = val(x, y);
             cx = cy;
         }
-        
+
         void incX(int val) pure nothrow
         {
             cx -= dy * val;
         }
-        
+
         void incY(int val) pure nothrow
         {
             cy += dx * val;
             cx = cy;
         }
-        
+
         auto val(int x, int y) const pure nothrow
         {
             return c + dx * y - dy * x;
         }
-        
+
         uint testTile(int x1, int y1, int x2, int y2) const pure nothrow
         {
             bool a00 = (val(x1, y1) > 0);
-            bool a10 = (val(x2, y1) > 0); 
+            bool a10 = (val(x2, y1) > 0);
             bool a01 = (val(x1, y2) > 0);
             bool a11 = (val(x2, y2) > 0);
             return (a00 << 0) | (a10 << 1) | (a01 << 2) | (a11 << 3);
         }
-        
+
         @property auto curr() const pure nothrow { return cx; }
 
         @property auto barycentric(int x, int y) const pure nothrow
@@ -218,7 +223,7 @@ private:
             immutable ColT[NumLines] colors;
             ColT col00 = void, col10 = void, col01 = void, col11 = void;
             ColT[H] cols0 = void, cols1 = void;
-            ColT /*col01t,*/ col11t = void;
+            ColT col11t = void;
         }
         this(PackT,VT)(in PackT pack, in VT[] v, int x, int y) pure nothrow
         in
@@ -281,21 +286,47 @@ private:
     }
 public:
     this(BitmapT b)
+    in
     {
         assert(b !is null);
+        assert(0 == (b.width  % MinTileWidth));
+        assert(0 == (b.height % MinTileHeight));
+        static if(HasDepth)
+        {
+            assert(mDepthMap !is null);
+        }
+    }
+    body
+    {
         b.lock();
         mBitmap = b;
         mClipRect = Rect(0, 0, mBitmap.width, mBitmap.height);
     }
-    
+
+    static if(HasDepth)
+    {
+        this(BitmapT b, DepthT d)
+        in
+        {
+            assert(d ! is null);
+            assert(b.width  == d.width);
+            assert(b.height == d.height);
+        }
+        body
+        {
+            mDepthMap = d;
+            this(b);
+        }
+    }
+
     ~this()
     {
         mBitmap.unlock();
     }
-    
+
     @property auto texture() inout pure nothrow { return mTexture; }
     @property void texture(TextureT tex) pure nothrow { mTexture = tex; }
-    
+
     @property void clipRect(in Rect rc) pure nothrow
     {
         const srcLeft   = rc.x;
@@ -308,25 +339,23 @@ public:
         const dstBottom = min(srcBottom, mBitmap.height);
         mClipRect = Rect(dstLeft, dstTop, dstRight - dstLeft, dstBottom - dstTop);
     }
-    
+
     void drawIndexedTriangle(bool HasTextures = false, bool HasColor = true,VertT,IndT)(in VertT[] verts, in IndT[3] indices) pure nothrow if(isIntegral!IndT)
     {
         const c = (verts[1].pos.xyz - verts[0].pos.xyz).cross(verts[2].pos.xyz - verts[0].pos.xyz);
         if(c.z <= 0)
         {
-            //debugOut("out");
             return;
         }
         const(VertT)*[3] pverts;
         foreach(i,ind; indices) pverts[i] = verts.ptr + ind;
-        //sort!("a.pos.y < b.pos.y")(pverts[0..$]);
-        
+
         const e1xdiff = pverts[0].pos.x - pverts[2].pos.x;
         const e2xdiff = pverts[0].pos.x - pverts[1].pos.x;
-        
+
         const e1ydiff = pverts[0].pos.y - pverts[2].pos.y;
         const e2ydiff = pverts[0].pos.y - pverts[1].pos.y;
-        
+
         const cxdiff = ((e1xdiff / e1ydiff) * e2ydiff) - e2xdiff;
         const reverseSpans = (cxdiff < 0);
         const affine = false;//(abs(cxdiff) > AffineLength * 25);
@@ -378,11 +407,11 @@ public:
                         [0,0,0,1,0,1,1,1],
                         [0,0,1,0,1,0,1,1],
                         [0,1,0,1,0,1,0,1],
-                        
+
                         [0,0,1,0,1,0,1,1],
+                        [0,1,0,1,0,1,0,1],
                         [0,0,1,0,1,0,1,1],
-                        [0,0,0,1,0,1,1,1],
-                        [0,0,0,0,1,1,1,1]];
+                        [0,0,0,1,0,1,1,1]];
                     static assert(patterns.length == H);
                     static assert(patterns[0].length == W);
                     const p = patterns[y % H];
@@ -394,9 +423,12 @@ public:
                     //ColT.interpolateLine!H(line,cols0[y],cols1[y]);
                 }
             }
+
+            const y1 = min(y0 + TileHeight, maxY);
+            const x1 = min(x0 + TileWidth,  maxX);
+            y0 = max(minY, y0);
+            x0 = max(minX, x0);
             auto line = mBitmap[y0];
-            const y1 = (y0 + TileHeight);
-            const x1 = (x0 + TileWidth);
             static if(Fill)
             {
                 foreach(y;y0..y1)
@@ -436,8 +468,8 @@ public:
                         }
                         pack.incX(1);
                     }
-                    assert(xStart >= x0);
-                    assert(xEnd   <= x1);
+                    //assert(xStart >= x0);
+                    //assert(xEnd   <= x1);
 
                     if(xEnd > xStart)
                     {
@@ -538,15 +570,17 @@ public:
             auto yt0 = ty0 * TileHeight;
             foreach(ty;ty0..ty1)
             {
+                if(yt0 >= maxY) break;
                 const yt1 = yt0 + TileHeight;
                 scope(exit) yt0 = yt1;
                 auto xt0 = tx0 * TileWidth;
                 foreach(tx;tx0..tx1)
                 {
+                    if(xt0 >= maxX) break;
                     const xt1 = xt0 + TileWidth;
                     scope(exit) xt0 = xt1;
                     const res = pack.testTile(xt0, yt0, xt1, yt1);
-                    if((0 == (res & 0xf)) || (0 == (res & 0xf0)) || (0 == (res & 0xf00))) 
+                    if((0 == (res & 0xf)) || (0 == (res & 0xf0)) || (0 == (res & 0xf00)))
                     {
                         //uncovered
                         continue;
