@@ -388,7 +388,7 @@ public:
 
         auto pack = PackT(pverts[0], pverts[1], pverts[2], minX, minY);
 
-        @nogc void drawFixedSizeTile(bool Fill, int TileWidth, int TileHeight, T)(in T tile, int x0, int y0, int x1, int y1)
+        @nogc void drawFixedSizeTile(bool Fill, int TileWidth, int TileHeight, T)(in ref T tile, int x0, int y0, int x1, int y1)
         {
             auto line = mBitmap[y0];
             static if(HasColor)
@@ -435,29 +435,30 @@ public:
             }
             else
             {
-                pack.setXY(x0,y0);
+                auto pck = pack;
+                pck.setXY(x0,y0);
                 foreach(y;y0..y1)
                 {
                     int xStart = x1;
                     foreach(x;x0..x1)
                     {
-                        if(pack.check())
+                        if(pck.check())
                         {
                             xStart = x;
                             break;
                         }
-                        pack.incX();
+                        pck.incX();
                     }
-                    pack.incX();
+                    pck.incX();
                     int xEnd = x1;
                     foreach(x;(xStart + 1)..x1)
                     {
-                        if(!pack.check())
+                        if(!pck.check())
                         {
                             xEnd = x;
                             break;
                         }
-                        pack.incX();
+                        pck.incX();
                     }
                     //assert(xStart >= x0);
                     //assert(xEnd   <= x1);
@@ -469,7 +470,7 @@ public:
                             auto calcColor(int xt)
                             {
                                 PosT[3] bary = void;
-                                pack.getBarycentric(xt,y, bary);
+                                pck.getBarycentric(xt,y, bary);
                                 ColT[3] colors = void;
                                 colors[0] = pverts[0].color * bary[0];
                                 colors[1] = pverts[1].color * bary[1];
@@ -483,7 +484,7 @@ public:
                             fillColorLine(xStart,xEnd,y,col1,col2);
                         }
                     }
-                    pack.incY();
+                    pck.incY();
                     ++line;
                 }
             }
