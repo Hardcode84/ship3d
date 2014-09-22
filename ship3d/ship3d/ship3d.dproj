@@ -9,7 +9,7 @@
     <UseDefaultCompiler>false</UseDefaultCompiler>
     <IncrementalLinking>true</IncrementalLinking>
     <PreferOneStepBuild>true</PreferOneStepBuild>
-    <Compiler>ldc2</Compiler>
+    <Compiler>DMD2</Compiler>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -26,7 +26,6 @@
         <Lib>gdi32.lib</Lib>
       </Libs>
     </Libs>
-    <ExtraCompilerArguments>-oq</ExtraCompilerArguments>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <OutputPath>bin\Release</OutputPath>
@@ -42,7 +41,7 @@
         <Lib>gdi32.lib</Lib>
       </Libs>
     </Libs>
-    <ExtraCompilerArguments>-oq -mcpu=i686 -mattr=+mmx,+sse</ExtraCompilerArguments>
+    <ExtraCompilerArguments>-boundscheck=off</ExtraCompilerArguments>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Unittest|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -59,7 +58,56 @@
         <Lib>gdi32.lib</Lib>
       </Libs>
     </Libs>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug LDC|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\Debug</OutputPath>
+    <LinkinThirdPartyLibraries>false</LinkinThirdPartyLibraries>
+    <Libs>
+      <Libs>
+        <Lib>gdi32.lib</Lib>
+      </Libs>
+    </Libs>
+    <DebugLevel>0</DebugLevel>
+    <ObjectsDirectory>obj\Debug</ObjectsDirectory>
     <ExtraCompilerArguments>-oq</ExtraCompilerArguments>
+    <Target>Executable</Target>
+    <Externalconsole>true</Externalconsole>
+    <UnittestMode>false</UnittestMode>
+    <OutputName>ship3d</OutputName>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release LDC|AnyCPU' ">
+    <OutputPath>bin\Release</OutputPath>
+    <LinkinThirdPartyLibraries>false</LinkinThirdPartyLibraries>
+    <Libs>
+      <Libs>
+        <Lib>gdi32.lib</Lib>
+      </Libs>
+    </Libs>
+    <DebugLevel>0</DebugLevel>
+    <ObjectsDirectory>obj\Release</ObjectsDirectory>
+    <ExtraCompilerArguments>-oq -mcpu=i686 -mattr=+mmx,+sse</ExtraCompilerArguments>
+    <Target>Executable</Target>
+    <Externalconsole>true</Externalconsole>
+    <UnittestMode>false</UnittestMode>
+    <OutputName>ship3d</OutputName>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Unittest LDC|AnyCPU' ">
+    <DebugSymbols>true</DebugSymbols>
+    <OutputPath>bin\Unittest</OutputPath>
+    <LinkinThirdPartyLibraries>false</LinkinThirdPartyLibraries>
+    <Libs>
+      <Libs>
+        <Lib>gdi32.lib</Lib>
+      </Libs>
+    </Libs>
+    <DebugLevel>0</DebugLevel>
+    <ObjectsDirectory>obj\Unittest</ObjectsDirectory>
+    <ExtraCompilerArguments>-oq</ExtraCompilerArguments>
+    <Target>Executable</Target>
+    <Externalconsole>true</Externalconsole>
+    <UnittestMode>true</UnittestMode>
+    <OutputName>ship3d</OutputName>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="main.d" />
