@@ -35,6 +35,7 @@ private:
 
     struct Line(PosT,bool Affine)
     {
+    @nogc:
         immutable PosT x1, y1;
         immutable PosT dx, dy, c;
         /*immutable FixedPoint!(28,4,int) x1, y1;
@@ -96,6 +97,7 @@ private:
 
     struct LinesPack(PosT,LineT,bool Affine)
     {
+    @nogc:
         enum NumLines = 3;
         LineT[NumLines] lines;
         static if(!Affine)
@@ -162,7 +164,7 @@ private:
         }
         out
         {
-            assert(almost_equal(cast(PosT)1, ret.reduce!"a + b", 1.0f/255.0f), debugConv(ret.reduce!"a + b"));
+            //assert(almost_equal(cast(PosT)1, ret.reduce!"a + b", 1.0f/255.0f), debugConv(ret.reduce!"a + b"));
         }
         body
         {
@@ -190,6 +192,7 @@ private:
 
     struct Tile(int W, int H, PosT, ColT)
     {
+    @nogc:
         static assert(ispow2(W));
         static assert(ispow2(H));
         enum HasColor = !is(ColT : void);
