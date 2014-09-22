@@ -42,7 +42,7 @@
         <Lib>gdi32.lib</Lib>
       </Libs>
     </Libs>
-    <ExtraCompilerArguments>-oq</ExtraCompilerArguments>
+    <ExtraCompilerArguments>-oq -mcpu=i686 -mattr=+mmx,+sse</ExtraCompilerArguments>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Unittest|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
