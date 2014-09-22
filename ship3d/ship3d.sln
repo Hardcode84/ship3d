@@ -8,12 +8,21 @@ Global
 		Debug|Any CPU = Debug|Any CPU
 		Release|Any CPU = Release|Any CPU
 		Unittest|Any CPU = Unittest|Any CPU
+		Debug LDC|Any CPU = Debug LDC|Any CPU
+		Release LDC|Any CPU = Release LDC|Any CPU
+		Unittest LDC|Any CPU = Unittest LDC|Any CPU
 	EndGlobalSection
 	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{F788B2C5-9536-4E82-9FFC-A6E30C9AC567}.Debug LDC|Any CPU.ActiveCfg = Debug LDC|Any CPU
+		{F788B2C5-9536-4E82-9FFC-A6E30C9AC567}.Debug LDC|Any CPU.Build.0 = Debug LDC|Any CPU
 		{F788B2C5-9536-4E82-9FFC-A6E30C9AC567}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
 		{F788B2C5-9536-4E82-9FFC-A6E30C9AC567}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F788B2C5-9536-4E82-9FFC-A6E30C9AC567}.Release LDC|Any CPU.ActiveCfg = Release LDC|Any CPU
+		{F788B2C5-9536-4E82-9FFC-A6E30C9AC567}.Release LDC|Any CPU.Build.0 = Release LDC|Any CPU
 		{F788B2C5-9536-4E82-9FFC-A6E30C9AC567}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{F788B2C5-9536-4E82-9FFC-A6E30C9AC567}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F788B2C5-9536-4E82-9FFC-A6E30C9AC567}.Unittest LDC|Any CPU.ActiveCfg = Unittest LDC|Any CPU
+		{F788B2C5-9536-4E82-9FFC-A6E30C9AC567}.Unittest LDC|Any CPU.Build.0 = Unittest LDC|Any CPU
 		{F788B2C5-9536-4E82-9FFC-A6E30C9AC567}.Unittest|Any CPU.ActiveCfg = Unittest|Any CPU
 		{F788B2C5-9536-4E82-9FFC-A6E30C9AC567}.Unittest|Any CPU.Build.0 = Unittest|Any CPU
 	EndGlobalSection

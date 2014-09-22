@@ -9,7 +9,7 @@
     <UseDefaultCompiler>false</UseDefaultCompiler>
     <IncrementalLinking>true</IncrementalLinking>
     <PreferOneStepBuild>true</PreferOneStepBuild>
-    <Compiler>DMD2</Compiler>
+    <Compiler>ldc2</Compiler>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -149,6 +149,7 @@
     <Compile Include="game\renderer\rasterizerhp.d" />
     <Compile Include="gamelib\graphics\memsurface.d" />
     <Compile Include="game\renderer\compositebuffer.d" />
+    <Compile Include="game\renderer\rasterizerhp2.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />
