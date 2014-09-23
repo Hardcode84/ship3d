@@ -7,6 +7,7 @@ import gamelib.graphics.memsurface;
 import game.units;
 import game.renderer.rasterizer;
 import game.renderer.rasterizerhp;
+import game.renderer.rasterizerhp2;
 import game.renderer.texture;
 
 final class World
@@ -95,7 +96,7 @@ public:
                 verts[i].pos.x = verts[i].pos.x * mSize.w + mSize.w / 2;
                 verts[i].pos.y = verts[i].pos.y * mSize.h + mSize.h / 2;
             }
-            RasterizerHP!(SurfT,typeof(mTexture)) rast = surf;
+            RasterizerHP2!(SurfT,typeof(mTexture)) rast = surf;
             rast.texture = mTexture;
             foreach(i;0..1)
             {

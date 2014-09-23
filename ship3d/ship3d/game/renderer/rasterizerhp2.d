@@ -29,8 +29,8 @@ private:
 
     enum MinTileWidth  = 8;
     enum MinTileHeight = 8;
-    enum MaxTileWidth  = 64;
-    enum MaxTileHeight = 64;
+    enum MaxTileWidth  = 8;
+    enum MaxTileHeight = 8;
     enum TileCoeff     = 8;
 
     struct Line(PosT,bool Affine)
@@ -69,12 +69,12 @@ private:
             cx = cy;
         }
 
-        /*auto val(int x, int y) const pure nothrow
+        auto val(int x, int y) const pure nothrow
         {
             return c + dx * y - dy * x;
         }
 
-        uint testTile(int x1, int y1, int x2, int y2) const pure nothrow
+        /*uint testTile(int x1, int y1, int x2, int y2) const pure nothrow
         {
             bool a00 = (val(x1, y1) > 0);
             bool a10 = (val(x2, y1) > 0);
@@ -102,7 +102,6 @@ private:
                 LineT(v1, v2, minX, minY, invDenom),
                 LineT(v2, v3, minX, minY, invDenom),
                 LineT(v3, v1, minX, minY, invDenom)];
-            curr11 = check();
             static if(!Affine)
             {
                 w = [cast(PosT)v1.pos.w, cast(PosT)v2.pos.w, cast(PosT)v3.pos.w];
@@ -133,13 +132,19 @@ private:
             }
         }
 
-        auto check() const pure nothrow
+        auto all() const pure nothrow
         {
             //return all!"a.curr > 0"(lines[]);
             return lines[0].curr > 0 && lines[1].curr > 0 && lines[2].curr > 0;
         }
 
-        auto testTile(int x1, int y1, int x2, int y2) const pure nothrow
+        auto any() const pure nothrow
+        {
+            //return any!"a.curr > 0"(lines[]);
+            return lines[0].curr > 0 || lines[1].curr > 0 || lines[2].curr > 0;
+        }
+
+        /*auto testTile(int x1, int y1, int x2, int y2) const pure nothrow
         {
             uint res = 0;
             foreach(i;TupleRange!(0,NumLines))
@@ -147,7 +152,7 @@ private:
                 res |= (lines[i].testTile(x1,y1,x2,y2) << (4 * i));
             }
             return res;
-        }
+        }*/
     }
 
 
@@ -342,77 +347,131 @@ public:
         minY = max(mClipRect.y, minY);
         maxY = min(mClipRect.y + mClipRect.h, maxY);
 
-        /*const minTx = minX / MinTileWidth;
-        const maxTx = (maxX + MinTileWidth - 1) / MinTileWidth;
-        const minTy = minY / MinTileHeight;
-        const maxTy = (maxY + MinTileHeight - 1) / MinTileHeight;
-        foreach(ty;minTy..maxTy)
+        @nogc void drawTile(bool Fill, /*int TileWidth, int TileHeight,*/ T)(in T extPack, int x0, int y0,int x1, int y1)
         {
-            const y0 = (ty + 0) * MinTileHeight;
-            const y1 = (ty + 1) * MinTileHeight;
-            foreach(tx;minTx..maxTx)
+            //static assert(TileWidth  > 0);
+            //static assert(TileHeight > 0);
+            Unqual!T pack = extPack;
+            pack.setXY(x0,y0);
+            auto line = mBitmap[y0];
+            //debugOut(y0);
+            //debugOut(y1);
+            foreach(y;y0..y1)
             {
-                const x0 = (tx + 0) * MinTileWidth;
-                const x1 = (tx + 1) * MinTileWidth;
-                auto res = pack.testTile(x0, y0, x1, y1);
-                if((0 == (res & 0xf)) || (0 == (res & 0xf0)) || (0 == (res & 0xf00)))  continue;
-                
-                if(0xfff == res)
-                {
-                    //completely covered
-                    fillTile(MinTileWidth, MinTileHeight, x0, y0);
+                static if(Fill)
+                { 
+                    line[x0..x1] = ColorRed;
                 }
                 else
                 {
-                    //patrially covered
-                    drawTile(MinTileWidth, MinTileHeight, x0, y0);
+                    foreach(x;x0..x1)
+                    {
+                        if(pack.all)
+                        {
+                            line[x] = ColorGreen;
+                        }
+                        pack.incX(1);
+                    }
+                    pack.incY(1);
                 }
+                ++line;
             }
-        }*/
+        }
         void drawArea(int TileWidth, int TileHeight,T)(in T extPack, int tx0,int ty0, int tx1, int ty1)
         {
-            enum NewTileWidth  = TileWidth  / TileCoeff;
-            enum NewTileHeight = TileHeight / TileCoeff;
+            enum LastLevel = (TileWidth == MinTileWidth && TileHeight == MinTileHeight);
+        
             Unqual!T pack0 = extPack;
             Unqual!T pack1 = extPack;
-
-            foreach(ty;ty0..ty1 + 1)
+            Unqual!T pack  = extPack;
+            foreach(ty;ty0..ty1)
             {
+                const y0 = ty * TileHeight;
+                if(y0 >= maxY) break;
                 pack1.incY(TileHeight);
                 uint c = 0;
-                c |= (pack0.curr << 0);
-                c |= (pack1.curr << 1);
-                bool line = false;
+                c |= (pack0.all << 0);
+                c |= (pack1.all << 1);
                 int txStart = tx1;
-                int txEnd   = tx0;
-                foreach(tx;tx0..tx1 + 1)
+                foreach(tx;tx0..tx1)
                 {
                     pack0.incX(TileWidth);
                     pack1.incX(TileWidth);
-                    c |= (pack0.curr << 2);
-                    c |= (pack1.curr << 3);
+                    c |= (pack0.all << 2);
+                    c |= (pack1.all << 3);
+                    scope(exit) c >>= 2;
                     if(0x0 != c)
                     {
-                        if(!line)
-                        {
-                            line = true;
-                            txStart = tx;
-                        }
-                    }
-                    else if(line)
-                    {
-                        txEnd = tx;
+                        //debugOut("brk1");
+                        txStart = tx;
                         break;
                     }
-
-                    c >>= 2;
                 }
-                if(txEnd > txStart)
+
+
+                static if(LastLevel)
                 {
-                    drawArea!(NewTileWidth,NewTileHeight)(,txStart,ty,txEnd,ty);
+                    const y1 = y0 + TileHeight;
+                    pack.incX(TileWidth * (txStart - tx0));
+                    foreach(tx;(txStart)..tx1)
+                    {
+                        pack0.incX(TileWidth);
+                        pack1.incX(TileWidth);
+                        c |= (pack0.all << 2);
+                        c |= (pack1.all << 3);
+                        if(0x0 == c)
+                        {
+                            break;
+                        }
+                        const x0 = tx * TileWidth;
+                        const x1 = x0 + TileWidth;
+                        if(0xf == c)
+                        {
+                            //fully covered
+                            drawTile!(true)(pack,x0,y0,x1,y1);
+                        }
+                        else
+                        {
+                            //patrially covered
+                            drawTile!(false)(pack,x0,y0,x1,y1);
+                        }
+                        pack.incX(TileWidth);
+                        //a >>= 2;
+                        c >>= 2;
+                    }
+                }
+                else
+                {
+                    int txEnd = tx1;
+                    foreach(tx;(txStart + 1)..tx1)
+                    {
+                        pack0.incX(TileWidth);
+                        pack1.incX(TileWidth);
+                        c |= (pack0.all << 2);
+                        c |= (pack1.all << 3);
+                        if(0x0 == c)
+                        {
+                            txEnd = tx;
+                            break;
+                        }                    
+                        c >>= 2;
+                    }
+
+                    if(txEnd > txStart)
+                    {
+                        enum NewTileWidth  = TileWidth  / TileCoeff;
+                        enum NewTileHeight = TileHeight / TileCoeff;
+                        pack.incX(TileWidth * (txStart - tx0));
+                        drawArea!(NewTileWidth,NewTileHeight)(pack,
+                                                              txStart * TileCoeff,
+                                                              ty      * TileCoeff,
+                                                              txEnd   * TileCoeff,
+                                                              ty      * TileCoeff);
+                    }
                 }
 
                 pack0.incY(TileHeight);
+                pack.incY(TileHeight);
             }
         }
         void clipArea(int TileWidth, int TileHeight)()
