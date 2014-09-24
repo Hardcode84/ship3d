@@ -96,12 +96,26 @@ public:
                 verts[i].pos.x = verts[i].pos.x * mSize.w + mSize.w / 2;
                 verts[i].pos.y = verts[i].pos.y * mSize.h + mSize.h / 2;
             }
-            RasterizerHP2!(SurfT,typeof(mTexture)) rast = surf;
-            rast.texture = mTexture;
-            foreach(i;0..1)
+            static int n = 0;
+            if(0 != (n % 2))
             {
-                rast.drawIndexedTriangle(verts, [0,1,2]);
-                rast.drawIndexedTriangle(verts, [0,2,3]);
+                RasterizerHP!(SurfT,typeof(mTexture)) rast = surf;
+                rast.texture = mTexture;
+                foreach(i;0..1)
+                {
+                    //rast.drawIndexedTriangle(verts, [0,1,2]);
+                    rast.drawIndexedTriangle(verts, [0,2,3]);
+                }
+            }
+            else
+            {
+                RasterizerHP2!(SurfT,typeof(mTexture)) rast = surf;
+                rast.texture = mTexture;
+                foreach(i;0..1)
+                {
+                    //rast.drawIndexedTriangle(verts, [0,1,2]);
+                    rast.drawIndexedTriangle(verts, [0,2,3]);
+                }
             }
         }
     }

@@ -37,9 +37,9 @@ private:
     {
     @nogc:
         immutable PosT dx, dy, c;
-        PosT cx, cy;
+        PosT cx = void, cy = void;
 
-        this(VT)(in VT v1, in VT v2, int minX, int minY, PosT baryInvDenom) pure nothrow
+        this(VT)(in VT v1, in VT v2, PosT baryInvDenom) pure nothrow
         {
             const x1 = v1.pos.x;
             const x2 = v2.pos.x;
@@ -49,7 +49,6 @@ private:
             dy = (y2 - y1) * baryInvDenom;
             const inc = (dy < 0 || (dy == 0 && dx > 0)) ? cast(PosT)1 / cast(PosT)16 : cast(PosT)0;
             c = (dy * x1 - dx * y1) + inc * baryInvDenom;
-            setXY(minX, minY);
         }
 
         void setXY(int x, int y) pure nothrow
@@ -95,13 +94,13 @@ private:
         {
             immutable PosT[NumLines] w;
         }
-        this(VT)(in VT v1, in VT v2, in VT v3, int minX, int minY) pure nothrow
+        this(VT)(in VT v1, in VT v2, in VT v3) pure nothrow
         {
             const invDenom = cast(PosT)(1 / ((v2.pos - v1.pos).xy.wedge((v3.pos - v1.pos).xy)));
             lines = [
-                LineT(v1, v2, minX, minY, invDenom),
-                LineT(v2, v3, minX, minY, invDenom),
-                LineT(v3, v1, minX, minY, invDenom)];
+                LineT(v1, v2, invDenom),
+                LineT(v2, v3, invDenom),
+                LineT(v3, v1, invDenom)];
             static if(!Affine)
             {
                 w = [cast(PosT)v1.pos.w, cast(PosT)v2.pos.w, cast(PosT)v3.pos.w];
@@ -347,12 +346,15 @@ public:
         minY = max(mClipRect.y, minY);
         maxY = min(mClipRect.y + mClipRect.h, maxY);
 
-        @nogc void drawTile(bool Fill, /*int TileWidth, int TileHeight,*/ T)(in T extPack, int x0, int y0,int x1, int y1)
+        @nogc void drawTile(bool Fill, T)(in T extPack, int x0, int y0,int x1, int y1)
         {
-            //static assert(TileWidth  > 0);
-            //static assert(TileHeight > 0);
             Unqual!T pack = extPack;
-            pack.setXY(x0,y0);
+            //debugOut(pack.lines[2].cx);
+            //debugOut(pack.lines[2].cy);
+            //pack.setXY(x0,y0);
+            //debugOut(pack.lines[2].cx);
+            //debugOut(pack.lines[2].cy);
+            //while(1) {}
             auto line = mBitmap[y0];
             //debugOut(y0);
             //debugOut(y1);
@@ -369,6 +371,10 @@ public:
                         if(pack.all)
                         {
                             line[x] = ColorGreen;
+                        }
+                        else
+                        {
+                            line[x] = ColorBlue;
                         }
                         pack.incX(1);
                     }
@@ -392,22 +398,20 @@ public:
                 uint c = 0;
                 c |= (pack0.all << 0);
                 c |= (pack1.all << 1);
-                int txStart = tx1;
+                int txStart = tx0;
                 foreach(tx;tx0..tx1)
                 {
                     pack0.incX(TileWidth);
                     pack1.incX(TileWidth);
                     c |= (pack0.all << 2);
                     c |= (pack1.all << 3);
-                    scope(exit) c >>= 2;
                     if(0x0 != c)
                     {
-                        //debugOut("brk1");
                         txStart = tx;
                         break;
                     }
+                    c >>= 2;
                 }
-
 
                 static if(LastLevel)
                 {
@@ -415,14 +419,6 @@ public:
                     pack.incX(TileWidth * (txStart - tx0));
                     foreach(tx;(txStart)..tx1)
                     {
-                        pack0.incX(TileWidth);
-                        pack1.incX(TileWidth);
-                        c |= (pack0.all << 2);
-                        c |= (pack1.all << 3);
-                        if(0x0 == c)
-                        {
-                            break;
-                        }
                         const x0 = tx * TileWidth;
                         const x1 = x0 + TileWidth;
                         if(0xf == c)
@@ -435,9 +431,16 @@ public:
                             //patrially covered
                             drawTile!(false)(pack,x0,y0,x1,y1);
                         }
+                        pack0.incX(TileWidth);
+                        pack1.incX(TileWidth);
                         pack.incX(TileWidth);
-                        //a >>= 2;
                         c >>= 2;
+                        c |= (pack0.all << 2);
+                        c |= (pack1.all << 3);
+                        if(0x0 == c)
+                        {
+                            break;
+                        }
                     }
                 }
                 else
@@ -480,8 +483,13 @@ public:
             const maxTx = (maxX + TileWidth - 1) / TileWidth;
             const minTy =  minY / TileHeight;
             const maxTy = (maxY + TileHeight - 1) / TileHeight;
-            const pack = PackT(pverts[0], pverts[1], pverts[2], minX, minY);
+            auto pack = PackT(pverts[0], pverts[1], pverts[2]);
+            pack.setXY(minTx * TileWidth, minTy * TileWidth);
             drawArea!(TileWidth,TileHeight)(pack,minTx,minTy,maxTx,maxTy);
+        }
+        foreach(y;minY..maxY)
+        {
+            mBitmap[y][minX..maxX] = ColorWhite;
         }
         clipArea!(MaxTileWidth,MaxTileHeight);
         //end
