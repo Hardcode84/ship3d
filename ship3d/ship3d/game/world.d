@@ -18,6 +18,7 @@ private:
     immutable Size mSize;
     pos_t mRot = 1;
     pos_t mYpos = 0;
+    int mN = 0;
     Texture!ColorT mTexture;
     MemSurface!float mDepthBuff;
 public:
@@ -61,6 +62,10 @@ public:
         {
             mYpos += asd;
         }
+        else if(SDL_SCANCODE_SPACE)
+        {
+            ++mN;
+        }
     }
 
     void draw(SurfT surf)
@@ -97,14 +102,14 @@ public:
                 verts[i].pos.y = verts[i].pos.y * mSize.h + mSize.h / 2;
             }
             static int n = 0;
-            if(0 != (n % 2))
+            if(0 != (mN % 2))
             {
                 RasterizerHP!(SurfT,typeof(mTexture)) rast = surf;
                 rast.texture = mTexture;
                 foreach(i;0..1)
                 {
-                    //rast.drawIndexedTriangle(verts, [0,1,2]);
-                    rast.drawIndexedTriangle(verts, [0,2,3]);
+                    rast.drawIndexedTriangle(verts, [0,1,2]);
+                    //rast.drawIndexedTriangle(verts, [0,2,3]);
                 }
             }
             else
@@ -113,8 +118,8 @@ public:
                 rast.texture = mTexture;
                 foreach(i;0..1)
                 {
-                    //rast.drawIndexedTriangle(verts, [0,1,2]);
-                    rast.drawIndexedTriangle(verts, [0,2,3]);
+                    rast.drawIndexedTriangle(verts, [0,1,2]);
+                    //rast.drawIndexedTriangle(verts, [0,2,3]);
                 }
             }
         }
