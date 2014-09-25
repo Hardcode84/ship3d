@@ -179,17 +179,25 @@ private:
             return cx[0] > 0 && cx[1] > 0 && cx[2] > 0;
         }
 
-        @property auto any() const pure nothrow
+        /*@property auto any() const pure nothrow
         {
             //return any!"a.curr > 0"(lines[]);
             return cx[0] > 0 || cx[1] > 0 || cx[2] > 0;
         }
 
+        @property auto none() const pure nothrow
+        {
+            //return any!"a.curr > 0"(lines[]);
+            return cx[0] <= 0 && cx[1] <= 0 && cx[2] <= 0;
+        }*/
+
         @property auto check() const pure nothrow
         {
             uint ret = 0;
-            ret |= (all << 0);
-            ret |= (any << 1);
+            foreach(i;TupleRange!(0,NumLines))
+            {
+                ret |= ((cx[i] > 0) << i);
+            }
             return ret;
         }
     }
@@ -310,22 +318,33 @@ public:
                 uint c = 0;
                 //debugOut("---");
                 c |= (pack0.check << 0);
-                c |= (pack1.check << 2);
+                c |= (pack1.check << 3);
+                auto none(in uint val) pure nothrow
+                {
+                    return 0x0 == (val & 0b001001001001) ||
+                           0x0 == (val & 0b010010010010) ||
+                           0x0 == (val & 0b100100100100);
+                }
+                auto all(in uint val) pure nothrow
+                {
+                    return val == 0b111_111_111_111;
+                }
                 int txStart = tx1;
                 foreach(tx;tx0..tx1)
                 {
                     mBitmap[y0][tx*TileWidth] = ColorRed;
                     pack0.incX(TileWidth);
                     pack1.incX(TileWidth);
-                    c |= (pack0.check << 4);
-                    c |= (pack1.check << 6);
-                    if(0x0 != c)
+                    c |= (pack0.check << 6);
+                    c |= (pack1.check << 9);
+                    //debugOut(c);
+                    if(!none(c))
                     {
                         //debugOut("brk");
                         txStart = tx;
                         break;
                     }
-                    c >>= 4;
+                    c >>= 6;
                 }
                 //debugOut(txStart);
 
@@ -355,7 +374,7 @@ public:
                                     }
                                     else
                                     {
-                                        //line[x] = ColorBlue;
+                                        line[x] = ColorBlue;
                                     }
                                 }
                                 
@@ -370,8 +389,8 @@ public:
                         mBitmap[y0][tx*TileWidth] = ColorRed;
                         const x0 = tx * TileWidth;
                         const x1 = x0 + TileWidth;
-                       
-                        if(0xff == c)
+
+                        if(all(c))
                         {
                             //fully covered
                             drawTile!(true)(x0,y0,x1,y1);
@@ -383,10 +402,10 @@ public:
                         }
                         pack0.incX(TileWidth);
                         pack1.incX(TileWidth);
-                        c >>= 4;
-                        c |= (pack0.check << 4);
-                        c |= (pack1.check << 6);
-                        if(0x0 == c)
+                        c >>= 6;
+                        c |= (pack0.check << 6);
+                        c |= (pack1.check << 9);
+                        if(none(c))
                         {
                             break;
                         }
