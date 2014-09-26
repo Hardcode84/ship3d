@@ -91,7 +91,7 @@ private:
 
         @property auto barycentric(int x, int y) const pure nothrow
         {
-            return (dx * (y - y1) - dy * (x - x1));
+            return c + dx * y - dy * x;
         }
     }
 

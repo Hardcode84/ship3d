@@ -62,7 +62,7 @@ public:
         {
             mYpos += asd;
         }
-        else if(SDL_SCANCODE_SPACE)
+        else if(SDL_SCANCODE_SPACE == key)
         {
             ++mN;
         }
@@ -108,7 +108,7 @@ public:
                 rast.texture = mTexture;
                 foreach(i;0..1)
                 {
-                    //rast.drawIndexedTriangle(verts, [0,1,2]);
+                    rast.drawIndexedTriangle(verts, [0,1,2]);
                     rast.drawIndexedTriangle(verts, [0,2,3]);
                 }
             }
@@ -118,7 +118,7 @@ public:
                 rast.texture = mTexture;
                 foreach(i;0..1)
                 {
-                    //rast.drawIndexedTriangle(verts, [0,1,2]);
+                    rast.drawIndexedTriangle(verts, [0,1,2]);
                     rast.drawIndexedTriangle(verts, [0,2,3]);
                 }
             }

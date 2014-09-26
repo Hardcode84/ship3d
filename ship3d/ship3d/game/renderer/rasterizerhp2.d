@@ -37,9 +37,8 @@ private:
     {
     @nogc:
         immutable PosT dx, dy, c;
-        //PosT cx = void, cy = void;
 
-        this(VT)(in VT v1, in VT v2, int x, int y, PosT baryInvDenom) pure nothrow
+        this(VT)(in VT v1, in VT v2, in PosT baryInvDenom) pure nothrow
         {
             const x1 = v1.pos.x;
             const x2 = v2.pos.x;
@@ -49,7 +48,6 @@ private:
             dy = (y2 - y1) * baryInvDenom;
             const inc = (dy < 0 || (dy == 0 && dx > 0)) ? cast(PosT)1 / cast(PosT)16 : cast(PosT)0;
             c = (dy * x1 - dx * y1) + inc * baryInvDenom;
-            //setXY(x,y);
         }
 
         /*void setXY(int x, int y) pure nothrow
@@ -84,32 +82,43 @@ private:
         LineT[NumLines] lines;
         static if(!Affine)
         {
-            immutable PosT[NumLines] w;
+            immutable PosT[NumLines] sw;
         }
-        this(VT)(in VT v1, in VT v2, in VT v3, int x, int y) pure nothrow
+        this(VT)(in VT v1, in VT v2, in VT v3) pure nothrow
         {
             const invDenom = cast(PosT)(1 / ((v2.pos - v1.pos).xy.wedge((v3.pos - v1.pos).xy)));
             lines = [
-                LineT(v1, v2, x, y, invDenom),
-                LineT(v2, v3, x, y, invDenom),
-                LineT(v3, v1, x, y, invDenom)];
+                LineT(v1, v2, invDenom),
+                LineT(v2, v3, invDenom),
+                LineT(v3, v1, invDenom)];
             static if(!Affine)
             {
-                w = [cast(PosT)v1.pos.w, cast(PosT)v2.pos.w, cast(PosT)v3.pos.w];
+                sw = [
+                    cast(PosT)1 / v1.pos.w,
+                    cast(PosT)1 / v2.pos.w,
+                    cast(PosT)1 / v3.pos.w];
             }
         }
 
     }
-    struct Tile(PosT,PackT)
+    struct Tile(PosT,PackT,bool Affine)
     {
     @nogc:
         const(PackT)* pack;
         enum NumLines = 3;
         PosT[NumLines] cx, cy;
+        static if(!Affine)
+        {
+            PosT sw = void;
+            immutable PosT swdx, swdy;
+        }
 
         this(in PackT* p, int x, int y)
         {
             pack = p;
+            static if(!Affine)
+            {
+            }
             setXY(x,y);
         }
         void setXY(int x, int y) pure nothrow
@@ -127,6 +136,10 @@ private:
             {
                 cx[i] -= pack.lines[i].dy * val;
             }
+            static if(!Affine)
+            {
+                sw += swdx * val;
+            }
         }
         
         void incY(int val) pure nothrow
@@ -135,6 +148,10 @@ private:
             {
                 cy[i] += pack.lines[i].dx * val;
                 cx[i] = cy[i];
+            }
+            static if(!Affine)
+            {
+                sw += swdy * val;
             }
         }
 
@@ -153,6 +170,43 @@ private:
             }
             return ret;
         }
+
+        void getBarycentric(PosT[] ret) const pure nothrow
+        in
+        {
+            assert(ret.length == NumLines);
+        }
+        out
+        {
+            assert(almost_equal(cast(PosT)1, ret.sum, 1.0f/255.0f), debugConv(ret.sum));
+        }
+        body
+        {
+            foreach(i;TupleRange!(0,NumLines))
+            {
+                //static if(Affine)
+                {
+                    ret[i] = cx[i];
+                }
+                /*else
+                {
+                    ret[i] = cx[i] * sw[i];
+                }*/
+            }
+
+        }
+
+        /*@property auto w() const pure nothrow
+        {
+            static if(Affine)
+            {
+                return 1;
+            }
+            else
+            {
+                return cast(PosT)1 / sw;
+            }
+        }*/
     }
 public:
     this(BitmapT b)
@@ -242,7 +296,7 @@ public:
         }
         alias LineT   = Line!(PosT,Affine);
         alias PackT   = LinesPack!(PosT,LineT,Affine);
-        alias TileT   = Tile!(PosT,PackT);
+        alias TileT   = Tile!(PosT,PackT,Affine);
 
         int minY = cast(int)min(pverts[0].pos.y, pverts[1].pos.y, pverts[2].pos.y);
         int maxY = cast(int)max(pverts[0].pos.y, pverts[1].pos.y, pverts[2].pos.y);
@@ -297,6 +351,13 @@ public:
 
                 static if(LastLevel)
                 {
+                    PosT[3] bary0 = void;
+                    PosT[3] bary1 = void;
+                    static if(HasColor)
+                    {
+                        ColT[TileHeight] cols0 = void;
+                        ColT[TileHeight] cols1 = void;
+                    }
                     @nogc void drawTile(bool Fill)(int x0, int y0,int x1, int y1) nothrow
                     {
                         static if(!Fill)
@@ -332,7 +393,7 @@ public:
                     }
 
                     const y1 = y0 + TileHeight;
-                    foreach(tx;(txStart)..tx1)
+                    foreach(tx;txStart..tx1)
                     {
                         //mBitmap[y0][tx*TileWidth] = ColorRed;
                         const x0 = tx * TileWidth;
@@ -360,21 +421,10 @@ public:
                 }
                 else
                 {
-                    int txEnd = txStart;
-                    foreach(tx;(txStart)..tx1)
+                    int txEnd = tx1;//txStart;
+                    foreach(tx;txStart..tx1)
                     {
-                        mBitmap[y0][tx*TileWidth] = ColorRed;
-                        /*pack0.incX(TileWidth);
-                        pack1.incX(TileWidth);
-                        c |= (pack0.all << 2);
-                        c |= (pack1.all << 3);
-                        if(0x0 == c)
-                        {
-                            txEnd = tx;
-                            break;
-                        }
-                        c >>= 2;
-                        */
+                        //mBitmap[y0][tx*TileWidth] = ColorRed;
                         pack0.incX(TileWidth);
                         pack1.incX(TileWidth);
                         c >>= 6;
@@ -390,9 +440,6 @@ public:
 
                     if(txEnd > txStart)
                     {
-                        /*debugOut("---");
-                        debugOut(txStart);
-                        debugOut(txEnd);*/
                         enum NewTileWidth  = TileWidth  / TileCoeff;
                         enum NewTileHeight = TileHeight / TileCoeff;
                         drawArea!(NewTileWidth,NewTileHeight)(extPack,
@@ -412,7 +459,7 @@ public:
             const maxTx = (maxX + TileWidth - 1) / TileWidth;
             const minTy =  minY / TileHeight;
             const maxTy = (maxY + TileHeight - 1) / TileHeight;
-            auto pack = PackT(pverts[0], pverts[1], pverts[2], minTx * TileWidth, minTy * TileHeight);
+            auto pack = PackT(pverts[0], pverts[1], pverts[2]);
             //pack.incX(64);
             drawArea!(TileWidth,TileHeight)(pack,minTx,minTy,maxTx,maxTy);
         }
