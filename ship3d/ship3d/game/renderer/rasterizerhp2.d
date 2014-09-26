@@ -29,8 +29,8 @@ private:
 
     enum MinTileWidth  = 8;
     enum MinTileHeight = 8;
-    enum MaxTileWidth  = 8;
-    enum MaxTileHeight = 8;
+    enum MaxTileWidth  = 64;
+    enum MaxTileHeight = 64;
     enum TileCoeff     = 8;
 
     struct Line(PosT,bool Affine)
@@ -88,7 +88,7 @@ private:
         }
         this(VT)(in VT v1, in VT v2, in VT v3, int x, int y) pure nothrow
         {
-            const invDenom = 1.0f;//cast(PosT)(1 / ((v2.pos - v1.pos).xy.wedge((v3.pos - v1.pos).xy)));
+            const invDenom = cast(PosT)(1 / ((v2.pos - v1.pos).xy.wedge((v3.pos - v1.pos).xy)));
             lines = [
                 LineT(v1, v2, x, y, invDenom),
                 LineT(v2, v3, x, y, invDenom),
@@ -99,41 +99,6 @@ private:
             }
         }
 
-        /*void incX(int val) pure nothrow
-        {
-            foreach(i;TupleRange!(0,NumLines))
-            {
-                lines[i].incX(val);
-            }
-        }
-
-        void incY(int val) pure nothrow
-        {
-            foreach(i;TupleRange!(0,NumLines))
-            {
-                lines[i].incY(val);
-            }
-        }
-
-        void setXY(int x, int y) pure nothrow
-        {
-            foreach(i;TupleRange!(0,NumLines))
-            {
-                lines[i].setXY(x, y);
-            }
-        }
-
-        auto all() const pure nothrow
-        {
-            //return all!"a.curr > 0"(lines[]);
-            return lines[0].curr > 0 && lines[1].curr > 0 && lines[2].curr > 0;
-        }
-
-        auto any() const pure nothrow
-        {
-            //return any!"a.curr > 0"(lines[]);
-            return lines[0].curr > 0 || lines[1].curr > 0 || lines[2].curr > 0;
-        }*/
     }
     struct Tile(PosT,PackT)
     {
@@ -155,7 +120,7 @@ private:
                 cx[i] = cy[i];
             }
         }
-        
+
         void incX(int val) pure nothrow
         {
             foreach(i;TupleRange!(0,NumLines))
@@ -178,18 +143,6 @@ private:
             //return all!"a.curr > 0"(lines[]);
             return cx[0] > 0 && cx[1] > 0 && cx[2] > 0;
         }
-
-        /*@property auto any() const pure nothrow
-        {
-            //return any!"a.curr > 0"(lines[]);
-            return cx[0] > 0 || cx[1] > 0 || cx[2] > 0;
-        }
-
-        @property auto none() const pure nothrow
-        {
-            //return any!"a.curr > 0"(lines[]);
-            return cx[0] <= 0 && cx[1] <= 0 && cx[2] <= 0;
-        }*/
 
         @property auto check() const pure nothrow
         {
@@ -308,22 +261,19 @@ public:
 
             auto pack0 = TileT(&extPack,tx0*TileWidth,ty0*TileHeight);
             auto pack1 = pack0;
-            //pack0.incY(-TileHeight);
-            //pack1.incY(-TileHeight);
             foreach(ty;ty0..ty1)
             {
                 const y0 = ty * TileHeight;
                 if(y0 >= maxY) break;
                 pack1.incY(TileHeight);
                 uint c = 0;
-                //debugOut("---");
                 c |= (pack0.check << 0);
                 c |= (pack1.check << 3);
                 auto none(in uint val) pure nothrow
                 {
-                    return 0x0 == (val & 0b001001001001) ||
-                           0x0 == (val & 0b010010010010) ||
-                           0x0 == (val & 0b100100100100);
+                    return 0x0 == (val & 0b001_001_001_001) ||
+                           0x0 == (val & 0b010_010_010_010) ||
+                           0x0 == (val & 0b100_100_100_100);
                 }
                 auto all(in uint val) pure nothrow
                 {
@@ -332,29 +282,28 @@ public:
                 int txStart = tx1;
                 foreach(tx;tx0..tx1)
                 {
-                    mBitmap[y0][tx*TileWidth] = ColorRed;
+                    //mBitmap[y0][tx*TileWidth] = ColorRed;
                     pack0.incX(TileWidth);
                     pack1.incX(TileWidth);
                     c |= (pack0.check << 6);
                     c |= (pack1.check << 9);
-                    //debugOut(c);
                     if(!none(c))
                     {
-                        //debugOut("brk");
                         txStart = tx;
                         break;
                     }
                     c >>= 6;
                 }
-                //debugOut(txStart);
 
                 static if(LastLevel)
                 {
                     @nogc void drawTile(bool Fill)(int x0, int y0,int x1, int y1) nothrow
                     {
-                        auto pack = pack0;
-                        pack.setXY(x0,y0);
-                        
+                        static if(!Fill)
+                        {
+                            TileT tile = TileT(&extPack,x0,y0);
+                        }
+
                         auto line = mBitmap[y0];
                         foreach(y;y0..y1)
                         {
@@ -364,20 +313,19 @@ public:
                             }
                             else
                             {
-                                pack.incY(1);
+                                tile.incY(1);
                                 foreach(x;x0..x1)
                                 {
-                                    pack.incX(1);
-                                    if(pack.all)
+                                    tile.incX(1);
+                                    if(tile.all)
                                     {
                                         line[x] = ColorGreen;
                                     }
                                     else
                                     {
-                                        line[x] = ColorBlue;
+                                        //line[x] = ColorBlue;
                                     }
                                 }
-                                
                             }
                             ++line;
                         }
@@ -386,10 +334,9 @@ public:
                     const y1 = y0 + TileHeight;
                     foreach(tx;(txStart)..tx1)
                     {
-                        mBitmap[y0][tx*TileWidth] = ColorRed;
+                        //mBitmap[y0][tx*TileWidth] = ColorRed;
                         const x0 = tx * TileWidth;
                         const x1 = x0 + TileWidth;
-
                         if(all(c))
                         {
                             //fully covered
@@ -413,11 +360,11 @@ public:
                 }
                 else
                 {
-                    static assert(false);
-                    /*int txEnd = tx1;
-                    foreach(tx;(txStart + 1)..tx1)
+                    int txEnd = txStart;
+                    foreach(tx;(txStart)..tx1)
                     {
-                        pack0.incX(TileWidth);
+                        mBitmap[y0][tx*TileWidth] = ColorRed;
+                        /*pack0.incX(TileWidth);
                         pack1.incX(TileWidth);
                         c |= (pack0.all << 2);
                         c |= (pack1.all << 3);
@@ -427,23 +374,36 @@ public:
                             break;
                         }
                         c >>= 2;
+                        */
+                        pack0.incX(TileWidth);
+                        pack1.incX(TileWidth);
+                        c >>= 6;
+                        c |= (pack0.check << 6);
+                        c |= (pack1.check << 9);
+                        if(none(c))
+                        {
+                            txEnd = tx + 1;
+                            break;
+                        }
                     }
+
 
                     if(txEnd > txStart)
                     {
+                        /*debugOut("---");
+                        debugOut(txStart);
+                        debugOut(txEnd);*/
                         enum NewTileWidth  = TileWidth  / TileCoeff;
                         enum NewTileHeight = TileHeight / TileCoeff;
-                        pack.incX(TileWidth * (txStart - tx0));
-                        drawArea!(NewTileWidth,NewTileHeight)(pack,
-                                                              txStart * TileCoeff,
-                                                              ty      * TileCoeff,
-                                                              txEnd   * TileCoeff,
-                                                              ty      * TileCoeff);
-                    }*/
+                        drawArea!(NewTileWidth,NewTileHeight)(extPack,
+                                                              txStart  * TileCoeff,
+                                                              ty       * TileCoeff,
+                                                              txEnd    * TileCoeff,
+                                                              (ty + 1) * TileCoeff);
+                    }
                 }
 
                 pack0.incY(TileHeight);
-                //pack1.incY(TileHeight);
             }
         }
         void clipArea(int TileWidth, int TileHeight)()
@@ -460,7 +420,7 @@ public:
         {
             mBitmap[y][minX..maxX] = ColorWhite;
         }*/
-        clipArea!(8,8)();
+        clipArea!(MaxTileWidth,MaxTileHeight)();
         //end
     }
 }
