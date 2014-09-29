@@ -75,14 +75,51 @@ private:
         //@property auto curr() const pure nothrow { return cx; }
     }
 
+    struct Plane(PosT)
+    {
+    @nogc:
+        immutable PosT ac;
+        immutable PosT bc;
+        immutable PosT dc;
+        this(V)(in V v1, in V v2, in V v3)
+        {
+            /+const p1 = vec3(v1.pos.xy, cast(PosT)1 / v1.pos.w);
+            const p2 = vec3(v2.pos.xy, cast(PosT)1 / v2.pos.w);
+            const p3 = vec3(v3.pos.xy, cast(PosT)1 / v3.pos.w);
+            const p12 = p2 - p1;
+            const p13 = p3 - p1;+/
+            const v12 = v2 - v1;
+            const v13 = v3 - v1;
+
+            const norm = cross(v12,v13);
+            //ax + by + cz = d
+            ac = norm.x / norm.z;
+            bc = norm.y / norm.z;
+            dc = (norm.x * v1.x +
+                  norm.y * v1.y +
+                  norm.z * v1.z) / norm.z;
+        }
+        
+        auto get(int x, int y) const pure nothrow
+        {
+            //z = d/c - (a/c)x - (b/c)y)
+            return dc - ac * x - bc * y;
+        }
+    }
+
     struct LinesPack(PosT,LineT,bool Affine)
     {
     @nogc:
+        alias vec3 = Vector!(PosT,3);
+        alias PlaneT = Plane!(PosT);
         enum NumLines = 3;
         LineT[NumLines] lines;
+
+        immutable PlaneT uplane;
+        immutable PlaneT vplane;
         static if(!Affine)
         {
-            immutable PosT[NumLines] sw;
+            immutable PlaneT wplane;
         }
         this(VT)(in VT v1, in VT v2, in VT v3) pure nothrow
         {
@@ -91,34 +128,48 @@ private:
                 LineT(v1, v2, invDenom),
                 LineT(v2, v3, invDenom),
                 LineT(v3, v1, invDenom)];
-            static if(!Affine)
+
+            static if(Affine)
             {
-                sw = [
-                    cast(PosT)1 / v1.pos.w,
-                    cast(PosT)1 / v2.pos.w,
-                    cast(PosT)1 / v3.pos.w];
+                uplane = PlaneT(vec3(v1.pos.xy, 0),
+                                vec3(v2.pos.xy, 1),
+                                vec3(v3.pos.xy, 0));
+                vplane = PlaneT(vec3(v1.pos.xy, 0),
+                                vec3(v2.pos.xy, 0),
+                                vec3(v3.pos.xy, 1));
+            }
+            else
+            {
+                uplane = PlaneT(vec3(v1.pos.xy, 0),
+                                vec3(v2.pos.xy, v2.pos.w),
+                                vec3(v3.pos.xy, 0));
+                vplane = PlaneT(vec3(v1.pos.xy, 0),
+                                vec3(v2.pos.xy, 0),
+                                vec3(v3.pos.xy, v3.pos.w));
+                wplane = PlaneT(vec3(v1.pos.xy, cast(PosT)1 / v1.pos.w),
+                                vec3(v2.pos.xy, cast(PosT)1 / v2.pos.w),
+                                vec3(v3.pos.xy, cast(PosT)1 / v3.pos.w));
             }
         }
 
     }
+
     struct Tile(PosT,PackT,bool Affine)
     {
     @nogc:
         const(PackT)* pack;
         enum NumLines = 3;
         PosT[NumLines] cx, cy;
+        PosT curru = void;
+        PosT currv = void;
         static if(!Affine)
         {
-            PosT sw = void;
-            immutable PosT swdx, swdy;
+            PosT currw = void;
         }
 
         this(in PackT* p, int x, int y)
         {
             pack = p;
-            static if(!Affine)
-            {
-            }
             setXY(x,y);
         }
         void setXY(int x, int y) pure nothrow
@@ -128,6 +179,12 @@ private:
                 cy[i] = pack.lines[i].val(x, y);
                 cx[i] = cy[i];
             }
+            curru = pack.uplane.get(x,y);
+            currv = pack.vplane.get(x,y);
+            static if(!Affine)
+            {
+                currw = pack.wplane.get(x,y);
+            }
         }
 
         void incX(int val) pure nothrow
@@ -136,9 +193,11 @@ private:
             {
                 cx[i] -= pack.lines[i].dy * val;
             }
+            curru -= pack.uplane.ac * val;
+            currv -= pack.vplane.ac * val;
             static if(!Affine)
             {
-                sw += swdx * val;
+                currw -= pack.wplane.ac * val;
             }
         }
         
@@ -149,9 +208,11 @@ private:
                 cy[i] += pack.lines[i].dx * val;
                 cx[i] = cy[i];
             }
+            curru -= pack.uplane.bc * val;
+            currv -= pack.vplane.bc * val;
             static if(!Affine)
             {
-                sw += swdy * val;
+                currw -= pack.wplane.bc * val;
             }
         }
 
@@ -171,7 +232,31 @@ private:
             return ret;
         }
 
-        void getBarycentric(PosT[] ret) const pure nothrow
+        @property auto u() const pure nothrow
+        {
+            static if(Affine)
+            {
+                return curru;
+            }
+            else
+            {
+                return curru * currw;
+            }
+        }
+
+        @property auto v() const pure nothrow
+        {
+            static if(Affine)
+            {
+                return currv;
+            }
+            else
+            {
+                return currv * currw;
+            }
+        }
+
+        /+void getBarycentric(PosT[] ret) const pure nothrow
         in
         {
             assert(ret.length == NumLines);
@@ -188,25 +273,13 @@ private:
                 {
                     ret[i] = cx[i];
                 }
-                /*else
+                /+else
                 {
                     ret[i] = cx[i] * sw[i];
-                }*/
+                }+/
             }
 
-        }
-
-        /*@property auto w() const pure nothrow
-        {
-            static if(Affine)
-            {
-                return 1;
-            }
-            else
-            {
-                return cast(PosT)1 / sw;
-            }
-        }*/
+        }+/
     }
 public:
     this(BitmapT b)
@@ -242,7 +315,7 @@ public:
         }
     }
 
-    @property auto texture() inout pure nothrow { return mTexture; }
+    @property auto texture()       inout pure nothrow { return mTexture; }
     @property void texture(TextureT tex) pure nothrow { mTexture = tex; }
 
     @property void clipRect(in Rect rc) pure nothrow
@@ -276,7 +349,7 @@ public:
 
         const cxdiff = ((e1xdiff / e1ydiff) * e2ydiff) - e2xdiff;
         const reverseSpans = (cxdiff < 0);
-        const affine = false;//(abs(cxdiff) > AffineLength * 25);
+        const affine = true;//(abs(cxdiff) > AffineLength * 25);
 
         if(affine) drawTriangle!(HasTextures, HasColor,true)(pverts);
         else       drawTriangle!(HasTextures, HasColor,false)(pverts);
@@ -358,17 +431,17 @@ public:
                         ColT[TileHeight] cols0 = void;
                         ColT[TileHeight] cols1 = void;
                     }
-                    @nogc void drawTile(bool Fill)(int x0, int y0,int x1, int y1) nothrow
+                    @nogc void drawTile(bool Fill)(int x0, int y0, int x1, int y1) nothrow
                     {
-                        static if(!Fill)
+                        /+static if(!Fill)
                         {
                             TileT tile = TileT(&extPack,x0,y0);
-                        }
-
+                        }+/
+                        TileT tile = TileT(&extPack,x0,y0);
                         auto line = mBitmap[y0];
                         foreach(y;y0..y1)
                         {
-                            static if(Fill)
+                            /+static if(Fill)
                             { 
                                 line[x0..x1] = ColorRed;
                             }
@@ -387,7 +460,16 @@ public:
                                         //line[x] = ColorBlue;
                                     }
                                 }
+                            }+/
+                        tile.incY(1);
+                        foreach(x;x0..x1)
+                        {
+                            tile.incX(1);
+                            if(Fill || tile.all)
+                            {
+                                line[x] = ColorGreen * tile.v;
                             }
+                        }
                             ++line;
                         }
                     }
