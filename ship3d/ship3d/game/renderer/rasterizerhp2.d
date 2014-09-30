@@ -38,41 +38,24 @@ private:
     @nogc:
         immutable PosT dx, dy, c;
 
-        this(VT)(in VT v1, in VT v2, in PosT baryInvDenom) pure nothrow
+        this(VT)(in VT v1, in VT v2, in VT v3, in PosT baryInvDenom) pure nothrow
         {
             const x1 = v1.pos.x;
             const x2 = v2.pos.x;
             const y1 = v1.pos.y;
             const y2 = v2.pos.y;
-            dx = (x2 - x1) * baryInvDenom;
-            dy = (y2 - y1) * baryInvDenom;
+            //const w = 1.0f;
+            const w = Affine ? cast(PosT)1 : v3.pos.w;
+            dx = (x2 - x1) * baryInvDenom / w;
+            dy = (y2 - y1) * baryInvDenom / w;
             const inc = (dy < 0 || (dy == 0 && dx > 0)) ? cast(PosT)1 / cast(PosT)16 : cast(PosT)0;
-            c = (dy * x1 - dx * y1) + inc * baryInvDenom;
+            c = (dy * x1 - dx * y1) + inc * baryInvDenom / w;
         }
-
-        /*void setXY(int x, int y) pure nothrow
-        {
-            cy = val(x, y);
-            cx = cy;
-        }
-
-        void incX(int val) pure nothrow
-        {
-            cx -= dy * val;
-        }
-
-        void incY(int val) pure nothrow
-        {
-            cy += dx * val;
-            cx = cy;
-        }*/
 
         auto val(int x, int y) const pure nothrow
         {
             return c + dx * y - dy * x;
         }
-
-        //@property auto curr() const pure nothrow { return cx; }
     }
 
     struct Plane(PosT)
@@ -81,13 +64,8 @@ private:
         immutable PosT ac;
         immutable PosT bc;
         immutable PosT dc;
-        this(V)(in V v1, in V v2, in V v3)
+        this(V)(in V v1, in V v2, in V v3) pure nothrow
         {
-            /+const p1 = vec3(v1.pos.xy, cast(PosT)1 / v1.pos.w);
-            const p2 = vec3(v2.pos.xy, cast(PosT)1 / v2.pos.w);
-            const p3 = vec3(v3.pos.xy, cast(PosT)1 / v3.pos.w);
-            const p12 = p2 - p1;
-            const p13 = p3 - p1;+/
             const v12 = v2 - v1;
             const v13 = v3 - v1;
 
@@ -115,8 +93,6 @@ private:
         enum NumLines = 3;
         LineT[NumLines] lines;
 
-        immutable PlaneT uplane;
-        immutable PlaneT vplane;
         static if(!Affine)
         {
             immutable PlaneT wplane;
@@ -125,27 +101,12 @@ private:
         {
             const invDenom = cast(PosT)(1 / ((v2.pos - v1.pos).xy.wedge((v3.pos - v1.pos).xy)));
             lines = [
-                LineT(v1, v2, invDenom),
-                LineT(v2, v3, invDenom),
-                LineT(v3, v1, invDenom)];
+                LineT(v1, v2, v3, invDenom),
+                LineT(v2, v3, v1, invDenom),
+                LineT(v3, v1, v2, invDenom)];
 
-            static if(Affine)
+            static if(!Affine)
             {
-                uplane = PlaneT(vec3(v1.pos.xy, 0),
-                                vec3(v2.pos.xy, 1),
-                                vec3(v3.pos.xy, 0));
-                vplane = PlaneT(vec3(v1.pos.xy, 0),
-                                vec3(v2.pos.xy, 0),
-                                vec3(v3.pos.xy, 1));
-            }
-            else
-            {
-                uplane = PlaneT(vec3(v1.pos.xy, 0),
-                                vec3(v2.pos.xy, v2.pos.w),
-                                vec3(v3.pos.xy, 0));
-                vplane = PlaneT(vec3(v1.pos.xy, 0),
-                                vec3(v2.pos.xy, 0),
-                                vec3(v3.pos.xy, v3.pos.w));
                 wplane = PlaneT(vec3(v1.pos.xy, cast(PosT)1 / v1.pos.w),
                                 vec3(v2.pos.xy, cast(PosT)1 / v2.pos.w),
                                 vec3(v3.pos.xy, cast(PosT)1 / v3.pos.w));
@@ -179,8 +140,6 @@ private:
                 cy[i] = pack.lines[i].val(x, y);
                 cx[i] = cy[i];
             }
-            curru = pack.uplane.get(x,y);
-            currv = pack.vplane.get(x,y);
             static if(!Affine)
             {
                 currw = pack.wplane.get(x,y);
@@ -193,11 +152,9 @@ private:
             {
                 cx[i] -= pack.lines[i].dy * val;
             }
-            curru -= pack.uplane.ac * val;
-            currv -= pack.vplane.ac * val;
             static if(!Affine)
             {
-                currw -= pack.wplane.ac * val;
+                currw += pack.wplane.bc * val;
             }
         }
         
@@ -208,11 +165,9 @@ private:
                 cy[i] += pack.lines[i].dx * val;
                 cx[i] = cy[i];
             }
-            curru -= pack.uplane.bc * val;
-            currv -= pack.vplane.bc * val;
             static if(!Affine)
             {
-                currw -= pack.wplane.bc * val;
+                currw += pack.wplane.ac * val;
             }
         }
 
@@ -232,31 +187,7 @@ private:
             return ret;
         }
 
-        @property auto u() const pure nothrow
-        {
-            static if(Affine)
-            {
-                return curru;
-            }
-            else
-            {
-                return curru * currw;
-            }
-        }
-
-        @property auto v() const pure nothrow
-        {
-            static if(Affine)
-            {
-                return currv;
-            }
-            else
-            {
-                return currv * currw;
-            }
-        }
-
-        /+void getBarycentric(PosT[] ret) const pure nothrow
+        void getBarycentric(PosT[] ret) const pure nothrow
         in
         {
             assert(ret.length == NumLines);
@@ -267,19 +198,19 @@ private:
         }
         body
         {
-            foreach(i;TupleRange!(0,NumLines))
+            foreach(i;TupleRange!(1,NumLines))
             {
-                //static if(Affine)
-                {
-                    ret[i] = cx[i];
-                }
-                /+else
-                {
-                    ret[i] = cx[i] * sw[i];
-                }+/
+                ret[i] = cx[(i + 1) % NumLines];
             }
-
-        }+/
+            static if(!Affine)
+            {
+                foreach(i;TupleRange!(1,NumLines))
+                {
+                    ret[i] = ret[i] / currw;
+                }
+            }
+            ret[0] = cast(PosT)1 - ret[1] - ret[2];
+        }
     }
 public:
     this(BitmapT b)
@@ -349,7 +280,7 @@ public:
 
         const cxdiff = ((e1xdiff / e1ydiff) * e2ydiff) - e2xdiff;
         const reverseSpans = (cxdiff < 0);
-        const affine = true;//(abs(cxdiff) > AffineLength * 25);
+        const affine = false;//(abs(cxdiff) > AffineLength * 25);
 
         if(affine) drawTriangle!(HasTextures, HasColor,true)(pverts);
         else       drawTriangle!(HasTextures, HasColor,false)(pverts);
@@ -461,15 +392,29 @@ public:
                                     }
                                 }
                             }+/
-                        tile.incY(1);
-                        foreach(x;x0..x1)
-                        {
-                            tile.incX(1);
-                            if(Fill || tile.all)
+
+                            foreach(x;x0..x1)
                             {
-                                line[x] = ColorGreen * tile.v;
+
+                                if(Fill || tile.all)
+                                {
+                                    //assert(tile.u >= 0 && tile.u <= 1, debugConv(tile.u));
+                                    /*if(tile.v < 0 || tile.v > 1)
+                                    {
+                                        debugOut(tile.v);
+                                    }*/
+                                    PosT bary[3] = void;
+                                    tile.getBarycentric(bary);
+                                    //debugOut(bary);
+                                    line[x] = pverts[0].color * bary[0] + pverts[1].color * bary[1] + pverts[2].color * bary[2];
+                                    static if(!Affine)
+                                    {
+                                        //line[x] = ColorRed * (tile.currw);
+                                    }
+                                }
+                                tile.incX(1);
                             }
-                        }
+                            tile.incY(1);
                             ++line;
                         }
                     }
