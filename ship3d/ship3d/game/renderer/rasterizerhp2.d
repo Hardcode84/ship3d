@@ -44,7 +44,6 @@ private:
             const x2 = v2.pos.x;
             const y1 = v1.pos.y;
             const y2 = v2.pos.y;
-            //const w = 1.0f;
             const w = Affine ? cast(PosT)1 : v3.pos.w;
             dx = (x2 - x1) * baryInvDenom / w;
             dy = (y2 - y1) * baryInvDenom / w;
@@ -73,9 +72,7 @@ private:
             //ax + by + cz = d
             ac = norm.x / norm.z;
             bc = norm.y / norm.z;
-            dc = (norm.x * v1.x +
-                  norm.y * v1.y +
-                  norm.z * v1.z) / norm.z;
+            dc = ac * v1.x + bc * v1.y + v1.z;
         }
         
         auto get(int x, int y) const pure nothrow
@@ -120,12 +117,11 @@ private:
     @nogc:
         const(PackT)* pack;
         enum NumLines = 3;
-        PosT[NumLines] cx, cy;
-        PosT curru = void;
-        PosT currv = void;
+        PosT[NumLines] cx = void, cy = void;
         static if(!Affine)
         {
             PosT currw = void;
+            PosT prevw = void;
         }
 
         this(in PackT* p, int x, int y)
@@ -143,6 +139,7 @@ private:
             static if(!Affine)
             {
                 currw = pack.wplane.get(x,y);
+                prevw = currw;
             }
         }
 
@@ -154,7 +151,7 @@ private:
             }
             static if(!Affine)
             {
-                currw += pack.wplane.bc * val;
+                currw -= pack.wplane.ac * val;
             }
         }
         
@@ -167,7 +164,8 @@ private:
             }
             static if(!Affine)
             {
-                currw += pack.wplane.ac * val;
+                currw = prevw - pack.wplane.bc * val;
+                prevw = currw;
             }
         }
 
@@ -362,55 +360,37 @@ public:
                         ColT[TileHeight] cols0 = void;
                         ColT[TileHeight] cols1 = void;
                     }
+                    auto pack = pack0;
+                    pack.incX(-TileWidth);
                     @nogc void drawTile(bool Fill)(int x0, int y0, int x1, int y1) nothrow
                     {
-                        /+static if(!Fill)
-                        {
-                            TileT tile = TileT(&extPack,x0,y0);
-                        }+/
                         TileT tile = TileT(&extPack,x0,y0);
+                        /*TileT t = pack;
+                        //t.incX(x0 - x1);
+                        debugOut("---");
+                        foreach(i;0..3)
+                        {
+                            debugOut(tile.cx[i]);
+                            debugOut(t.cx[i]);
+                            assert(almost_equal(tile.cx[i] ,t.cx[i]));
+                        }*/
+                        //TileT tile = pack;
                         auto line = mBitmap[y0];
                         foreach(y;y0..y1)
                         {
-                            /+static if(Fill)
-                            { 
-                                line[x0..x1] = ColorRed;
-                            }
-                            else
-                            {
-                                tile.incY(1);
-                                foreach(x;x0..x1)
-                                {
-                                    tile.incX(1);
-                                    if(tile.all)
-                                    {
-                                        line[x] = ColorGreen;
-                                    }
-                                    else
-                                    {
-                                        //line[x] = ColorBlue;
-                                    }
-                                }
-                            }+/
-
                             foreach(x;x0..x1)
                             {
-
                                 if(Fill || tile.all)
                                 {
-                                    //assert(tile.u >= 0 && tile.u <= 1, debugConv(tile.u));
-                                    /*if(tile.v < 0 || tile.v > 1)
-                                    {
-                                        debugOut(tile.v);
-                                    }*/
                                     PosT bary[3] = void;
                                     tile.getBarycentric(bary);
                                     //debugOut(bary);
-                                    line[x] = pverts[0].color * bary[0] + pverts[1].color * bary[1] + pverts[2].color * bary[2];
-                                    static if(!Affine)
-                                    {
-                                        //line[x] = ColorRed * (tile.currw);
-                                    }
+                                    //line[x] = pverts[0].color * bary[0] + pverts[1].color * bary[1] + pverts[2].color * bary[2];
+                                    line[x] = Fill ? ColorRed : ColorGreen;
+                                }
+                                else
+                                {
+                                    //line[x] = ColorBlue;
                                 }
                                 tile.incX(1);
                             }
@@ -444,6 +424,7 @@ public:
                         {
                             break;
                         }
+                        pack.incX(TileWidth);
                     }
                 }
                 else
