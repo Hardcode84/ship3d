@@ -104,7 +104,7 @@ public:
             static int n = 0;
             if(0 != (mN % 2))
             {
-                RasterizerHP!(SurfT,typeof(mTexture)) rast = surf;
+                Rasterizer!(SurfT,typeof(mTexture)) rast = surf;
                 rast.texture = mTexture;
                 foreach(i;0..1)
                 {

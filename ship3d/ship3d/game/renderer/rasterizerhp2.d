@@ -9,6 +9,7 @@ import std.range;
 
 import gamelib.util;
 import gamelib.math;
+import gamelib.graphics.graph;
 
 import game.units;
 
@@ -185,7 +186,7 @@ private:
             return ret;
         }
 
-        void getBarycentric(PosT[] ret) const pure nothrow
+        void getBarycentric(int dx = 0)(PosT[] ret) const pure nothrow
         in
         {
             assert(ret.length == NumLines);
@@ -198,13 +199,14 @@ private:
         {
             foreach(i;TupleRange!(1,NumLines))
             {
-                ret[i] = cx[(i + 1) % NumLines];
+                enum li = (i + 1) % NumLines;
+                ret[i] = cx[li] - pack.lines[li].dy * dx;
             }
             static if(!Affine)
             {
                 foreach(i;TupleRange!(1,NumLines))
                 {
-                    ret[i] = ret[i] / currw;
+                    ret[i] = ret[i] / (currw - pack.wplane.ac * dx);
                 }
             }
             ret[0] = cast(PosT)1 - ret[1] - ret[2];
@@ -360,59 +362,114 @@ public:
                         ColT[TileHeight] cols0 = void;
                         ColT[TileHeight] cols1 = void;
                     }
-                    auto pack = pack0;
-                    pack.incX(-TileWidth);
                     @nogc void drawTile(bool Fill)(int x0, int y0, int x1, int y1) nothrow
                     {
-                        TileT tile = TileT(&extPack,x0,y0);
-                        /*TileT t = pack;
-                        //t.incX(x0 - x1);
-                        debugOut("---");
-                        foreach(i;0..3)
+                        static if(!Fill)
                         {
-                            debugOut(tile.cx[i]);
-                            debugOut(t.cx[i]);
-                            assert(almost_equal(tile.cx[i] ,t.cx[i]));
-                        }*/
-                        //TileT tile = pack;
+                            TileT tile = TileT(&extPack,x0,y0);
+                        }
                         auto line = mBitmap[y0];
                         foreach(y;y0..y1)
                         {
-                            foreach(x;x0..x1)
+                            static if(Fill)
                             {
-                                if(Fill || tile.all)
+                                static if(HasColor)
                                 {
-                                    PosT bary[3] = void;
-                                    tile.getBarycentric(bary);
-                                    //debugOut(bary);
-                                    //line[x] = pverts[0].color * bary[0] + pverts[1].color * bary[1] + pverts[2].color * bary[2];
-                                    line[x] = Fill ? ColorRed : ColorGreen;
+                                    const ny = y % TileHeight;
+                                    ditherColorLine(line, x0,x1,y,cols0[ny],cols1[ny]);
                                 }
-                                else
+                            }
+                            else
+                            {
+                                /*foreach(x;x0..x1)
                                 {
-                                    //line[x] = ColorBlue;
+                                    /*if(tile.all)
+                                    {
+                                        PosT bary[3] = void;
+                                        tile.getBarycentric(bary);
+                                        //debugOut(bary);
+                                        line[x] = pverts[0].color * bary[0] + pverts[1].color * bary[1] + pverts[2].color * bary[2];
+                                        //line[x] = Fill ? ColorRed : ColorGreen;
+                                    }
+                                    else
+                                    {
+                                        //line[x] = ColorBlue;
+                                    }
+                                    tile.incX(1);
+                                }*/
+                                static if(HasColor)
+                                {
+                                    ColT col0 = void;
+                                    ColT col1 = void;
+                                }
+                                int xStart = x1;
+                                foreach(x;x0..x1)
+                                {
+                                    if(tile.all)
+                                    {
+                                        static if(HasColor)
+                                        {
+                                            PosT bary[3] = void;
+                                            tile.getBarycentric(bary);
+                                            col0 = pverts[0].color * bary[0] + pverts[1].color * bary[1] + pverts[2].color * bary[2];
+                                        }
+                                        xStart = x;
+                                        break;
+                                    }
+                                    tile.incX(1);
                                 }
                                 tile.incX(1);
+                                int xEnd = x1;
+                                foreach(x;(xStart + 1)..x1)
+                                {
+                                    if(!tile.all)
+                                    {
+                                        xEnd = x;
+                                        break;
+                                    }
+                                    tile.incX(1);
+                                }
+                                static if(HasColor)
+                                {
+                                    tile.incX(-1);
+                                    PosT bary[3] = void;
+                                    tile.getBarycentric(bary);
+                                    col1 = pverts[0].color * bary[0] + pverts[1].color * bary[1] + pverts[2].color * bary[2];
+                                }
+                                assert(xStart >= x0);
+                                assert(xEnd   <= x1);
+                                
+                                if(xEnd > xStart)
+                                {
+                                    static if(HasColor)
+                                    {
+                                        //line[xStart..xEnd] = ColorRed;
+                                        ditherColorLine(line,xStart,xEnd,y,col0,col1);
+                                    }
+                                }
+                                tile.incY(1);
                             }
-                            tile.incY(1);
                             ++line;
                         }
                     }
 
                     const y1 = y0 + TileHeight;
+                    //first patrially covered iterations
+                    int txStartFull = tx1;
                     foreach(tx;txStart..tx1)
                     {
                         //mBitmap[y0][tx*TileWidth] = ColorRed;
-                        const x0 = tx * TileWidth;
-                        const x1 = x0 + TileWidth;
                         if(all(c))
                         {
                             //fully covered
-                            drawTile!(true)(x0,y0,x1,y1);
+                            txStartFull = tx;
+                            break;
                         }
                         else
                         {
                             //patrially covered
+                            const x0 = tx * TileWidth;
+                            const x1 = x0 + TileWidth;
                             drawTile!(false)(x0,y0,x1,y1);
                         }
                         pack0.incX(TileWidth);
@@ -424,7 +481,76 @@ public:
                         {
                             break;
                         }
-                        pack.incX(TileWidth);
+                    }
+                    if(txStartFull < tx1)
+                    {
+                        pack0.getBarycentric!(-TileWidth)(bary0);
+                        pack1.getBarycentric!(-TileWidth)(bary1);
+                        static if(HasColor)
+                        {
+                            {
+                                const col0 = pverts[0].color * bary0[0] + pverts[1].color * bary0[1] + pverts[2].color * bary0[2];
+                                const col1 = pverts[0].color * bary1[0] + pverts[1].color * bary1[1] + pverts[2].color * bary1[2];
+                                ColT.interpolateLine!TileHeight(cols1[],col0,col1);
+                            }
+                        }
+                        int txStartFullEnd = tx1;
+                        //full covered iterations
+                        foreach(tx;txStartFull..tx1)
+                        {
+                            //mBitmap[y0][tx*TileWidth] = ColorGreen;
+                            if(!all(c))
+                            {
+                                txStartFullEnd = tx;
+                                break;
+                            }
+                            else
+                            {
+                                static if(HasColor)
+                                {
+                                    cols0 = cols1;
+                                    pack0.getBarycentric(bary0);
+                                    pack1.getBarycentric(bary1);
+                                    const col0 = pverts[0].color * bary0[0] + pverts[1].color * bary0[1] + pverts[2].color * bary0[2];
+                                    const col1 = pverts[0].color * bary1[0] + pverts[1].color * bary1[1] + pverts[2].color * bary1[2];
+                                    ColT.interpolateLine!TileHeight(cols1[],col0,col1);
+                                }
+                                const x0 = tx * TileWidth;
+                                const x1 = x0 + TileWidth;
+                                drawTile!(true)(x0,y0,x1,y1);
+                            }
+                            pack0.incX(TileWidth);
+                            pack1.incX(TileWidth);
+                            c >>= 6;
+                            c |= (pack0.check << 6);
+                            c |= (pack1.check << 9);
+                            if(none(c))
+                            {
+                                break;
+                            }
+                        }
+
+                        foreach(tx;txStartFullEnd..tx1)
+                        {
+                            //mBitmap[y0][tx*TileWidth] = ColorBlue;
+                            assert(!all(c));
+                            if(none(c))
+                            {
+                                break;
+                            }
+                            else
+                            {
+                                //patrially covered
+                                const x0 = tx * TileWidth;
+                                const x1 = x0 + TileWidth;
+                                drawTile!(false)(x0,y0,x1,y1);
+                            }
+                            pack0.incX(TileWidth);
+                            pack1.incX(TileWidth);
+                            c >>= 6;
+                            c |= (pack0.check << 6);
+                            c |= (pack1.check << 9);
+                        }
                     }
                 }
                 else
