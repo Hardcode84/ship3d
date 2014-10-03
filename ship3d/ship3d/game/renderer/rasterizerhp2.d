@@ -193,7 +193,7 @@ private:
         }
         out
         {
-            assert(almost_equal(cast(PosT)1, ret.sum, 1.0f/255.0f), debugConv(ret.sum));
+            //assert(almost_equal(cast(PosT)1, ret.sum, 1.0f/255.0f), debugConv(ret.sum));
         }
         body
         {
@@ -313,7 +313,7 @@ public:
         maxY = min(mClipRect.y + mClipRect.h, maxY);
 
 
-        void drawArea(int TileWidth, int TileHeight,T)(in T extPack, int tx0,int ty0, int tx1, int ty1)
+        void drawArea(int TileWidth, int TileHeight,T)(in T extPack, int tx0,int ty0, int tx1, int ty1) nothrow
         {
             enum LastLevel = (TileWidth == MinTileWidth && TileHeight == MinTileHeight);
 
@@ -587,7 +587,7 @@ public:
                 pack0.incY(TileHeight);
             }
         }
-        void clipArea(int TileWidth, int TileHeight)()
+        void clipArea(int TileWidth, int TileHeight)() nothrow
         {
             const minTx =  minX / TileWidth;
             const maxTx = (maxX + TileWidth - 1) / TileWidth;
