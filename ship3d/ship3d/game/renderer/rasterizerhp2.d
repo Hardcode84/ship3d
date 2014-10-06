@@ -45,7 +45,7 @@ private:
             const x2 = v2.pos.x;
             const y1 = v1.pos.y;
             const y2 = v2.pos.y;
-            const w = Affine ? cast(PosT)1 : v3.pos.w;
+            const w = Affine ? cast(PosT)1 : cast(PosT)v3.pos.w;
             dx = (x2 - x1) * baryInvDenom / w;
             dy = (y2 - y1) * baryInvDenom / w;
             const inc = (dy < 0 || (dy == 0 && dx > 0)) ? cast(PosT)1 / cast(PosT)16 : cast(PosT)0;
@@ -89,7 +89,7 @@ private:
         alias vec3 = Vector!(PosT,3);
         alias PlaneT = Plane!(PosT);
         enum NumLines = 3;
-        LineT[NumLines] lines;
+        immutable LineT[NumLines] lines;
 
         static if(!Affine)
         {
@@ -200,14 +200,12 @@ private:
             foreach(i;TupleRange!(1,NumLines))
             {
                 enum li = (i + 1) % NumLines;
-                ret[i] = cx[li] - pack.lines[li].dy * dx;
-            }
-            static if(!Affine)
-            {
-                foreach(i;TupleRange!(1,NumLines))
+                auto val = cx[li] - pack.lines[li].dy * dx;
+                static if(!Affine)
                 {
-                    ret[i] = ret[i] / (currw - pack.wplane.ac * dx);
+                    val /= (currw - pack.wplane.ac * dx);
                 }
+                ret[i] = val;
             }
             ret[0] = cast(PosT)1 - ret[1] - ret[2];
         }
@@ -288,11 +286,12 @@ public:
     @nogc private void drawTriangle(bool HasTextures, bool HasColor,bool Affine,VertT)(in VertT[3] pverts) pure nothrow
     {
         static assert(HasTextures != HasColor);
-        //alias PosT = FixedPoint!(28,4,int);
+        //alias PosTF = FixedPoint!(16,16,int);
         alias PosT = Unqual!(typeof(VertT.pos.x));
         static if(HasColor)
         {
             alias ColT = Unqual!(typeof(VertT.color));
+            immutable ColT vcols[3] = [pverts[0].color,pverts[1].color,pverts[2].color];
         }
         else
         {
@@ -381,22 +380,6 @@ public:
                             }
                             else
                             {
-                                /*foreach(x;x0..x1)
-                                {
-                                    /*if(tile.all)
-                                    {
-                                        PosT bary[3] = void;
-                                        tile.getBarycentric(bary);
-                                        //debugOut(bary);
-                                        line[x] = pverts[0].color * bary[0] + pverts[1].color * bary[1] + pverts[2].color * bary[2];
-                                        //line[x] = Fill ? ColorRed : ColorGreen;
-                                    }
-                                    else
-                                    {
-                                        //line[x] = ColorBlue;
-                                    }
-                                    tile.incX(1);
-                                }*/
                                 static if(HasColor)
                                 {
                                     ColT col0 = void;
@@ -411,7 +394,7 @@ public:
                                         {
                                             PosT bary[3] = void;
                                             tile.getBarycentric(bary);
-                                            col0 = pverts[0].color * bary[0] + pverts[1].color * bary[1] + pverts[2].color * bary[2];
+                                            col0 = vcols[0] * bary[0] + vcols[1] * bary[1] + vcols[2] * bary[2];
                                         }
                                         xStart = x;
                                         break;
@@ -434,7 +417,7 @@ public:
                                     tile.incX(-1);
                                     PosT bary[3] = void;
                                     tile.getBarycentric(bary);
-                                    col1 = pverts[0].color * bary[0] + pverts[1].color * bary[1] + pverts[2].color * bary[2];
+                                    col1 = vcols[0] * bary[0] + vcols[1] * bary[1] + vcols[2] * bary[2];
                                 }
                                 assert(xStart >= x0);
                                 assert(xEnd   <= x1);
@@ -489,8 +472,8 @@ public:
                         static if(HasColor)
                         {
                             {
-                                const col0 = pverts[0].color * bary0[0] + pverts[1].color * bary0[1] + pverts[2].color * bary0[2];
-                                const col1 = pverts[0].color * bary1[0] + pverts[1].color * bary1[1] + pverts[2].color * bary1[2];
+                                const col0 = vcols[0] * bary0[0] + vcols[1] * bary0[1] + vcols[2] * bary0[2];
+                                const col1 = vcols[0] * bary1[0] + vcols[1] * bary1[1] + vcols[2] * bary1[2];
                                 ColT.interpolateLine!TileHeight(cols1[],col0,col1);
                             }
                         }
@@ -511,8 +494,8 @@ public:
                                     cols0 = cols1;
                                     pack0.getBarycentric(bary0);
                                     pack1.getBarycentric(bary1);
-                                    const col0 = pverts[0].color * bary0[0] + pverts[1].color * bary0[1] + pverts[2].color * bary0[2];
-                                    const col1 = pverts[0].color * bary1[0] + pverts[1].color * bary1[1] + pverts[2].color * bary1[2];
+                                    const col0 = vcols[0] * bary0[0] + vcols[1] * bary0[1] + vcols[2] * bary0[2];
+                                    const col1 = vcols[0] * bary1[0] + vcols[1] * bary1[1] + vcols[2] * bary1[2];
                                     ColT.interpolateLine!TileHeight(cols1[],col0,col1);
                                 }
                                 const x0 = tx * TileWidth;
@@ -594,7 +577,6 @@ public:
             const minTy =  minY / TileHeight;
             const maxTy = (maxY + TileHeight - 1) / TileHeight;
             auto pack = PackT(pverts[0], pverts[1], pverts[2]);
-            //pack.incX(64);
             drawArea!(TileWidth,TileHeight)(pack,minTx,minTy,maxTx,maxTy);
         }
         /*foreach(y;minY..maxY)
