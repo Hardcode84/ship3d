@@ -210,6 +210,22 @@ private:
             ret[0] = cast(PosT)1 - ret[1] - ret[2];
         }
     }
+
+    struct Span(PosT,ColT,DpthT)
+    {
+        enum HasColor = !is(ColT : void);
+        enum HasDepth = !is(DpthT : void);
+        int x0, x1;
+        int y;
+        static if(HasColor)
+        {
+            ColT col0 = void, col1 = void;
+        }
+        static if(HasDepth)
+        {
+            DpthT w0 = void, w1 = void;
+        }
+    }
 public:
     this(BitmapT b)
     in
@@ -292,6 +308,15 @@ public:
         {
             alias ColT = Unqual!(typeof(VertT.color));
             immutable ColT vcols[3] = [pverts[0].color,pverts[1].color,pverts[2].color];
+            auto calcColor(T)(in T[] bary) pure nothrow
+            in
+            {
+                assert(bary.length == vcols.length);
+            }
+            body
+            {
+                return vcols[0] * bary[0] + vcols[1] * bary[1] + vcols[2] * bary[2];
+            }
         }
         else
         {
@@ -300,6 +325,7 @@ public:
         alias LineT   = Line!(PosT,Affine);
         alias PackT   = LinesPack!(PosT,LineT,Affine);
         alias TileT   = Tile!(PosT,PackT,Affine);
+        alias SpanT   = Span!(PosT,ColT,PosT);
 
         int minY = cast(int)min(pverts[0].pos.y, pverts[1].pos.y, pverts[2].pos.y);
         int maxY = cast(int)max(pverts[0].pos.y, pverts[1].pos.y, pverts[2].pos.y);
@@ -310,6 +336,13 @@ public:
         maxX = min(mClipRect.x + mClipRect.w, maxX);
         minY = max(mClipRect.y, minY);
         maxY = min(mClipRect.y + mClipRect.h, maxY);
+        @nogc drawSpan(LineT,SpanT)(auto ref LineT line, in ref SpanT span) nothrow
+        {
+            static if(HasColor)
+            {
+                ditherColorLine(line,span.x0,span.x1,span.y,span.col0,span.col1);
+            }
+        }
 
         @nogc void fillTile(int TileWidth, int TileHeight,T)(in T extPack, int x0, int y0, int x1, int y1) nothrow
         {
@@ -325,8 +358,8 @@ public:
                 ColT[TileHeight] cols0 = void;
                 ColT[TileHeight] cols1 = void;
                 {
-                    const col0 = vcols[0] * bary0[0] + vcols[1] * bary0[1] + vcols[2] * bary0[2];
-                    const col1 = vcols[0] * bary1[0] + vcols[1] * bary1[1] + vcols[2] * bary1[2];
+                    const col0 = calcColor(bary0);
+                    const col1 = calcColor(bary1);
                     ColT.interpolateLine!TileHeight(cols1[],col0,col1);
                 }
             }
@@ -341,18 +374,23 @@ public:
                 tile1.getBarycentric(bary1);
                 static if(HasColor)
                 {
-                    const col0 = vcols[0] * bary0[0] + vcols[1] * bary0[1] + vcols[2] * bary0[2];
-                    const col1 = vcols[0] * bary1[0] + vcols[1] * bary1[1] + vcols[2] * bary1[2];
+                    const col0 = calcColor(bary0);
+                    const col1 = calcColor(bary1);
                     ColT.interpolateLine!TileHeight(cols1[],col0,col1);
                 }
                 auto line = mBitmap[y0];
                 foreach(y;y0..y1)
                 {
-                    const ny = y % TileHeight;
+                    //const ny = y % TileHeight;
+                    //static if(HasColor) ditherColorLine(line,x,x + TileWidth,y,cols0[ny],cols1[ny]);
+                    SpanT span = {x0:x,x1:x + TileWidth, y:y};
                     static if(HasColor)
                     {
-                        ditherColorLine(line,x,x + TileWidth,y,cols0[ny],cols1[ny]);
+                        const ny = y % TileHeight;
+                        span.col0 = cols0[ny];
+                        span.col1 = cols1[ny];
                     }
+                    drawSpan(line,span);
                     ++line;
                 }
             }
@@ -366,7 +404,6 @@ public:
             {
                 static if(HasColor)
                 {
-                    //enum MaxColors = 
                     ColT col0 = void;
                     ColT col1 = void;
                 }
@@ -379,7 +416,7 @@ public:
                         {
                             PosT bary[3] = void;
                             tile.getBarycentric(bary);
-                            col0 = vcols[0] * bary[0] + vcols[1] * bary[1] + vcols[2] * bary[2];
+                            col0 = calcColor(bary);
                         }
                         xStart = x;
                         break;
@@ -401,7 +438,7 @@ public:
                 {
                     PosT bary[3] = void;
                     tile.getBarycentric(bary);
-                    col1 = vcols[0] * bary[0] + vcols[1] * bary[1] + vcols[2] * bary[2];
+                    col1 = calcColor(bary);
                 }
                 assert(xStart >= x0);
                 assert(xEnd   <= x1);
@@ -409,19 +446,38 @@ public:
                 if(xEnd > xStart)
                 {
                     enum xMask = ~(TileWidth - 1);
-                    for(auto x = xStart; x < (xEnd - TileWidth);/+ x = (x + TileWidth) & xMask+/)
+                    const xFullStart = (xStart + TileWidth) & xMask;
+                    const xFullEnd   = xEnd & xMask;
+                    if((xFullEnd - xFullStart) > -TileWidth)
                     {
-                        const xe = (x + TileWidth) & xMask;
+                        tile.incX(xFullStart - xEnd);
+                        tile.getBarycentric(bary);
+                        SpanT span = {x0:xStart,x1:xFullStart, y:y};
                         static if(HasColor)
                         {
-                            ditherColorLine(line,x,xe,y,col0,col1);
+                            ColT col = calcColor(bary);
+                            //ditherColorLine(line,xStart,xFullStart,y,col0,col);
+                            span.col0 = col0;
+                            span.col1 = col;
                         }
-                        x = xe;
+                        drawSpan(line,span);
+                        for(int x = xFullStart; x < xFullEnd; x += TileWidth)
+                        {
+                            tile.incX(TileWidth);
+                            tile.getBarycentric(bary);
+                            SpanT span = {x0:x,x1:x + TileWidth, y:y};
+                            static if(HasColor)
+                            {
+                                col0 = col;
+                                col = calcColor(bary);
+                                ditherColorLine(line,x,x + TileWidth,y,col0,col);
+                            }
+                        }
+                        static if(HasColor) ditherColorLine(line,xFullEnd,xEnd,y,col,col1);
                     }
-                    //last span is special case
-                    static if(HasColor)
+                    else
                     {
-                        ditherColorLine(line,xEnd & xMask,xEnd,y,col0,col1);
+                        static if(HasColor) ditherColorLine(line,xStart,xEnd,y,col0,col1);
                     }
                 }
                 tile.incY(1);
@@ -593,10 +649,6 @@ public:
             auto pack = PackT(pverts[0], pverts[1], pverts[2]);
             drawArea!(TileWidth,TileHeight)(pack,minTx,minTy,maxTx,maxTy);
         }
-        /*foreach(y;minY..maxY)
-        {
-            mBitmap[y][minX..maxX] = ColorWhite;
-        }*/
         clipArea!(MaxTileWidth,MaxTileHeight)();
         //end
     }
