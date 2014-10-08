@@ -336,7 +336,7 @@ public:
         maxX = min(mClipRect.x + mClipRect.w, maxX);
         minY = max(mClipRect.y, minY);
         maxY = min(mClipRect.y + mClipRect.h, maxY);
-        @nogc drawSpan(LineT,SpanT)(auto ref LineT line, in ref SpanT span) nothrow
+        @nogc void drawSpan(LineT,SpanT)(auto ref LineT line, in ref SpanT span) pure nothrow
         {
             static if(HasColor)
             {
@@ -348,7 +348,7 @@ public:
         {
             TileT tile0 = TileT(&extPack,x0,y0);
             TileT tile1 = tile0;
-            tile1.incY(TileHeight);
+            tile1.incY(y1 - y0);
             PosT[3] bary0 = void;
             PosT[3] bary1 = void;
             tile0.getBarycentric(bary0);
@@ -363,13 +363,14 @@ public:
                     ColT.interpolateLine!TileHeight(cols1[],col0,col1);
                 }
             }
-            enum xMask = ~(TileWidth - 1);
-            for(auto x = x0; x < x1; x = (x + TileWidth) & xMask)
+
+            //for(auto x = x0; x < x1; x = (x + TileWidth) & xMask)
+            @nogc void drawFunc(int x, int dx) nothrow
             {
                 cols0 = cols1;
 
-                tile0.incX(TileWidth);
-                tile1.incX(TileWidth);
+                tile0.incX(dx);
+                tile1.incX(dx);
                 tile0.getBarycentric(bary0);
                 tile1.getBarycentric(bary1);
                 static if(HasColor)
@@ -379,11 +380,14 @@ public:
                     ColT.interpolateLine!TileHeight(cols1[],col0,col1);
                 }
                 auto line = mBitmap[y0];
+                SpanT span = void;
+                span.x0 = x;
+                span.x1 = x + dx;
                 foreach(y;y0..y1)
                 {
                     //const ny = y % TileHeight;
                     //static if(HasColor) ditherColorLine(line,x,x + TileWidth,y,cols0[ny],cols1[ny]);
-                    SpanT span = {x0:x,x1:x + TileWidth, y:y};
+                    span.y = y;
                     static if(HasColor)
                     {
                         const ny = y % TileHeight;
@@ -393,6 +397,23 @@ public:
                     drawSpan(line,span);
                     ++line;
                 }
+            }
+
+            enum xMask = ~(TileWidth - 1);
+            const xFullStart = (x0 + TileWidth) & xMask;
+            const xFullEnd   = (x1)             & xMask;
+            if((xFullEnd - xFullStart) > -TileWidth)
+            {
+                drawFunc(x0,xFullStart - x0);
+                for(int x = xFullStart; x < xFullEnd; x += TileWidth)
+                {
+                    drawFunc(x, TileWidth);
+                }
+                drawFunc(xFullEnd,x1 - xFullEnd);
+            }
+            else
+            {
+                drawFunc(x0,x1 - x0);
             }
         }
 
@@ -445,6 +466,7 @@ public:
                 
                 if(xEnd > xStart)
                 {
+                    SpanT span = {y:y};
                     enum xMask = ~(TileWidth - 1);
                     const xFullStart = (xStart + TileWidth) & xMask;
                     const xFullEnd   = xEnd & xMask;
@@ -452,32 +474,54 @@ public:
                     {
                         tile.incX(xFullStart - xEnd);
                         tile.getBarycentric(bary);
-                        SpanT span = {x0:xStart,x1:xFullStart, y:y};
+                        span.x0 = xStart;
+                        span.x1 = xFullStart;
                         static if(HasColor)
                         {
-                            ColT col = calcColor(bary);
+                            //ColT col = calcColor(bary);
                             //ditherColorLine(line,xStart,xFullStart,y,col0,col);
                             span.col0 = col0;
-                            span.col1 = col;
+                            span.col1 = calcColor(bary);
                         }
                         drawSpan(line,span);
                         for(int x = xFullStart; x < xFullEnd; x += TileWidth)
                         {
                             tile.incX(TileWidth);
                             tile.getBarycentric(bary);
-                            SpanT span = {x0:x,x1:x + TileWidth, y:y};
+                            span.x0 = x;
+                            span.x1 = x + TileWidth;
                             static if(HasColor)
                             {
-                                col0 = col;
-                                col = calcColor(bary);
-                                ditherColorLine(line,x,x + TileWidth,y,col0,col);
+                                //col0 = col;
+                                //col = calcColor(bary);
+                                //ditherColorLine(line,x,x + TileWidth,y,col0,col);
+                                span.col0 = span.col1;
+                                span.col1 = calcColor(bary);
                             }
+                            drawSpan(line,span);
                         }
-                        static if(HasColor) ditherColorLine(line,xFullEnd,xEnd,y,col,col1);
+                        span.x0 = xFullEnd;
+                        span.x1 = xEnd;
+                        static if(HasColor)
+                        {
+                            span.col0 = span.col1;
+                            span.col1 = col1;
+                        }
+                        drawSpan(line,span);
+                        //static if(HasColor) ditherColorLine(line,xFullEnd,xEnd,y,col,col1);
                     }
                     else
                     {
-                        static if(HasColor) ditherColorLine(line,xStart,xEnd,y,col0,col1);
+                        span.x0 = xStart;
+                        span.x1 = xEnd;
+                        static if(HasColor)
+                        {
+                            span.col0 = col0;
+                            span.col1 = col1;
+                        }
+                        drawSpan(line,span);
+                        //static if(HasColor) ditherColorLine(line,xStart,xEnd,y,col0,col1);
+
                     }
                 }
                 tile.incY(1);
