@@ -8,6 +8,7 @@ import game.units;
 import game.renderer.rasterizer;
 import game.renderer.rasterizerhp;
 import game.renderer.rasterizerhp2;
+import game.renderer.rasterizerhp3;
 import game.renderer.texture;
 
 final class World
@@ -114,7 +115,7 @@ public:
             }
             else
             {
-                RasterizerHP2!(SurfT,typeof(mTexture)) rast = surf;
+                RasterizerHP3!(SurfT,typeof(mTexture)) rast = surf;
                 rast.texture = mTexture;
                 foreach(i;0..1)
                 {
