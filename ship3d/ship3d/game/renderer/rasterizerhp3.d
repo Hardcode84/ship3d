@@ -211,16 +211,20 @@ private:
     {
         immutable(PackT)* pack;
         enum NumLines = 3;
+        int currx = void;
+        int curry = void;
         PosT[NumLines] cx0 = void, cx1 = void;
         static if(!Affine)
         {
             PosT currw0 = void, currw1 = void;
         }
+        bool valid = false;
 
         this(in immutable(PackT)* p, int x, int y) pure nothrow
         {
             pack = p;
             setXY(x,y);
+            valid = true;
         }
 
         void setXY(int x, int y) pure nothrow
@@ -236,6 +240,8 @@ private:
                 currw0 = pack.wplane.get(x,y);
                 currw1 = currw0 - pack.wplane.bc * TileHeight;
             }
+            currx = x;
+            curry = y;
         }
 
         void incX(string sign)() pure nothrow
@@ -249,11 +255,13 @@ private:
             static if(!Affine)
             {
                 const dw = pack.wplane.ac * -TileWidth;
-                mixin("currw "~sign~"= dw;");
+                mixin("currw0 "~sign~"= dw;");
+                mixin("currw1 "~sign~"= dw;");
             }
+            mixin("currx"~sign~"= TileWidth;");
         }
         
-        void incY(int val) pure nothrow
+        void incY() pure nothrow
         {
             foreach(i;TupleRange!(0,NumLines))
             {
@@ -265,6 +273,7 @@ private:
                 currw0 = currw1;
                 currw1 -= pack.wplane.bc * TileHeight;
             }
+            curry += TileHeight;
         }
         @property auto check() const pure nothrow
         {
@@ -419,16 +428,131 @@ public:
             }
         }
 
+        @nogc void fillTile(T)(in ref T tile, int x0, int y0, int x1, int y1)
+        {
+            auto line = mBitmap[y0];
+            foreach(y;y0..y1)
+            {
+                line[x0..x1] = ColorRed;
+                ++line;
+            }
+        }
+        @nogc void drawTile(T)(in ref T tile, int x0, int y0, int x1, int y1)
+        {
+            auto line = mBitmap[y0];
+            foreach(y;y0..y1)
+            {
+                line[x0..x1] = ColorGreen;
+                ++line;
+            }
+        }
+
         immutable pack = PackT(pverts[0], pverts[1], pverts[2]);
-        int tx = cast(int)upperVert.pos.x / MinTileWidth;
-        int ty = cast(int)upperVert.pos.y / MinTileHeight;
-        auto currentTile    = TileT(&pack, tx * MinTileWidth, ty * MinTileHeight);
-        auto savedRightTile = currentTile;
-        auto savedDownTile  = currentTile;
+        int sx = cast(int)upperVert.pos.x;
+        int sy = cast(int)upperVert.pos.y;
+        const tx = sx / MinTileWidth;
+        const ty = sy / MinTileHeight;
+        TileT currentTile    = TileT(&pack, tx * MinTileWidth, ty * MinTileHeight);
+        TileT savedRightTile;
+        TileT savedDownTile;
         while(true)
         {
-            uint tileMask = 0;
+            auto none(in uint val) pure nothrow
+            {
+                return 0x0 == (val & 0b001_001_001_001) ||
+                       0x0 == (val & 0b010_010_010_010) ||
+                       0x0 == (val & 0b100_100_100_100);
+            }
+            auto all(in uint val) pure nothrow
+            {
+                return val == 0b111_111_111_111;
+            }
+            auto down(in uint val) pure nothrow
+            {
+                return 0x0 != (val & 0b111_000_111_000);
+            }
+            uint tileMask = (currentTile.check() << 6);
+            if(!none(tileMask))
+            {
+                savedRightTile = currentTile;
+            }
+
+            const y0 = currentTile.curry;
+            const y1 = y0 + MinTileHeight;
+            //drawTile
+            drawTile(currentTile, currentTile.currx, y0, currentTile.currx + MinTileWidth, y1);
+
             //move left
+            while(true)
+            {
+                const x1 = currentTile.currx;
+                const x0 = x1 - MinTileWidth;
+
+                currentTile.incX!("-")();
+                tileMask >>= 6;
+                tileMask |= (currentTile.check() << 6);
+                if(none(tileMask))
+                {
+                    break;
+                }
+                if(!savedDownTile.valid && down(tileMask))
+                {
+                    savedDownTile = currentTile;
+                }
+
+                if(all(tileMask))
+                {
+                    //fillTile
+                    fillTile(currentTile, x0, y0, x1, y1);
+                }
+                else
+                {
+                    //drawTile
+                    drawTile(currentTile, x0, y0, x1, y1);
+                }
+            }
+            //move right
+            if(savedRightTile.valid)
+            {
+                //debugOut("moveRight");
+                tileMask = (savedRightTile.check() << 6);
+                while(true)
+                {
+                    const x0 = savedRightTile.currx;
+                    const x1 = x0 + MinTileWidth;
+                    savedRightTile.incX!("+")();
+                    tileMask >>= 6;
+                    tileMask |= (savedRightTile.check() << 6);
+                    if(none(tileMask))
+                    {
+                        break;
+                    }
+                    if(!savedDownTile.valid && down(tileMask))
+                    {
+                        savedDownTile = savedRightTile;
+                    }
+                    
+                    if(all(tileMask))
+                    {
+                        //fillTile
+                        fillTile(savedDownTile, x0, y0, x1, y1);
+                    }
+                    else
+                    {
+                        //drawTile
+                        drawTile(savedDownTile, x0, y0, x1, y1);
+                    }
+                }
+                savedRightTile.valid = false;
+            }
+
+            if(!savedDownTile.valid)
+            {
+                break;
+            }
+            currentTile = savedDownTile;
+            currentTile.incY();
+            savedDownTile.valid = false;
         }
         //TileT current;
         //end
