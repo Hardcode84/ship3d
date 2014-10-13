@@ -248,7 +248,7 @@ private:
         {
             foreach(i;TupleRange!(0,NumLines))
             {
-                const dx = pack.lines[i].dy * TileWidth;
+                const dx = pack.lines[i].dy * -TileWidth;
                 mixin("cx0[i] "~sign~"= dx;");
                 mixin("cx1[i] "~sign~"= dx;");
             }
@@ -469,81 +469,71 @@ public:
             }
             auto down(in uint val) pure nothrow
             {
-                return 0x0 != (val & 0b111_000_111_000);
+                //return 0x0 != (val & 0b111_000_111_000);
+                return 0x0 != (val & 0b001_000_001_000) &&
+                       0x0 != (val & 0b010_000_010_000) &&
+                       0x0 != (val & 0b100_000_100_000);
             }
             uint tileMask = (currentTile.check() << 6);
-            if(!none(tileMask))
-            {
-                savedRightTile = currentTile;
-            }
+            savedRightTile = currentTile;
 
             const y0 = currentTile.curry;
             const y1 = y0 + MinTileHeight;
-            //drawTile
-            drawTile(currentTile, currentTile.currx, y0, currentTile.currx + MinTileWidth, y1);
+            //drawTile(currentTile, currentTile.currx, y0, currentTile.currx + MinTileWidth, y1);
 
             //move left
             while(true)
             {
-                const x1 = currentTile.currx;
-                const x0 = x1 - MinTileWidth;
-
                 currentTile.incX!("-")();
                 tileMask >>= 6;
                 tileMask |= (currentTile.check() << 6);
-                if(none(tileMask))
-                {
-                    break;
-                }
                 if(!savedDownTile.valid && down(tileMask))
                 {
                     savedDownTile = currentTile;
                 }
+                if(none(tileMask))
+                {
+                    break;
+                }
+                const x0 = currentTile.currx;
+                const x1 = x0 + MinTileWidth;
 
                 if(all(tileMask))
                 {
-                    //fillTile
                     fillTile(currentTile, x0, y0, x1, y1);
                 }
                 else
                 {
-                    //drawTile
                     drawTile(currentTile, x0, y0, x1, y1);
                 }
             }
+
             //move right
-            if(savedRightTile.valid)
+            tileMask = (savedRightTile.check() << 6);
+            while(true)
             {
-                //debugOut("moveRight");
-                tileMask = (savedRightTile.check() << 6);
-                while(true)
+                const x0 = savedRightTile.currx;
+                const x1 = x0 + MinTileWidth;
+                savedRightTile.incX!("+")();
+                tileMask >>= 6;
+                tileMask |= (savedRightTile.check() << 6);
+                if(!savedDownTile.valid && down(tileMask))
                 {
-                    const x0 = savedRightTile.currx;
-                    const x1 = x0 + MinTileWidth;
-                    savedRightTile.incX!("+")();
-                    tileMask >>= 6;
-                    tileMask |= (savedRightTile.check() << 6);
-                    if(none(tileMask))
-                    {
-                        break;
-                    }
-                    if(!savedDownTile.valid && down(tileMask))
-                    {
-                        savedDownTile = savedRightTile;
-                    }
-                    
-                    if(all(tileMask))
-                    {
-                        //fillTile
-                        fillTile(savedDownTile, x0, y0, x1, y1);
-                    }
-                    else
-                    {
-                        //drawTile
-                        drawTile(savedDownTile, x0, y0, x1, y1);
-                    }
+                    savedDownTile = savedRightTile;
                 }
-                savedRightTile.valid = false;
+                if(none(tileMask))
+                {
+                    break;
+                }
+                
+                if(all(tileMask))
+                {
+                    fillTile(savedRightTile, x0, y0, x1, y1);
+                }
+                else
+                {
+                    drawTile(savedRightTile, x0, y0, x1, y1);
+                }
             }
 
             if(!savedDownTile.valid)
