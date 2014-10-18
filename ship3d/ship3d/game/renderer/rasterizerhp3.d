@@ -303,6 +303,8 @@ private:
                 const val = pack.lines[i].val(x, y);
                 cx[i] = val;
             }
+            currx = x;
+            curry = y;
         }
 
         void incX(string sign)() pure nothrow
@@ -477,11 +479,21 @@ public:
                 ++line;
             }
         }
-        @nogc void drawTile(bool Left, T)(in ref T tile, int x0, int y0, int x1, int y1, int sx, inout int sy)
+        @nogc void drawTile(bool Left, T)(in ref T tile, int x0, int y0, int x1, int y1, int sx, int sy)
         {
+            debugOut("draw");
+            debugOut(x0);
+            debugOut(y0);
+            debugOut("---");
+            debugOut(sx);
+            debugOut(sy);
+            assert(sx >= x0);
+            assert(sx < x1);
+            assert(sy >= y0);
+            assert(sy < y1);
             auto pt = PointT(tile, sx, sy);
-            auto ptRight = pt;
-            auto ptDown  = pt;
+            //auto ptRight = pt;
+            //auto ptDown  = pt;
             /*foreach(y;sy..y1)
             {
                 foreach(x;sx..x1)
@@ -489,28 +501,54 @@ public:
                 }
                 sx = x0;
             }*/
-
+            debugOut("-------");
+            while(!pt.check())
+            {
+                if(pt.curry >= y1) return;
+                pt.incY();
+                //debugOut("inc");
+            }
+            debugOut(x0);
+            //debugOut(sx);
+            sy = pt.curry;
             SpanT[MinTileHeight] spans = void;
             int ey = sy;
-            bool hasDown = true;
             while(ey < y1)
             {
-                ptDown.incY();
+                bool hasDown = false;
+                auto ptRight = pt;
+                PointT ptDown = void;
                 ptRight.incX!"+"();
-                spans[ey % MinTileHeight].y  = ey;
+                const my = ey % MinTileHeight;
+                spans[my].y = ey;
                 foreach(i;TupleRange!(0,2))
                 {
                     static if(1 == i)
                     {
                         pt = ptRight;
                     }
-                    enum sign = (0 == 1 ? "-" : "+");
+                    //debugOut(pt.currx);
+                    ptDown = pt;
+                    ptDown.incY();
+                    enum sign = (i == 0 ? "-" : "+");
                     while(true)
                     {
+                        //debugOut(pt.currx);
+                        if(pt.currx <= x0) 
+                        {
+                            //debugOut("->lbrk<-");
+                            break;
+                        }
+                        if(pt.currx >= x1)
+                        {
+                            //debugOut("->rbrk<-");
+                            break;
+                        }
                         if(!hasDown)
                         {
                             if(ptDown.check())
                             {
+                                //debugOut("save down");
                                 hasDown = true;
                             }
                             else
@@ -520,28 +558,60 @@ public:
                         }
                         if(!pt.check())
                         {
+                            //debugOut("->cbrk<-");
                             break;
                         }
+                        //debugOut("iter");
                         pt.incX!(sign)();
                     }
                     import std.conv;
-                    mixin("spans[ey % MinTileHeight].x"~text(i)~"= pt.currx;");
+                    mixin("spans[my].x"~text(i)~"= pt.currx;");
+                    //debugOut(pt.currx);
                     //spans[ey].x0 = pt.currx;
                 }
-                if(!hasDown)
+                if(!hasDown || ey >= y1)
                 {
                     break;
                 }
+
+                //debugOut(spans[my].x0);
+                //debugOut(spans[my].x1);
                 ++ey;
                 pt = ptDown;
-                ptRight = pt;
             }
 
             auto line = mBitmap[sy];
+            /*debugOut("---");
+            debugOut(y0);
+            debugOut(sy);
+            debugOut(ey);*/
+            debugOut(x0);
             foreach(y;sy..ey)
             {
                 const my = y % MinTileHeight;
+                debugOut("-");
+                debugOut(spans[my].x0);
+                debugOut(spans[my].x1);
+                assert(spans[my].x0 >= x0);
+                assert(spans[my].x1 <= x1);
+                static if(Left)
+                {
+                    if(spans[my].x0 == x0)
+                    {
+                        debugOut("left");
+                        //sy = y;
+                    }
+                }
+                else
+                {
+                    if(spans[my].x1 == x1)
+                    {
+                        debugOut("right");
+                        //sy = y;
+                    }
+                }
                 line[spans[my].x0..spans[my].x1] = ColorGreen;
+                //line[x0..x1]  = ColorGreen;
                 ++line;
             }
 
@@ -618,16 +688,18 @@ public:
                 const x0 = currentTile.currx;
                 const x1 = x0 + MinTileWidth;
 
+                sx = x1 - 1;
+                sy = y0;
                 if(all(tileMask))
                 {
                     fillTile(currentTile, x0, y0, x1, y1);
-                    sy = y0;
                 }
                 else
                 {
                     drawTile!true(currentTile, x0, y0, x1, y1, sx, sy);
                 }
-                sx = x0;
+                sx = x0 - 1;
+                sy = y0;
             }
 
             //move right
@@ -650,16 +722,19 @@ public:
                     break;
                 }
                 
+                sx = x0;
+                sy = y0;
                 if(all(tileMask))
                 {
                     fillTile(savedRightTile, x0, y0, x1, y1);
-                    sy = y0;
+                    //sy = y0;
                 }
                 else
                 {
                     drawTile!false(savedRightTile, x0, y0, x1, y1, sx, sy);
                 }
-                sx = x1;
+                //sx = x0;
+                //sy = y0;
             }
 
             if(!savedDown)
@@ -668,6 +743,7 @@ public:
             }
             currentTile = savedDownTile;
             currentTile.incY();
+            sy += MinTileHeight;
         }
         //TileT current;
         //end
