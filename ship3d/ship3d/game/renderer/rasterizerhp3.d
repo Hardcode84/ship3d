@@ -99,7 +99,7 @@ private:
                 LineT(v1, v2, v3, invDenom),
                 LineT(v2, v3, v1, invDenom),
                 LineT(v3, v1, v2, invDenom)];
-            
+
             static if(!Affine)
             {
                 wplane = PlaneT(vec3(v1.pos.xy, cast(PosT)1 / v1.pos.w),
@@ -109,104 +109,7 @@ private:
         }
         
     }
-    
-    /+struct Tile(PosT,PackT,bool Affine)
-    {
-    @nogc:
-        const(PackT)* pack;
-        enum NumLines = 3;
-        PosT[NumLines] cx = void, cy = void;
-        static if(!Affine)
-        {
-            PosT currw = void;
-            PosT prevw = void;
-        }
-        
-        this(in PackT* p, int x, int y)
-        {
-            pack = p;
-            setXY(x,y);
-        }
-        void setXY(int x, int y) pure nothrow
-        {
-            foreach(i;TupleRange!(0,NumLines))
-            {
-                cy[i] = pack.lines[i].val(x, y);
-                cx[i] = cy[i];
-            }
-            static if(!Affine)
-            {
-                currw = pack.wplane.get(x,y);
-                prevw = currw;
-            }
-        }
-        
-        void incX(int val) pure nothrow
-        {
-            foreach(i;TupleRange!(0,NumLines))
-            {
-                cx[i] -= pack.lines[i].dy * val;
-            }
-            static if(!Affine)
-            {
-                currw -= pack.wplane.ac * val;
-            }
-        }
-        
-        void incY(int val) pure nothrow
-        {
-            foreach(i;TupleRange!(0,NumLines))
-            {
-                cy[i] += pack.lines[i].dx * val;
-                cx[i] = cy[i];
-            }
-            static if(!Affine)
-            {
-                currw = prevw - pack.wplane.bc * val;
-                prevw = currw;
-            }
-        }
-        
-        @property auto all() const pure nothrow
-        {
-            //return all!"a.curr > 0"(lines[]);
-            return cx[0] > 0 && cx[1] > 0 && cx[2] > 0;
-        }
-        
-        @property auto check() const pure nothrow
-        {
-            uint ret = 0;
-            foreach(i;TupleRange!(0,NumLines))
-            {
-                ret |= ((cx[i] > 0) << i);
-            }
-            return ret;
-        }
-        
-        void getBarycentric(int dx = 0)(PosT[] ret) const pure nothrow
-            in
-        {
-            assert(ret.length == NumLines);
-        }
-        out
-        {
-            //assert(almost_equal(cast(PosT)1, ret.sum, 1.0f/255.0f), debugConv(ret.sum));
-        }
-        body
-        {
-            foreach(i;TupleRange!(1,NumLines))
-            {
-                enum li = (i + 1) % NumLines;
-                auto val = cx[li] - pack.lines[li].dy * dx;
-                static if(!Affine)
-                {
-                    val /= (currw - pack.wplane.ac * dx);
-                }
-                ret[i] = val;
-            }
-            ret[0] = cast(PosT)1 - ret[1] - ret[2];
-        }
-    }+/
+
     struct Tile(int TileWidth, int TileHeight, PosT,PackT,bool Affine)
     {
         immutable(PackT)* pack;
@@ -481,34 +384,29 @@ public:
         }
         @nogc void drawTile(bool Left, T)(in ref T tile, int x0, int y0, int x1, int y1, int sx, int sy)
         {
-            debugOut("draw");
+            /*debugOut("draw");
             debugOut(x0);
             debugOut(y0);
             debugOut("---");
             debugOut(sx);
-            debugOut(sy);
+            debugOut(sy);*/
             assert(sx >= x0);
             assert(sx < x1);
             assert(sy >= y0);
             assert(sy < y1);
+            //mBitmap[y0][x0] = ColorGreen;
+            //mBitmap[sy][sx] = ColorRed;
             auto pt = PointT(tile, sx, sy);
-            //auto ptRight = pt;
-            //auto ptDown  = pt;
-            /*foreach(y;sy..y1)
-            {
-                foreach(x;sx..x1)
-                {
-                }
-                sx = x0;
-            }*/
-            debugOut("-------");
+            //debugOut("-------");
             while(!pt.check())
             {
                 if(pt.curry >= y1) return;
                 pt.incY();
+                //sy = pt.curry;
+                //mBitmap[sy][sx] = ColorRed;
                 //debugOut("inc");
             }
-            debugOut(x0);
+            //debugOut(x0);
             //debugOut(sx);
             sy = pt.curry;
             SpanT[MinTileHeight] spans = void;
@@ -528,8 +426,11 @@ public:
                         pt = ptRight;
                     }
                     //debugOut(pt.currx);
-                    ptDown = pt;
-                    ptDown.incY();
+                    if(!hasDown)
+                    {
+                        ptDown = pt;
+                        ptDown.incY();
+                    }
                     enum sign = (i == 0 ? "-" : "+");
                     while(true)
                     {
@@ -580,25 +481,30 @@ public:
                 pt = ptDown;
             }
 
+
+            foreach(y;y0..y1)
+            {
+                mBitmap[y][x0..x1] = ColorBlue;
+            }
             auto line = mBitmap[sy];
             /*debugOut("---");
             debugOut(y0);
             debugOut(sy);
             debugOut(ey);*/
-            debugOut(x0);
+            //debugOut(x0);
             foreach(y;sy..ey)
             {
                 const my = y % MinTileHeight;
-                debugOut("-");
-                debugOut(spans[my].x0);
-                debugOut(spans[my].x1);
+                //debugOut("-");
+                //debugOut(spans[my].x0);
+                //debugOut(spans[my].x1);
                 assert(spans[my].x0 >= x0);
                 assert(spans[my].x1 <= x1);
                 static if(Left)
                 {
                     if(spans[my].x0 == x0)
                     {
-                        debugOut("left");
+                        //debugOut("left");
                         //sy = y;
                     }
                 }
@@ -606,31 +512,16 @@ public:
                 {
                     if(spans[my].x1 == x1)
                     {
-                        debugOut("right");
+                        //debugOut("right");
                         //sy = y;
                     }
                 }
+                //line[x0..x1]  = ColorBlue;
                 line[spans[my].x0..spans[my].x1] = ColorGreen;
                 //line[x0..x1]  = ColorGreen;
                 ++line;
             }
-
-            /+foreach(y;y0..y1)
-            {
-                //line[x0..x1] = ColorGreen;
-                auto pt = PointT(tile, x0, y);
-                foreach(x;x0..x1)
-                {
-                    /+if(pt.check())
-                    {
-                        line[x] = ColorGreen;
-                    }+/
-                    line[x] = pt.check() ? ColorGreen : ColorBlue;
-                    pt.incX!"+"();
-                }
-                pt.incY();
-                ++line;
-            }+/
+            //mBitmap[sy][sx] = ColorRed;
         }
 
         immutable pack = PackT(pverts[0], pverts[1], pverts[2]);
@@ -655,12 +546,12 @@ public:
             {
                 return val == 0b111_111_111_111;
             }
-            auto down(in uint val) pure nothrow
+            auto noneDown(in uint val) pure nothrow
             {
                 //return 0x0 != (val & 0b111_000_111_000);
-                return 0x0 != (val & 0b001_000_001_000) &&
-                       0x0 != (val & 0b010_000_010_000) &&
-                       0x0 != (val & 0b100_000_100_000);
+                return 0x0 == (val & 0b001_000_001_000) ||
+                       0x0 == (val & 0b010_000_010_000) ||
+                       0x0 == (val & 0b100_000_100_000);
             }
             uint tileMask = (currentTile.check() << 6);
             savedRightTile = currentTile;
@@ -676,9 +567,12 @@ public:
                 currentTile.incX!("-")();
                 tileMask >>= 6;
                 tileMask |= (currentTile.check() << 6);
-                if(!savedDown && down(tileMask))
+
+                if(!savedDown && !noneDown(tileMask))
                 {
+                    //mBitmap[y0 + 4][currentTile.currx + 4] = ColorWhite;
                     savedDownTile = currentTile;
+                    //savedDownTile.incX!("+")();
                     savedDown = true;
                 }
                 if(none(tileMask))
@@ -698,8 +592,6 @@ public:
                 {
                     drawTile!true(currentTile, x0, y0, x1, y1, sx, sy);
                 }
-                sx = x0 - 1;
-                sy = y0;
             }
 
             //move right
@@ -712,8 +604,9 @@ public:
                 savedRightTile.incX!("+")();
                 tileMask >>= 6;
                 tileMask |= (savedRightTile.check() << 6);
-                if(!savedDown && down(tileMask))
+                if(!savedDown && !noneDown(tileMask))
                 {
+                    //mBitmap[y0 + 4][x0 + 4] = ColorWhite;
                     savedDownTile = savedRightTile;
                     savedDown = true;
                 }
@@ -743,7 +636,6 @@ public:
             }
             currentTile = savedDownTile;
             currentTile.incY();
-            sy += MinTileHeight;
         }
         //TileT current;
         //end
