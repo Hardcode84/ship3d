@@ -286,7 +286,10 @@ private:
 
         void incX(int val) pure nothrow
         {
-            col0 = col1;
+            static if(HasColor)
+            {
+                col0 = col1;
+            }
             x0 = x1;
             foreach(i;TupleRange!(0,Height))
             {
@@ -394,7 +397,6 @@ public:
         alias PackT   = LinesPack!(PosT,LineT,Affine);
         alias TileT   = Tile!(MinTileWidth,MinTileHeight,PosT,PackT,Affine);
         alias PointT  = Point!(PosT,PackT,Affine);
-        //alias SpanT   = Span!(PosT,ColT,PosT);
         alias SpansT  = Spans!(MinTileHeight,PosT,ColT,PosT);
 
         int minY = cast(int)min(pverts[0].pos.y, pverts[1].pos.y, pverts[2].pos.y);
@@ -406,17 +408,10 @@ public:
         maxX = min(mClipRect.x + mClipRect.w, maxX);
         minY = max(mClipRect.y, minY);
         maxY = min(mClipRect.y + mClipRect.h, maxY);
-        //immutable upperVert = reduce!((a,b) => a.pos.y < b.pos.y ? a : b)(pverts);
         const upperVert = (pverts[0].pos.y < pverts[1].pos.y ?
                           (pverts[0].pos.y < pverts[2].pos.y ? pverts[0] : pverts[2]) :
                           (pverts[1].pos.y < pverts[2].pos.y ? pverts[1] : pverts[2]));
-        /*@nogc void drawSpan(LineT,SpanT)(auto ref LineT line, in ref SpanT span) pure nothrow
-        {
-            static if(HasColor)
-            {
-                ditherColorLine(line,span.x0,span.x1,span.y,span.col0,span.col1);
-            }
-        }*/
+
         immutable pack = PackT(pverts[0], pverts[1], pverts[2]);
 
         @nogc void drawSpans(LineT,SpansT)(auto ref LineT line, in auto ref SpansT spans, int y0, int y1) pure nothrow
@@ -425,17 +420,13 @@ public:
             {
                 const my = y % MinTileHeight;
                 ditherColorLine(line,spans.x0[my],spans.x1[my],my,spans.col0[my],spans.col1[my]);
+                ++line;
             }
         }
 
-        @nogc void fillTile(int x0, int y0, int x1, int y1)
+        @nogc void fillTile(T)(auto ref T spans, int x0, int y0, int x1, int y1)
         {
-            auto line = mBitmap[y0];
-            foreach(y;y0..y1)
-            {
-                line[x0..x1] = ColorRed;
-                ++line;
-            }
+            drawSpans(mBitmap[y0], spans, y0, y1);
         }
         @nogc void drawTile(int x0, int y0, int x1, int y1)
         {
@@ -499,7 +490,7 @@ public:
             static if(HasColor)
             {
                 const my0 = sy % MinTileHeight;
-                const my1 = ey % MinTileHeight;
+                const my1 = (ey - 1) % MinTileHeight;
                 PosT[3] bary = void;
                 pack.getBarycentric(spans.x0[my0],     sy, bary);
                 spans.col0[my0] = calcColor(bary);
@@ -510,30 +501,11 @@ public:
                 pack.getBarycentric(spans.x1[my1] - 1, ey, bary);
                 spans.col1[my1] = calcColor(bary);
                 const hgt = ey - sy;
-                ColT.interpolateLine(hgt, spans.col0[my0..my1], spans.col0[my0], spans.col0[my1 - 1]);
-                ColT.interpolateLine(hgt, spans.col1[my0..my1], spans.col1[my0], spans.col1[my1 - 1]);
+                ColT.interpolateLine(hgt, spans.col0[my0..my1 + 1], spans.col0[my0], spans.col0[my1]);
+                ColT.interpolateLine(hgt, spans.col1[my0..my1 + 1], spans.col1[my0], spans.col1[my1]);
             }
 
-            /*foreach(y;y0..y1)
-            {
-                //mBitmap[y][x0..x1] = ColorWhite;
-            }*/
-            auto line = mBitmap[sy];
-            drawSpans(line, spans, sy, ey);
-            /*foreach(y;sy..ey)
-            {
-                const my = y % MinTileHeight;
-                assert(spans.x0[my] >= x0);
-                assert(spans.x1[my] <= x1);
-                //line[x0..x1]  = ColorBlue;
-                line[spans.x0[my]..spans.x1[my]] = ColorGreen;
-                //line[x0..x1]  = ColorGreen;
-                ++line;
-            }*/
-            /*mBitmap[y0][x0] = ColorRed;
-            mBitmap[y1][x0] = ColorRed;
-            mBitmap[y0][x1] = ColorRed;
-            mBitmap[y1][x1] = ColorRed;*/
+            drawSpans(mBitmap[sy], spans, sy, ey);
         }
 
         const ux = cast(int)upperVert.pos.x;
@@ -607,7 +579,6 @@ public:
                     endFillX   = max(  endFillX, savedRightTile.currx);
                 }
             }
-            SpansT spans = void;
             if(endFillX > startFillX)
             {
                 for(auto x = startX; x < startFillX; x += MinTileWidth)
@@ -616,11 +587,33 @@ public:
                     const x1 = x0 + MinTileWidth;
                     drawTile(x0, y0, x1, y1);
                 }
+                SpansT spans = void;
+                spans.setX(startFillX);
+                PosT[3] bary = void;
+                static if(HasColor)
+                {
+                    {
+                        pack.getBarycentric(startFillX, y0    , bary);
+                        const col0 = calcColor(bary);
+                        pack.getBarycentric(startFillX, y1 - 1, bary);
+                        const col1 = calcColor(bary);
+                        ColT.interpolateLine!MinTileHeight(spans.col1[0..$], col0, col1);
+                    }
+                }
                 for(auto x = startFillX; x < endFillX; x += MinTileWidth)
                 {
+                    spans.incX(MinTileWidth);
+                    static if(HasColor)
+                    {
+                        pack.getBarycentric(x + MinTileWidth, y0    , bary);
+                        const col0 = calcColor(bary);
+                        pack.getBarycentric(x + MinTileWidth, y1 - 1, bary);
+                        const col1 = calcColor(bary);
+                        ColT.interpolateLine!MinTileHeight(spans.col1[0..$], col0, col1);
+                    }
                     const x0 = x;
                     const x1 = x0 + MinTileWidth;
-                    fillTile(x0, y0, x1, y1);
+                    fillTile(spans, x0, y0, x1, y1);
                 }
                 for(auto x = endFillX; x < endX; x += MinTileWidth)
                 {
