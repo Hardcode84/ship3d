@@ -428,19 +428,31 @@ public:
         {
             drawSpans(mBitmap[y0], spans, y0, y1);
         }
-        @nogc void drawTile(int x0, int y0, int x1, int y1)
+        @nogc void drawTile(int x0, int y0, int x1, int y1, int sx)
         {
             int sy = y0;
             auto pt = PointT(&pack, x0, sy);
-            outer1: while(sy < y1)
+            //mBitmap[sy][sx] = ColorWhite;
+            outer1: while(true)
             {
-                foreach(x;x0..x1)
+                foreach(x;0..MinTileWidth - 1)
                 {
                     if(pt.check()) break outer1;
                     pt.incX!"+"();
                 }
+                if(pt.check()) break outer1;
                 ++sy;
-                pt = PointT(&pack, x0, sy);
+                if(sy >= y1) return;
+                pt.incY();
+                foreach(x;0..MinTileWidth - 1)
+                {
+                    if(pt.check()) break outer1;
+                    pt.incX!"-"();
+                }
+                if(pt.check()) break outer1;
+                ++sy;
+                if(sy >= y1) return;
+                pt.incY();
             }
             SpansT spans = void;
 
@@ -508,7 +520,7 @@ public:
             drawSpans(mBitmap[sy], spans, sy, ey);
         }
 
-        const ux = cast(int)upperVert.pos.x;
+        const ux = cast(int)upperVert.pos.x + 1;
         const uy = cast(int)upperVert.pos.y;
         const tx = ux / MinTileWidth;
         const ty = uy / MinTileHeight;
@@ -585,7 +597,8 @@ public:
                 {
                     const x0 = x;
                     const x1 = x0 + MinTileWidth;
-                    drawTile(x0, y0, x1, y1);
+                    const sx = clamp(ux, x0, x1 - 1);
+                    drawTile(x0, y0, x1, y1, sx);
                 }
                 SpansT spans = void;
                 spans.setX(startFillX);
@@ -619,7 +632,8 @@ public:
                 {
                     const x0 = x;
                     const x1 = x0 + MinTileWidth;
-                    drawTile(x0, y0, x1, y1);
+                    const sx = clamp(ux, x0, x1 - 1);
+                    drawTile(x0, y0, x1, y1, sx);
                 }
             }
             else
@@ -628,7 +642,8 @@ public:
                 {
                     const x0 = x;
                     const x1 = x0 + MinTileWidth;
-                    drawTile(x0, y0, x1, y1);
+                    const sx = clamp(ux, x0, x1 - 1);
+                    drawTile(x0, y0, x1, y1, sx);
                 }
             }
 
