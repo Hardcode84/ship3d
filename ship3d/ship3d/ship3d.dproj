@@ -9,7 +9,7 @@
     <UseDefaultCompiler>true</UseDefaultCompiler>
     <IncrementalLinking>true</IncrementalLinking>
     <PreferOneStepBuild>true</PreferOneStepBuild>
-    <Compiler>DMD2</Compiler>
+    <Compiler>ldc2</Compiler>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -86,7 +86,7 @@
     </Libs>
     <DebugLevel>0</DebugLevel>
     <ObjectsDirectory>obj\Release</ObjectsDirectory>
-    <ExtraCompilerArguments>-oq -mcpu=i686 -mattr=+mmx,+sse</ExtraCompilerArguments>
+    <ExtraCompilerArguments>-oq</ExtraCompilerArguments>
     <Target>Executable</Target>
     <Externalconsole>true</Externalconsole>
     <UnittestMode>false</UnittestMode>
@@ -107,6 +107,22 @@
     <Target>Executable</Target>
     <Externalconsole>true</Externalconsole>
     <UnittestMode>true</UnittestMode>
+    <OutputName>ship3d</OutputName>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release LDC Taras|AnyCPU' ">
+    <OutputPath>bin\Release</OutputPath>
+    <LinkinThirdPartyLibraries>false</LinkinThirdPartyLibraries>
+    <Libs>
+      <Libs>
+        <Lib>gdi32.lib</Lib>
+      </Libs>
+    </Libs>
+    <DebugLevel>0</DebugLevel>
+    <ObjectsDirectory>obj\Release</ObjectsDirectory>
+    <ExtraCompilerArguments>-oq -mcpu=i686 -mattr=+mmx,+sse</ExtraCompilerArguments>
+    <Target>Executable</Target>
+    <Externalconsole>true</Externalconsole>
+    <UnittestMode>false</UnittestMode>
     <OutputName>ship3d</OutputName>
   </PropertyGroup>
   <ItemGroup>

@@ -220,18 +220,20 @@ private:
 
     struct Point(PosT,PackT,bool Affine)
     {
-        immutable(PackT)* pack;
         enum NumLines = 3;
         int currx = void;
         int curry = void;
         PosT[NumLines] cx = void;
+        PosT[NumLines] dx = void;
+        PosT[NumLines] dy = void;
         this(PackT)(in PackT p, int x, int y) pure nothrow
         {
-            pack = p;
             foreach(i;TupleRange!(0,NumLines))
             {
-                const val = pack.lines[i].val(x, y);
+                const val = p.lines[i].val(x, y);
                 cx[i] = val;
+                dx[i] = -p.lines[i].dy;
+                dy[i] =  p.lines[i].dx;
             }
             currx = x;
             curry = y;
@@ -241,8 +243,7 @@ private:
         {
             foreach(i;TupleRange!(0,NumLines))
             {
-                const dx = -pack.lines[i].dy;
-                mixin("cx[i] "~sign~"= dx;");
+                mixin("cx[i] "~sign~"= dx[i];");
             }
             mixin("currx"~sign~"= 1;");
         }
@@ -251,7 +252,7 @@ private:
         {
             foreach(i;TupleRange!(0,NumLines))
             {
-                cx[i] += pack.lines[i].dx;
+                cx[i] += dy[i];
             }
             curry += 1;
         }
