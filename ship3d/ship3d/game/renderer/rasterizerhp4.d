@@ -122,14 +122,17 @@ private:
         int curry = void;
         alias LineData = PosT[NumLines];
         LineData[ArrHeight] cx = void;
-        immutable PosT dx;
+        immutable PosT[NumLines] dx;
 
         uint mask = void;
 
         this(in immutable(PackT)* p, int x, int y) pure nothrow
         {
             pack = p;
-            dx = pack.lines[i].dy * -TileWidth;
+            foreach(i;TupleRange!(0,NumLines))
+            {
+                dx[i] = pack.lines[i].dy * -TileWidth;
+            }
             setXY(x,y);
         }
 
@@ -154,7 +157,7 @@ private:
             {
                 foreach(i;TupleRange!(0,NumLines))
                 {
-                    cx[j][i] += dx;
+                    cx[j][i] += dx[i];
                 }
             }
             currx += TileWidth;
@@ -257,8 +260,8 @@ public:
         in
     {
         assert(b !is null);
-        assert(0 == (b.width  % MinTileWidth));
-        assert(0 == (b.height % MinTileHeight));
+        assert(0 == (b.width  % TileWidth));
+        assert(0 == (b.height % TileHeight));
         static if(HasDepth)
         {
             assert(mDepthMap !is null);
@@ -350,7 +353,7 @@ public:
         }
         alias LineT   = Line!(PosT,Affine);
         alias PackT   = LinesPack!(PosT,LineT,Affine);
-        alias MTileT  = MetaTile!(MinTileWidth,MinTileHeight,PosT,PackT);
+        alias MTileT  = MetaTile!(TileWidth,TileHeight,PosT,PackT);
         //alias TileT   = Tile!(MinTileWidth,MinTileHeight,PosT,PackT,Affine);
         //alias PointT  = Point!(PosT,PackT,Affine);
         alias SpanT   = Span!(PosT,ColT,PosT);
@@ -398,8 +401,8 @@ public:
         immutable pack = PackT(pverts[0], pverts[1], pverts[2]);
         const sx = cast(int)upperVert.pos.x;
         const sy = cast(int)upperVert.pos.y;
-        const tx = sx / MinTileWidth;
-        const ty = sy / MinTileHeight;
+        const tx = sx / TileWidth;
+        const ty = sy / TileHeight;
         const tx0 = minX / TileWidth;
         const tx1 = maxX / TileWidth + 1;
         const ty0 = minY / TileHeight;

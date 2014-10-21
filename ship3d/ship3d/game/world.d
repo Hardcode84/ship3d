@@ -9,6 +9,7 @@ import game.renderer.rasterizer;
 import game.renderer.rasterizerhp;
 import game.renderer.rasterizerhp2;
 import game.renderer.rasterizerhp3;
+import game.renderer.rasterizerhp4;
 import game.renderer.texture;
 
 final class World
@@ -109,7 +110,7 @@ public:
                 rast.texture = mTexture;
                 foreach(i;0..1)
                 {
-                    //rast.drawIndexedTriangle(verts, [0,1,2]);
+                    rast.drawIndexedTriangle(verts, [0,1,2]);
                     rast.drawIndexedTriangle(verts, [0,2,3]);
                 }
             }
@@ -119,7 +120,7 @@ public:
                 rast.texture = mTexture;
                 foreach(i;0..1)
                 {
-                    //rast.drawIndexedTriangle(verts, [0,1,2]);
+                    rast.drawIndexedTriangle(verts, [0,1,2]);
                     rast.drawIndexedTriangle(verts, [0,2,3]);
                 }
             }
