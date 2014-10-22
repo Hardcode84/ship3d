@@ -319,7 +319,7 @@ public:
     static if(HasDepth)
     {
         this(BitmapT b, DepthT d)
-            in
+        in
         {
             assert(d ! is null);
             assert(b.width  == d.width);
@@ -409,9 +409,14 @@ public:
         maxX = min(mClipRect.x + mClipRect.w, maxX);
         minY = max(mClipRect.y, minY);
         maxY = min(mClipRect.y + mClipRect.h, maxY);
+        const minTX = (minX / MinTileWidth) * MinTileWidth;
+        const maxTX = (1 + (maxX - 1) / MinTileWidth) * MinTileWidth;
         const upperVert = (pverts[0].pos.y < pverts[1].pos.y ?
                           (pverts[0].pos.y < pverts[2].pos.y ? pverts[0] : pverts[2]) :
                           (pverts[1].pos.y < pverts[2].pos.y ? pverts[1] : pverts[2]));
+        const lowerVert = (pverts[0].pos.y > pverts[1].pos.y ?
+                          (pverts[0].pos.y > pverts[2].pos.y ? pverts[0] : pverts[2]) :
+                          (pverts[1].pos.y > pverts[2].pos.y ? pverts[1] : pverts[2]));
 
         immutable pack = PackT(pverts[0], pverts[1], pverts[2]);
 
@@ -427,12 +432,18 @@ public:
 
         @nogc void fillTile(T)(in auto ref T spans, int x0, int y0, int x1, int y1)
         {
-            if(x1 <= minX || x0 >= maxX || y1 <= minY) return;
+            assert(x1 > minX);
+            assert(x0 < maxX);
+            assert(y1 > minY);
+            assert(y0 < maxY);
             drawSpans(mBitmap[y0], spans, y0, y1);
         }
         @nogc void drawTile(int x0, int y0, int x1, int y1, int sx)
         {
-            if(x1 <= minX || x0 >= maxX || y1 <= minY) return;
+            assert(x1 > minX);
+            assert(x0 < maxX);
+            assert(y1 > minY);
+            assert(y0 < maxY);
             int sy = y0;
             auto pt = PointT(&pack, x0, sy);
             //mBitmap[sy][sx] = ColorWhite;
@@ -457,6 +468,8 @@ public:
                 if(sy >= y1) return;
                 pt.incY();
             }
+            assert(pt.currx >= x0);
+            assert(pt.currx <  x1);
             SpansT spans = void;
 
             int ey = sy;
@@ -527,8 +540,19 @@ public:
             drawSpans(mBitmap[sy], spans, sy, ey);
         }
 
-        const ux = cast(int)upperVert.pos.x + 1;
-        const uy = cast(int)upperVert.pos.y;
+        int ux, uy;
+        if(upperVert.pos.y >= minY)
+        {
+            ux = cast(int)upperVert.pos.x;
+            uy = cast(int)upperVert.pos.y;
+        }
+        else
+        {
+            const dx = lowerVert.pos.x - upperVert.pos.x;
+            const dy = lowerVert.pos.y - upperVert.pos.y;
+            ux = cast(int)(upperVert.pos.x + dx * (minY - upperVert.pos.y) / dy);
+            uy = minY;
+        }
         const tx = ux / MinTileWidth;
         const ty = uy / MinTileHeight;
         TileT currentTile    = TileT(&pack, tx * MinTileWidth, ty * MinTileHeight);
@@ -554,10 +578,7 @@ public:
             int startX     = currentTile.currx;
             int startFillX =  9000;
             int endFillX   = -9000;
-            int endX       = currentTile.currx;
-
-            const y0 = max(currentTile.curry,uy);
-            const y1 = currentTile.curry + MinTileHeight;
+            int endX       = currentTile.currx + MinTileWidth;
 
             //move left
             while(true)
@@ -580,6 +601,7 @@ public:
             }
 
             //move right
+            savedRightTile.incX!("+")();
             tileMask = (savedRightTile.check() << 6);
             while(true)
             {
@@ -598,6 +620,14 @@ public:
                     endFillX   = max(  endFillX, savedRightTile.currx);
                 }
             }
+
+            const y0 = max(currentTile.curry,uy);
+            const y1 = currentTile.curry + MinTileHeight;
+
+            startX     = clamp(startX,     minTX, maxTX);
+            startFillX = clamp(startFillX, minTX, maxTX);
+            endFillX   = clamp(endFillX,   minTX, maxTX);
+            endX       = clamp(endX,       minTX, maxTX);
             if(endFillX > startFillX)
             {
                 for(auto x = startX; x < startFillX; x += MinTileWidth)
@@ -654,7 +684,7 @@ public:
                 }
             }
 
-            if(y1 > maxY - 1) break;
+            if(y1 >= maxY) break;
 
             currentTile.incY();
             tileMask = (currentTile.check() << 6);
