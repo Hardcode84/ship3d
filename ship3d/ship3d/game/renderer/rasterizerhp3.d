@@ -425,12 +425,14 @@ public:
             }
         }
 
-        @nogc void fillTile(T)(auto ref T spans, int x0, int y0, int x1, int y1)
+        @nogc void fillTile(T)(in auto ref T spans, int x0, int y0, int x1, int y1)
         {
+            if(x1 <= minX || x0 >= maxX || y1 <= minY) return;
             drawSpans(mBitmap[y0], spans, y0, y1);
         }
         @nogc void drawTile(int x0, int y0, int x1, int y1, int sx)
         {
+            if(x1 <= minX || x0 >= maxX || y1 <= minY) return;
             int sy = y0;
             auto pt = PointT(&pack, x0, sy);
             //mBitmap[sy][sx] = ColorWhite;
@@ -474,7 +476,11 @@ public:
                 spans.x0[my] = pt.currx + 1;
                 while(true) //move right
                 {
-                    if(ptRight.currx >= x1) break;
+                    if(ptRight.currx >= x1) 
+                    {
+                        ptRight.currx++;
+                        break;
+                    }
                     ptRight.incX!"+"();
                     if(!ptRight.check())
                     {
@@ -647,6 +653,8 @@ public:
                     drawTile(x0, y0, x1, y1, sx);
                 }
             }
+
+            if(y1 > maxY - 1) break;
 
             currentTile.incY();
             tileMask = (currentTile.check() << 6);

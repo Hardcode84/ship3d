@@ -20,6 +20,7 @@ private:
     immutable Size mSize;
     pos_t mRot = 1;
     pos_t mYpos = 0;
+    pos_t mDist = -3;
     int mN = 0;
     Texture!ColorT mTexture;
     MemSurface!float mDepthBuff;
@@ -68,6 +69,14 @@ public:
         {
             ++mN;
         }
+        else if(SDL_SCANCODE_KP_PLUS == key)
+        {
+            mDist += 0.1f;
+        }
+        else if(SDL_SCANCODE_KP_MINUS == key)
+        {
+            mDist -= 0.1f;
+        }
     }
 
     void draw(SurfT surf)
@@ -92,7 +101,7 @@ public:
             verts[3].tpos = vec2_t(0,1);
             verts[3].color = ColorWhite;
 
-            mat4_t t = mProjMat * mat4_t.translation(0,mYpos,-3) * mat4_t.yrotation(mRot);
+            mat4_t t = mProjMat * mat4_t.translation(0,mYpos,mDist) * mat4_t.yrotation(mRot);
 
             foreach(i;0..verts.length)
             {
