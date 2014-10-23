@@ -27,17 +27,18 @@ private:
         DepthT mDepthMap;
     }
     Rect mClipRect;
-    
-    enum TileWidth   = 8;
-    enum TileHeight  = 8;
-    enum MetaTileWidth  = 32;
-    enum MetaTileHeight = 3;
-    
+
+    enum MinTileWidth  = 8;
+    enum MinTileHeight = 8;
+    enum MaxTileWidth  = 64;
+    enum MaxTileHeight = 64;
+    enum TileCoeff     = 8;
+
     struct Line(PosT,bool Affine)
     {
     @nogc:
         immutable PosT dx, dy, c;
-        
+
         this(VT)(in VT v1, in VT v2, in VT v3, in PosT baryInvDenom) pure nothrow
         {
             const x1 = v1.pos.x;
@@ -50,7 +51,7 @@ private:
             const inc = (dy < 0 || (dy == 0 && dx > 0)) ? cast(PosT)1 / cast(PosT)16 : cast(PosT)0;
             c = (dy * x1 - dx * y1) + inc * baryInvDenom / w;
         }
-        
+
         auto val(int x, int y) const pure nothrow
         {
             return c + dx * y - dy * x;
@@ -67,14 +68,14 @@ private:
         {
             const v12 = v2 - v1;
             const v13 = v3 - v1;
-            
+
             const norm = cross(v12,v13);
             //ax + by + cz = d
             ac = norm.x / norm.z;
             bc = norm.y / norm.z;
             dc = ac * v1.x + bc * v1.y + v1.z;
         }
-        
+
         auto get(int x, int y) const pure nothrow
         {
             //z = d/c - (a/c)x - (b/c)y)
@@ -101,7 +102,7 @@ private:
                 LineT(v1, v2, v3, invDenom),
                 LineT(v2, v3, v1, invDenom),
                 LineT(v3, v1, v2, invDenom)];
-            
+
             static if(!Affine)
             {
                 wplane = PlaneT(vec3(v1.pos.xy, cast(PosT)1 / v1.pos.w),
@@ -109,30 +110,21 @@ private:
                                 vec3(v3.pos.xy, cast(PosT)1 / v3.pos.w));
             }
         }
-        
+
     }
 
-    struct MetaTile(int TileWidth, int TileHeight, PosT,PackT)
+    struct Tile(int TileWidth, int TileHeight, PosT,PackT)
     {
         immutable(PackT)* pack;
-        enum NumLines  = 3;
-        enum NumVTiles = MetaTileHeight;
-        enum ArrHeight = NumVTiles + 1;
+        enum NumLines = 3;
         int currx = void;
         int curry = void;
-        alias LineData = PosT[NumLines];
-        LineData[ArrHeight] cx = void;
-        immutable PosT[NumLines] dx;
-
+        PosT[NumLines] cx0 = void, cx1 = void, cy = void;
         uint mask = void;
 
         this(in immutable(PackT)* p, int x, int y) pure nothrow
         {
             pack = p;
-            foreach(i;TupleRange!(0,NumLines))
-            {
-                dx[i] = pack.lines[i].dy * -TileWidth;
-            }
             setXY(x,y);
         }
 
@@ -141,118 +133,143 @@ private:
             foreach(i;TupleRange!(0,NumLines))
             {
                 const val = pack.lines[i].val(x, y);
-                foreach(j;TupleRange!(0,ArrHeight))
-                {
-                    cx[j][i] = val + pack.lines[i].dx * (TileHeight * j);
-                }
+                cy[i]  = val;
+                cx0[i] = val;
+                cx1[i] = val + pack.lines[i].dx * TileHeight;
             }
             currx = x;
             curry = y;
-            mask = (check() << (NumLines * ArrHeight));
+            mask = check();
         }
 
-        void incX() pure nothrow
+        void incX(string sign = "+")() pure nothrow
         {
-            foreach(j;TupleRange!(0,ArrHeight))
+            foreach(i;TupleRange!(0,NumLines))
             {
-                foreach(i;TupleRange!(0,NumLines))
-                {
-                    cx[j][i] += dx[i];
-                }
+                const dx = pack.lines[i].dy * -TileWidth;
+                mixin("cx0[i] "~sign~"= dx;");
+                mixin("cx1[i] "~sign~"= dx;");
             }
-            currx += TileWidth;
-            mask >>= (NumLines * ArrHeight);
-            mask = (check() << (NumLines * ArrHeight));
+            mixin("currx"~sign~"= TileWidth;");
+            mask >>= (NumLines * 2);
+            mask |= check();
         }
 
+        void incY() pure nothrow
+        {
+            foreach(i;TupleRange!(0,NumLines))
+            {
+                cy[i] += pack.lines[i].dx * TileHeight;
+                cx0[i] = cy[i];
+                cx1[i] = cy[i] + pack.lines[i].dx * TileHeight;
+            }
+            curry += TileHeight;
+            mask = check();
+        }
         @property auto check() const pure nothrow
         {
             uint ret = 0;
-            foreach(j;TupleRange!(0,ArrHeight))
+            foreach(j;TupleRange!(0,2))
             {
                 foreach(i;TupleRange!(0,NumLines))
                 {
-                    ret |= ((cx[j][i] > 0) << (i + NumLines * j));
+                    import std.conv;
+                    mixin("ret |= ((cx"~text(j)~"[i] > 0) << (i+"~text(NumLines * j)~"));");
                 }
             }
             return ret;
         }
 
-        bool none(int i)() const pure nothrow
+        bool none() const pure nothrow
         {
-            static assert(i > 0);
-            static assert(i < NumVTiles);
-            const val = mask >> (i * NumLines);
-            return 0x0 == (val & 0b001_001_000_000_001_001) ||
-                   0x0 == (val & 0b010_010_000_000_010_010) ||
-                   0x0 == (val & 0b100_100_000_000_100_100);
+            return 0x0 == (mask & 0b001_001_001_001) ||
+                   0x0 == (mask & 0b010_010_010_010) ||
+                   0x0 == (mask & 0b100_100_100_100);
         }
-        bool all(int i)() const pure nothrow
+        bool all() const pure nothrow
         {
-            static assert(i > 0);
-            static assert(i < NumVTiles);
-            const val = mask >> (i * NumLines);
-            return val & 0b111_111_000_000_111_111;
+            return mask == 0b111_111_111_111;
         }
     }
-    
+
     struct Point(PosT,PackT,bool Affine)
     {
-        immutable(PackT)* pack;
         enum NumLines = 3;
         int currx = void;
         int curry = void;
         PosT[NumLines] cx = void;
-        this(TileT)(in ref TileT tile, int x, int y) pure nothrow
+        PosT[NumLines] dx = void;
+        PosT[NumLines] dy = void;
+        this(PackT)(in PackT p, int x, int y) pure nothrow
         {
-            pack = tile.pack;
             foreach(i;TupleRange!(0,NumLines))
             {
-                const val = pack.lines[i].val(x, y);
+                const val = p.lines[i].val(x, y);
                 cx[i] = val;
+                dx[i] = -p.lines[i].dy;
+                dy[i] =  p.lines[i].dx;
             }
             currx = x;
             curry = y;
         }
-        
+
         void incX(string sign)() pure nothrow
         {
             foreach(i;TupleRange!(0,NumLines))
             {
-                const dx = -pack.lines[i].dy;
-                mixin("cx[i] "~sign~"= dx;");
+                mixin("cx[i] "~sign~"= dx[i];");
             }
             mixin("currx"~sign~"= 1;");
         }
-        
+
         void incY() pure nothrow
         {
             foreach(i;TupleRange!(0,NumLines))
             {
-                cx[i] += pack.lines[i].dx;
+                cx[i] += dy[i];
             }
             curry += 1;
         }
-        
+
         bool check() const pure nothrow
         {
             return cx[0] > 0 && cx[1] > 0 && cx[2] > 0;
         }
     }
-    
-    struct Span(PosT,ColT,DpthT)
+
+    struct Spans(int Height,PosT,ColT,DpthT)
     {
         enum HasColor = !is(ColT : void);
         enum HasDepth = !is(DpthT : void);
-        int x0 = void, x1 = void;
-        int y = void;
+        int[Height] x0 = void;
+        int[Height] x1 = void;
         static if(HasColor)
         {
-            ColT col0 = void, col1 = void;
+            ColT[Height] col0 = void;
+            ColT[Height] col1 = void;
         }
         static if(HasDepth)
         {
-            DpthT w0 = void, w1 = void;
+            DpthT[Height] w0 = void;
+            DpthT[Height] w1 = void;
+        }
+
+        void setX(int x) pure nothrow
+        {
+            x1[] = x;
+        }
+
+        void incX(int val) pure nothrow
+        {
+            static if(HasColor)
+            {
+                col0 = col1;
+            }
+            x0 = x1;
+            foreach(i;TupleRange!(0,Height))
+            {
+                x1[i] += val;
+            }
         }
     }
 public:
@@ -260,8 +277,8 @@ public:
         in
     {
         assert(b !is null);
-        assert(0 == (b.width  % TileWidth));
-        assert(0 == (b.height % TileHeight));
+        assert(0 == (b.width  % MinTileWidth));
+        assert(0 == (b.height % MinTileHeight));
         static if(HasDepth)
         {
             assert(mDepthMap !is null);
@@ -272,7 +289,7 @@ public:
         mBitmap = b;
         mClipRect = Rect(0, 0, mBitmap.width, mBitmap.height);
     }
-    
+
     static if(HasDepth)
     {
         this(BitmapT b, DepthT d)
@@ -288,10 +305,10 @@ public:
             this(b);
         }
     }
-    
+
     @property auto texture()       inout pure nothrow { return mTexture; }
     @property void texture(TextureT tex) pure nothrow { mTexture = tex; }
-    
+
     @property void clipRect(in Rect rc) pure nothrow
     {
         const srcLeft   = rc.x;
@@ -304,7 +321,7 @@ public:
         const dstBottom = min(srcBottom, mBitmap.height);
         mClipRect = Rect(dstLeft, dstTop, dstRight - dstLeft, dstBottom - dstTop);
     }
-    
+
     void drawIndexedTriangle(bool HasTextures = false, bool HasColor = true,VertT,IndT)(in VertT[] verts, in IndT[3] indices) pure nothrow if(isIntegral!IndT)
     {
         const c = (verts[1].pos.xyz - verts[0].pos.xyz).cross(verts[2].pos.xyz - verts[0].pos.xyz);
@@ -314,17 +331,17 @@ public:
         }
         const(VertT)*[3] pverts;
         foreach(i,ind; indices) pverts[i] = verts.ptr + ind;
-        
+
         const e1xdiff = pverts[0].pos.x - pverts[2].pos.x;
         const e2xdiff = pverts[0].pos.x - pverts[1].pos.x;
-        
+
         const e1ydiff = pverts[0].pos.y - pverts[2].pos.y;
         const e2ydiff = pverts[0].pos.y - pverts[1].pos.y;
-        
+
         const cxdiff = ((e1xdiff / e1ydiff) * e2ydiff) - e2xdiff;
         const reverseSpans = (cxdiff < 0);
         const affine = false;//(abs(cxdiff) > AffineLength * 25);
-        
+
         if(affine) drawTriangle!(HasTextures, HasColor,true)(pverts);
         else       drawTriangle!(HasTextures, HasColor,false)(pverts);
     }
@@ -353,42 +370,22 @@ public:
         }
         alias LineT   = Line!(PosT,Affine);
         alias PackT   = LinesPack!(PosT,LineT,Affine);
-        alias MTileT  = MetaTile!(TileWidth,TileHeight,PosT,PackT);
-        //alias TileT   = Tile!(MinTileWidth,MinTileHeight,PosT,PackT,Affine);
-        //alias PointT  = Point!(PosT,PackT,Affine);
-        alias SpanT   = Span!(PosT,ColT,PosT);
-        
+        //alias TileT   = Tile!(MinTileWidth,MinTileHeight,PosT,PackT);
+        alias SpansT  = Spans!(MinTileHeight,PosT,ColT,PosT);
+
         int minY = cast(int)min(pverts[0].pos.y, pverts[1].pos.y, pverts[2].pos.y);
         int maxY = cast(int)max(pverts[0].pos.y, pverts[1].pos.y, pverts[2].pos.y);
-        
+
         int minX = cast(int)min(pverts[0].pos.x, pverts[1].pos.x, pverts[2].pos.x);
         int maxX = cast(int)max(pverts[0].pos.x, pverts[1].pos.x, pverts[2].pos.x);
         minX = max(mClipRect.x, minX);
         maxX = min(mClipRect.x + mClipRect.w, maxX);
         minY = max(mClipRect.y, minY);
         maxY = min(mClipRect.y + mClipRect.h, maxY);
-        //immutable upperVert = reduce!((a,b) => a.pos.y < b.pos.y ? a : b)(pverts);
-        const upperVert = (pverts[0].pos.y < pverts[1].pos.y ? 
-        (pverts[0].pos.y < pverts[2].pos.y ? pverts[0] : pverts[2]) :
-        (pverts[1].pos.y < pverts[2].pos.y ? pverts[1] : pverts[2]));
-        @nogc void drawSpan(LineT,SpanT)(auto ref LineT line, in ref SpanT span) pure nothrow
-        {
-            static if(HasColor)
-            {
-                ditherColorLine(line,span.x0,span.x1,span.y,span.col0,span.col1);
-            }
-        }
 
-        @nogc void fillTile(T)(in ref T tile, int x0, int y0, int x1, int y1)
-        {
-            auto line = mBitmap[y0];
-            foreach(y;y0..y1)
-            {
-                line[x0..x1] = ColorRed;
-                ++line;
-            }
-        }
-        @nogc void drawTile(bool Left, T)(in ref T tile, int x0, int y0, int x1, int y1, int sx, int sy)
+        immutable pack = PackT(pverts[0], pverts[1], pverts[2]);
+
+        void drawTile(int x0, int y0, int x1, int y1)
         {
             auto line = mBitmap[y0];
             foreach(y;y0..y1)
@@ -398,47 +395,49 @@ public:
             }
         }
 
-        immutable pack = PackT(pverts[0], pverts[1], pverts[2]);
-        const sx = cast(int)upperVert.pos.x;
-        const sy = cast(int)upperVert.pos.y;
-        const tx = sx / TileWidth;
-        const ty = sy / TileHeight;
-        const tx0 = minX / TileWidth;
-        const tx1 = maxX / TileWidth + 1;
-        const ty0 = minY / TileHeight;
-        const ty1 = maxY / TileHeight + 1;
-        const mtx0 = tx0 / MetaTileWidth;
-        const mtx1 = tx1 / MetaTileWidth + 1;
-        const mty0 = ty0 / MetaTileHeight;
-        const mty1 = ty1 / MetaTileHeight + 1;
-        foreach(mty;mty0..mty1)
+        void fillTile(int x0, int y0, int x1, int y1)
         {
-            foreach(mtx;mtx0..mtx1)
+            auto line = mBitmap[y0];
+            foreach(y;y0..y1)
             {
-                auto mtile = MTileT(&pack, mtx * MetaTileWidth * TileWidth, mty * MetaTileHeight * TileHeight);
-
-                uint[MetaTileHeight] masksFill = 0;
-                uint[MetaTileHeight] masksDraw = 0;
-                foreach(i;0..MetaTileWidth)
-                {
-                    mtile.incX();
-                    foreach(j;TupleRange(0,MetaTileHeight))
-                    {
-                        masksFill[j] = (mtile.all!(j)() << i);
-                        masksDraw[j] = (!mtile.none!(j)() << i);
-                    }
-                }
-
-                foreach(ty;0..MetaTileHeight)
-                {
-                    int drawStart;
-                    int drawEnd;
-                    int fillStart;
-                    int fillEnd;
-                }
+                line[x0..x1] = ColorRed;
+                ++line;
             }
         }
 
+        void drawArea(int TileWidth, int TileHeight)(int tx0,int ty0, int tx1, int ty1) nothrow
+        {
+            enum LastLevel = (TileWidth == MinTileWidth && TileHeight == MinTileHeight);
+
+            auto tile = Tile!(TileWidth,TileHeight,PosT,PackT)(&pack,tx0*TileWidth,ty0*TileHeight);
+            foreach(ty;ty0..ty1)
+            {
+                const y0 = ty * TileHeight;
+                const y1 = y0 + TileHeight;
+                foreach(tx;tx0..tx1)
+                {
+                    const x0 = tx * TileWidth;
+                    const x1 = x0 + TileWidth;
+                    tile.incX();
+                    static if(LastLevel)
+                    {
+                    }
+                    else
+                    {
+                    }
+                }
+                tile.incY();
+            }
+        }
+        void clipArea(int TileWidth, int TileHeight)() nothrow
+        {
+            const minTx =  minX / TileWidth;
+            const maxTx = (maxX + TileWidth - 1) / TileWidth;
+            const minTy =  minY / TileHeight;
+            const maxTy = (maxY + TileHeight - 1) / TileHeight;
+            drawArea!(TileWidth,TileHeight)(minTx,minTy,maxTx,maxTy);
+        }
+        clipArea!(MaxTileWidth,MaxTileHeight)();
         //end
     }
 }

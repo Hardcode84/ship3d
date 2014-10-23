@@ -3,6 +3,7 @@
 import std.traits;
 import std.algorithm;
 
+import gamelib.graphics.graph;
 import gamelib.util;
 
 import game.units;
@@ -209,7 +210,7 @@ private:
             ColT colorEnd = void;
         }
 
-        this(EdgeT)(in EdgeT e1, in EdgeT e2) pure nothrow
+        this(EdgeT)(in ref EdgeT e1, in ref EdgeT e2) pure nothrow
         {
             x1 = e1.x;
             x2 = e2.x;
@@ -376,7 +377,7 @@ public:
             else       drawTriangle!(HasTextures, HasColor,false,false)(pverts);
         }
     }
-    private void drawTriangle(bool HasTextures, bool HasColor,bool Affine,bool ReverseSpans,VertT)(in VertT[3] pverts)
+    @nogc private void drawTriangle(bool HasTextures, bool HasColor,bool Affine,bool ReverseSpans,VertT)(in VertT[3] pverts)
     {
         static assert(HasTextures != HasColor);
         assert(isSorted!("a.pos.y < b.pos.y")(pverts[0..$]));
@@ -448,40 +449,7 @@ public:
                     divLine(x , x2, col , col2);
                 }
                 //divLine(x1, x2 + 1, span.colorStart, span.colorEnd);
-                @nogc void fillColorLine(int x0, int x1, int y, in ColT col1, in ColT col2) nothrow
-                {
-                    enum W = 8;
-                    enum H = 8;
-                    immutable ColT[2] cols = [col1, col2];
-                    static immutable patterns = [
-                        [0,0,0,0,1,1,1,1],
-                        [0,0,0,1,0,1,1,1],
-                        [0,0,1,0,1,0,1,1],
-                        [0,1,0,1,0,1,0,1],
-                        
-                        [0,0,1,0,1,0,1,1],
-                        [0,1,0,1,0,1,0,1],
-                        [0,0,1,0,1,0,1,1],
-                        [0,0,0,1,0,1,1,1]];
-                    static assert(patterns.length    == H);
-                    static assert(patterns[0].length == W);
-                    const p = patterns[y % H];
-                    auto l = line[x0..x1];
-                    foreach(x;0..l.length)
-                    {
-                        const xw = x % W;
-                        l[x] = cols[p[xw]];
-                    }
-                    //ColT.interpolateLine!H(line,cols0[y],cols1[y]);
-                }
-                fillColorLine(x1,x2,y,span.colorStart, span.colorEnd);
-                //line[x1..x2] = span.colorStart;
-                /*foreach(x;x1..x2)
-                {
-                    //line[x] = span.colorStart;
-                    //line[x] = (y % 2 == 1) ? span.colorStart : span.colorEnd;
-                    //line[x] = ColT.lerp(span.colorEnd, span.colorStart, cast(PosT)(x - x1) / cast(PosT)(x2 - x1));
-                }*/
+                ditherColorLine(line,x1,x2,y,span.colorStart, span.colorEnd);
 
             }
             //line[x1..x2] = ColorRed;

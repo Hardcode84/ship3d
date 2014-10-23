@@ -137,17 +137,13 @@ private:
         }
     }
 
-    struct Tile(int TileWidth, int TileHeight, PosT,PackT,bool Affine)
+    struct Tile(int TileWidth, int TileHeight, PosT,PackT)
     {
         immutable(PackT)* pack;
         enum NumLines = 3;
         int currx = void;
         int curry = void;
         PosT[NumLines] cx0 = void, cx1 = void;
-        static if(!Affine)
-        {
-            PosT currw0 = void, currw1 = void;
-        }
 
         this(in immutable(PackT)* p, int x, int y) pure nothrow
         {
@@ -163,11 +159,6 @@ private:
                 cx0[i] = val;
                 cx1[i] = val + pack.lines[i].dx * TileHeight;
             }
-            static if(!Affine)
-            {
-                currw0 = pack.wplane.get(x,y);
-                currw1 = currw0 - pack.wplane.bc * TileHeight;
-            }
             currx = x;
             curry = y;
         }
@@ -180,12 +171,6 @@ private:
                 mixin("cx0[i] "~sign~"= dx;");
                 mixin("cx1[i] "~sign~"= dx;");
             }
-            static if(!Affine)
-            {
-                const dw = pack.wplane.ac * -TileWidth;
-                mixin("currw0 "~sign~"= dw;");
-                mixin("currw1 "~sign~"= dw;");
-            }
             mixin("currx"~sign~"= TileWidth;");
         }
 
@@ -195,11 +180,6 @@ private:
             {
                 cx0[i] = cx1[i];
                 cx1[i] += pack.lines[i].dx * TileHeight;
-            }
-            static if(!Affine)
-            {
-                currw0 = currw1;
-                currw1 -= pack.wplane.bc * TileHeight;
             }
             curry += TileHeight;
         }
@@ -396,7 +376,7 @@ public:
         }
         alias LineT   = Line!(PosT,Affine);
         alias PackT   = LinesPack!(PosT,LineT,Affine);
-        alias TileT   = Tile!(MinTileWidth,MinTileHeight,PosT,PackT,Affine);
+        alias TileT   = Tile!(MinTileWidth,MinTileHeight,PosT,PackT);
         alias PointT  = Point!(PosT,PackT,Affine);
         alias SpansT  = Spans!(MinTileHeight,PosT,ColT,PosT);
 
@@ -426,6 +406,7 @@ public:
             {
                 const my = y % MinTileHeight;
                 ditherColorLine(line,spans.x0[my],spans.x1[my],my,spans.col0[my],spans.col1[my]);
+                //line[spans.x0[my]..spans.x1[my]] = ColorWhite;
                 ++line;
             }
         }
@@ -444,8 +425,8 @@ public:
             assert(x0 < maxX);
             assert(y1 > minY);
             assert(y0 < maxY);
-            int sy = y0;
-            auto pt = PointT(&pack, x0, sy);
+            int ys = y0;
+            auto pt = PointT(&pack, x0, ys);
             //mBitmap[sy][sx] = ColorWhite;
             outer1: while(true)
             {
@@ -455,8 +436,8 @@ public:
                     pt.incX!"+"();
                 }
                 if(pt.check()) break outer1;
-                ++sy;
-                if(sy >= y1) return;
+                ++ys;
+                if(ys >= y1) return;
                 pt.incY();
                 foreach(x;0..MinTileWidth - 1)
                 {
@@ -464,13 +445,13 @@ public:
                     pt.incX!"-"();
                 }
                 if(pt.check()) break outer1;
-                ++sy;
-                if(sy >= y1) return;
+                ++ys;
+                if(ys >= y1) return;
                 pt.incY();
             }
             assert(pt.currx >= x0);
             assert(pt.currx <  x1);
-            SpansT spans = void;
+            /*SpansT spans = void;
 
             int ey = sy;
             outer2: while(ey < y1)
@@ -500,7 +481,7 @@ public:
                         break;
                     }
                 }
-                spans.x1[my] = ptRight.currx;
+                spans.x1[my] = ptRight.currx - 1;
                 if(ey >= y1)
                 {
                     break;
@@ -516,28 +497,57 @@ public:
                     pt.incX!"+"();
                 }
                 break;
+            }*/
+            SpansT spans = void;
+            int ye = y1;
+            foreach(y;ys..y1)
+            {
+                pt = PointT(&pack, x0, y);
+                int xs = x1;
+                int xe = x0;
+                foreach(x;x0..x1)
+                {
+                    if(pt.check())
+                    {
+                        xs = min(xs, x);
+                        xe = max(xe, x + 1);
+                    }
+                    pt.incX!"+"();
+                }
+                if(xe > xs)
+                {
+                    const my = y % MinTileHeight;
+                    spans.x0[my] = xs;
+                    spans.x1[my] = xe;
+                }
+                else
+                {
+                    ye = y;
+                    break;
+                }
             }
-            if(sy >= ey) return;
+            if(ys >= ye) return;
 
             static if(HasColor)
             {
-                const my0 = sy % MinTileHeight;
-                const my1 = (ey - 1) % MinTileHeight;
+                const my0 = ys % MinTileHeight;
+                const my1 = (ye - 1) % MinTileHeight;
                 PosT[3] bary = void;
-                pack.getBarycentric(spans.x0[my0],     sy, bary);
+                pack.getBarycentric(spans.x0[my0],     ys, bary);
                 spans.col0[my0] = calcColor(bary);
-                pack.getBarycentric(spans.x1[my0] - 1, sy, bary);
+                pack.getBarycentric(spans.x1[my0] - 1, ys, bary);
                 spans.col1[my0] = calcColor(bary);
-                pack.getBarycentric(spans.x0[my1],     ey, bary);
+                pack.getBarycentric(spans.x0[my1],     ye, bary);
                 spans.col0[my1] = calcColor(bary);
-                pack.getBarycentric(spans.x1[my1] - 1, ey, bary);
+                pack.getBarycentric(spans.x1[my1] - 1, ye, bary);
                 spans.col1[my1] = calcColor(bary);
-                const hgt = ey - sy;
+                const hgt = ye - ys;
                 ColT.interpolateLine(hgt, spans.col0[my0..my1 + 1], spans.col0[my0], spans.col0[my1]);
                 ColT.interpolateLine(hgt, spans.col1[my0..my1 + 1], spans.col1[my0], spans.col1[my1]);
             }
 
-            drawSpans(mBitmap[sy], spans, sy, ey);
+            drawSpans(mBitmap[ys], spans, ys, ye);
+            mBitmap[y0][x0] = ColorRed;
         }
 
         int ux, uy;
@@ -595,7 +605,7 @@ public:
 
                 if(all(tileMask))
                 {
-                    startFillX = min(startFillX, currentTile.currx);
+                    startFillX = min(startFillX, currentTile.currx - MinTileWidth);
                     endFillX   = max(  endFillX, currentTile.currx + MinTileWidth);
                 }
             }
@@ -616,7 +626,7 @@ public:
 
                 if(all(tileMask))
                 {
-                    startFillX = min(startFillX, savedRightTile.currx - MinTileWidth);
+                    startFillX = min(startFillX, savedRightTile.currx - MinTileWidth * 2);
                     endFillX   = max(  endFillX, savedRightTile.currx);
                 }
             }
