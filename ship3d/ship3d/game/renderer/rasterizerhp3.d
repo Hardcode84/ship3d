@@ -354,7 +354,7 @@ public:
     @nogc private void drawTriangle(bool HasTextures, bool HasColor,bool Affine,VertT)(in VertT[3] pverts) pure nothrow
     {
         static assert(HasTextures != HasColor);
-        //alias PosTF = FixedPoint!(16,16,int);
+        //alias PosT = FixedPoint!(16,16,int);
         alias PosT = Unqual!(typeof(VertT.pos.x));
         static if(HasColor)
         {
@@ -413,6 +413,8 @@ public:
 
         @nogc void fillTile(T)(in auto ref T spans, int x0, int y0, int x1, int y1)
         {
+            assert(x0 >= 0);
+            assert(y0 >= 0);
             assert(x1 > minX);
             assert(x0 < maxX);
             assert(y1 > minY);
@@ -421,96 +423,49 @@ public:
         }
         @nogc void drawTile(int x0, int y0, int x1, int y1)
         {
+            assert(x0 >= 0);
+            assert(y0 >= 0);
             assert(x1 > minX);
             assert(x0 < maxX);
             assert(y1 > minY);
             assert(y0 < maxY);
-            int ys = y0;
-            auto pt = PointT(&pack, x0, ys);
-            //mBitmap[sy][sx] = ColorWhite;
-            outer1: while(true)
+            int ys = y1;
+            outer1: foreach(y;y0..y1)
             {
-                foreach(x;0..MinTileWidth - 1)
-                {
-                    if(pt.check()) break outer1;
-                    pt.incX!"+"();
-                }
-                if(pt.check()) break outer1;
-                ++ys;
-                if(ys >= y1) return;
-                pt.incY();
-                foreach(x;0..MinTileWidth - 1)
-                {
-                    if(pt.check()) break outer1;
-                    pt.incX!"-"();
-                }
-                if(pt.check()) break outer1;
-                ++ys;
-                if(ys >= y1) return;
-                pt.incY();
-            }
-            assert(pt.currx >= x0);
-            assert(pt.currx <  x1);
-            /*SpansT spans = void;
-
-            int ey = sy;
-            outer2: while(ey < y1)
-            {
-                auto ptRight = pt;
-                const my = ey % MinTileHeight;
-                while(true) //move left
-                {
-                    if(pt.currx < x0) break;
-                    if(!pt.check())
-                    {
-                        break;
-                    }
-                    pt.incX!"-"();
-                }
-                spans.x0[my] = pt.currx + 1;
-                while(true) //move right
-                {
-                    if(ptRight.currx >= x1) 
-                    {
-                        ptRight.currx++;
-                        break;
-                    }
-                    ptRight.incX!"+"();
-                    if(!ptRight.check())
-                    {
-                        break;
-                    }
-                }
-                spans.x1[my] = ptRight.currx - 1;
-                if(ey >= y1)
-                {
-                    break;
-                }
-                pt.incY();
-                while(pt.currx <= ptRight.currx)
-                {
-                    if(pt.check())
-                    {
-                        ++ey;
-                        continue outer2;
-                    }
-                    pt.incX!"+"();
-                }
-                break;
-            }*/
-            SpansT spans = void;
-            int ye = y1;
-            foreach(y;ys..y1)
-            {
-                pt = PointT(&pack, x0, y);
-                int xs = x1;
-                int xe = x0;
+                auto pt = PointT(&pack, x0, y);
                 foreach(x;x0..x1)
                 {
                     if(pt.check())
                     {
-                        xs = min(xs, x);
-                        xe = max(xe, x + 1);
+                        ys = y;
+                        break outer1;
+                    }
+                    pt.incX!"+"();
+                }
+            }
+
+            SpansT spans = void;
+            int ye = y1;
+            foreach(y;ys..y1)
+            {
+                auto pt = PointT(&pack, x0, y);
+                int xs = x1;
+                foreach(x;x0..x1)//find first valid pixel in line
+                {
+                    if(pt.check())
+                    {
+                        xs = x;
+                        break;
+                    }
+                    pt.incX!"+"();
+                }
+                int xe = x1;
+                foreach(x;xs..x1)//find last valid
+                {
+                    if(!pt.check())
+                    {
+                        xe = x;
+                        break;
                     }
                     pt.incX!"+"();
                 }
@@ -533,13 +488,13 @@ public:
                 const my0 = ys % MinTileHeight;
                 const my1 = (ye - 1) % MinTileHeight;
                 PosT[3] bary = void;
-                pack.getBarycentric(spans.x0[my0],     ys, bary);
+                pack.getBarycentric(spans.x0[my0]    , ys    , bary);
                 spans.col0[my0] = calcColor(bary);
-                pack.getBarycentric(spans.x1[my0] - 1, ys, bary);
+                pack.getBarycentric(spans.x1[my0] - 1, ys    , bary);
                 spans.col1[my0] = calcColor(bary);
-                pack.getBarycentric(spans.x0[my1],     ye, bary);
+                pack.getBarycentric(spans.x0[my1]    , ye - 1, bary);
                 spans.col0[my1] = calcColor(bary);
-                pack.getBarycentric(spans.x1[my1] - 1, ye, bary);
+                pack.getBarycentric(spans.x1[my1] - 1, ye - 1, bary);
                 spans.col1[my1] = calcColor(bary);
                 const hgt = ye - ys;
                 ColT.interpolateLine(hgt, spans.col0[my0..my1 + 1], spans.col0[my0], spans.col0[my1]);
@@ -547,7 +502,6 @@ public:
             }
 
             drawSpans(mBitmap[ys], spans, ys, ye);
-            mBitmap[y0][x0] = ColorRed;
         }
 
         int ux, uy;
@@ -574,7 +528,6 @@ public:
 
         int y0 = uy;
         int y1 = currentTile.curry + MinTileHeight;
-        debugOut("-------------------");
         outer: while(true)
         {
             auto none(in uint val) pure nothrow
@@ -594,7 +547,6 @@ public:
             int endFillX   = -9000;
             int endX       = currentTile.currx + MinTileWidth;
 
-            debugOut(currentTile.currx);
             //move left
             while(currentTile.currx > (minX - MinTileWidth))
             {
@@ -616,7 +568,6 @@ public:
             startX = currentTile.currx + MinTileWidth;
 
             //move right
-            //savedRightTile.incX!("+")();
             tileMask = (savedRightTile.check() << 6);
             while(savedRightTile.currx < (maxX + MinTileWidth))
             {
@@ -634,29 +585,13 @@ public:
                     endFillX   = savedRightTile.currx;
                 }
             }
+            startFillX = max(startFillX, startX);
             endX = savedRightTile.currx - MinTileWidth;
 
+            assert(startX >= 0, debugConv(startX));
             assert(startX >= (minX - MinTileWidth), debugConv(startX));
             assert(endX   <= (maxX + MinTileWidth), debugConv(startX));
-            mBitmap[y0 + 4][minX] = ColorWhite;
-            mBitmap[y0 + 4][maxX] = ColorWhite;
-            for(auto x = startX; x < endX; x += MinTileWidth)
-            {
-                const x0 = x;
-                const x1 = x0 + MinTileWidth;
-                mBitmap[y0 + 4][x0 + 4] = ColorGreen;
-            }
-            for(auto x = startFillX; x < endFillX; x += MinTileWidth)
-            {
-                const x0 = x;
-                const x1 = x0 + MinTileWidth;
-                mBitmap[y0 + 4][x0 + 4] = ColorRed;
-            }
 
-            /*startX     = clamp(startX,     minTX, maxTX);
-            startFillX = clamp(startFillX, minTX, maxTX);
-            endFillX   = clamp(endFillX,   minTX, maxTX);
-            endX       = clamp(endX,       minTX, maxTX);
             if(endFillX > startFillX)
             {
                 for(auto x = startX; x < startFillX; x += MinTileWidth)
@@ -664,7 +599,7 @@ public:
                     const x0 = x;
                     const x1 = x0 + MinTileWidth;
                     const sx = clamp(ux, x0, x1 - 1);
-                    drawTile(x0, y0, x1, y1, sx);
+                    drawTile(x0, y0, x1, y1);
                 }
                 SpansT spans = void;
                 spans.setX(startFillX);
@@ -699,7 +634,7 @@ public:
                     const x0 = x;
                     const x1 = x0 + MinTileWidth;
                     const sx = clamp(ux, x0, x1 - 1);
-                    drawTile(x0, y0, x1, y1, sx);
+                    drawTile(x0, y0, x1, y1);
                 }
             }
             else
@@ -709,14 +644,13 @@ public:
                     const x0 = x;
                     const x1 = x0 + MinTileWidth;
                     const sx = clamp(ux, x0, x1 - 1);
-                    drawTile(x0, y0, x1, y1, sx);
+                    drawTile(x0, y0, x1, y1);
                 }
-            }*/
+            }
 
             if(y1 >= maxY) break;
 
-            //currentTile.incY();
-            currentTile    = TileT(&pack, startX, y1);
+            currentTile = TileT(&pack, startX, y1);
             tileMask = (currentTile.check() << 6);
             while(currentTile.currx < endX)
             {
