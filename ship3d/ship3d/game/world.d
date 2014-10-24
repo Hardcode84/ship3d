@@ -120,7 +120,7 @@ public:
                 foreach(i;0..1)
                 {
                     rast.drawIndexedTriangle(verts, [0,1,2]);
-                    rast.drawIndexedTriangle(verts, [0,2,3]);
+                    //rast.drawIndexedTriangle(verts, [0,2,3]);
                 }
             }
             else
@@ -129,7 +129,7 @@ public:
                 rast.texture = mTexture;
                 foreach(i;0..1)
                 {
-                    rast.drawIndexedTriangle(verts, [0,1,2]);
+                    //rast.drawIndexedTriangle(verts, [0,1,2]);
                     rast.drawIndexedTriangle(verts, [0,2,3]);
                 }
             }

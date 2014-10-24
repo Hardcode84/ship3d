@@ -419,7 +419,7 @@ public:
             assert(y0 < maxY);
             drawSpans(mBitmap[y0], spans, y0, y1);
         }
-        @nogc void drawTile(int x0, int y0, int x1, int y1, int sx)
+        @nogc void drawTile(int x0, int y0, int x1, int y1)
         {
             assert(x1 > minX);
             assert(x0 < maxX);
@@ -560,7 +560,7 @@ public:
         {
             const dx = lowerVert.pos.x - upperVert.pos.x;
             const dy = lowerVert.pos.y - upperVert.pos.y;
-            ux = cast(int)(upperVert.pos.x + dx * (minY - upperVert.pos.y) / dy);
+            ux = clamp(cast(int)(upperVert.pos.x + dx * (minY - upperVert.pos.y) / dy), minX, maxX - 1);
             uy = minY;
         }
         const tx = ux / MinTileWidth;
@@ -571,6 +571,10 @@ public:
         {
             mBitmap[y][minX..maxX] = ColorWhite;
         }*/
+
+        int y0 = uy;
+        int y1 = currentTile.curry + MinTileHeight;
+        debugOut("-------------------");
         outer: while(true)
         {
             auto none(in uint val) pure nothrow
@@ -590,8 +594,9 @@ public:
             int endFillX   = -9000;
             int endX       = currentTile.currx + MinTileWidth;
 
+            debugOut(currentTile.currx);
             //move left
-            while(true)
+            while(currentTile.currx > (minX - MinTileWidth))
             {
                 currentTile.incX!("-")();
                 tileMask >>= 6;
@@ -599,42 +604,56 @@ public:
 
                 if(none(tileMask))
                 {
-                    startX = currentTile.currx + MinTileWidth;
                     break;
                 }
 
                 if(all(tileMask))
                 {
-                    startFillX = min(startFillX, currentTile.currx - MinTileWidth);
-                    endFillX   = max(  endFillX, currentTile.currx + MinTileWidth);
+                    startFillX = currentTile.currx;
+                    endFillX   = currentTile.currx + MinTileWidth;
                 }
             }
+            startX = currentTile.currx + MinTileWidth;
 
             //move right
-            savedRightTile.incX!("+")();
+            //savedRightTile.incX!("+")();
             tileMask = (savedRightTile.check() << 6);
-            while(true)
+            while(savedRightTile.currx < (maxX + MinTileWidth))
             {
                 savedRightTile.incX!("+")();
                 tileMask >>= 6;
                 tileMask |= (savedRightTile.check() << 6);
                 if(none(tileMask))
                 {
-                    endX = savedRightTile.currx - MinTileWidth;
                     break;
                 }
 
                 if(all(tileMask))
                 {
-                    startFillX = min(startFillX, savedRightTile.currx - MinTileWidth * 2);
-                    endFillX   = max(  endFillX, savedRightTile.currx);
+                    startFillX = min(startFillX, savedRightTile.currx - MinTileWidth);
+                    endFillX   = savedRightTile.currx;
                 }
             }
+            endX = savedRightTile.currx - MinTileWidth;
 
-            const y0 = max(currentTile.curry,uy);
-            const y1 = currentTile.curry + MinTileHeight;
+            assert(startX >= (minX - MinTileWidth), debugConv(startX));
+            assert(endX   <= (maxX + MinTileWidth), debugConv(startX));
+            mBitmap[y0 + 4][minX] = ColorWhite;
+            mBitmap[y0 + 4][maxX] = ColorWhite;
+            for(auto x = startX; x < endX; x += MinTileWidth)
+            {
+                const x0 = x;
+                const x1 = x0 + MinTileWidth;
+                mBitmap[y0 + 4][x0 + 4] = ColorGreen;
+            }
+            for(auto x = startFillX; x < endFillX; x += MinTileWidth)
+            {
+                const x0 = x;
+                const x1 = x0 + MinTileWidth;
+                mBitmap[y0 + 4][x0 + 4] = ColorRed;
+            }
 
-            startX     = clamp(startX,     minTX, maxTX);
+            /*startX     = clamp(startX,     minTX, maxTX);
             startFillX = clamp(startFillX, minTX, maxTX);
             endFillX   = clamp(endFillX,   minTX, maxTX);
             endX       = clamp(endX,       minTX, maxTX);
@@ -692,19 +711,22 @@ public:
                     const sx = clamp(ux, x0, x1 - 1);
                     drawTile(x0, y0, x1, y1, sx);
                 }
-            }
+            }*/
 
             if(y1 >= maxY) break;
 
-            currentTile.incY();
+            //currentTile.incY();
+            currentTile    = TileT(&pack, startX, y1);
             tileMask = (currentTile.check() << 6);
-            while(currentTile.currx < savedRightTile.currx)
+            while(currentTile.currx < endX)
             {
                 currentTile.incX!("+")();
                 tileMask >>= 6;
                 tileMask |= (currentTile.check() << 6);
                 if(!none(tileMask))
                 {
+                    y0 = y1;
+                    y1 = y0 + MinTileHeight;
                     continue outer;
                 }
             }
