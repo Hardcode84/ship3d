@@ -86,7 +86,7 @@
     </Libs>
     <DebugLevel>0</DebugLevel>
     <ObjectsDirectory>obj\Release</ObjectsDirectory>
-    <ExtraCompilerArguments>-oq</ExtraCompilerArguments>
+    <ExtraCompilerArguments>-oq -singleobj</ExtraCompilerArguments>
     <Target>Executable</Target>
     <Externalconsole>true</Externalconsole>
     <UnittestMode>false</UnittestMode>
@@ -119,7 +119,7 @@
     </Libs>
     <DebugLevel>0</DebugLevel>
     <ObjectsDirectory>obj\Release</ObjectsDirectory>
-    <ExtraCompilerArguments>-oq -mcpu=i686 -mattr=+mmx,+sse</ExtraCompilerArguments>
+    <ExtraCompilerArguments>-oq -mcpu=i686 -mattr=+mmx,+sse -singleobj</ExtraCompilerArguments>
     <Target>Executable</Target>
     <Externalconsole>true</Externalconsole>
     <UnittestMode>false</UnittestMode>
