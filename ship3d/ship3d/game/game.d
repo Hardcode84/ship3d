@@ -161,10 +161,10 @@ private:
 
     void processKeyEvent(in SDL_KeyboardEvent event) pure
     {
-        if(event.repeat != 0)
+        /*if(event.repeat != 0)
         {
             return;
-        }
+        }*/
         /*
 
         //debug

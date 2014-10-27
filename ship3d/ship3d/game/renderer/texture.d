@@ -30,7 +30,7 @@ public:
 
     auto view() pure nothrow
     {
-        return SurfaceView!ColT(this);
+        return SurfaceView!(ColT)(this);
     }
 
     auto view() const pure nothrow
@@ -47,13 +47,13 @@ void fillChess(T)(auto ref T surf)
     {
         foreach(x;0..surf.width)
         {
-            if((x / 25) % 2 == (y / 25) % 2)
+            if((x / 15) % 2 == (y / 15) % 2)
             {
-                view[y][x] = ColorBlack;
+                view[y][x] = ColorGreen;
             }
             else
             {
-                view[y][x] = ColorWhite;
+                view[y][x] = ColorRed;
             }
         }
     }

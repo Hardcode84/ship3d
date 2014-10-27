@@ -9,7 +9,7 @@
     <UseDefaultCompiler>true</UseDefaultCompiler>
     <IncrementalLinking>true</IncrementalLinking>
     <PreferOneStepBuild>true</PreferOneStepBuild>
-    <Compiler>ldc2</Compiler>
+    <Compiler>DMD2</Compiler>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -70,7 +70,7 @@
     </Libs>
     <DebugLevel>0</DebugLevel>
     <ObjectsDirectory>obj\Debug</ObjectsDirectory>
-    <ExtraCompilerArguments>-oq</ExtraCompilerArguments>
+    <ExtraCompilerArguments>-oq -g</ExtraCompilerArguments>
     <Target>Executable</Target>
     <Externalconsole>true</Externalconsole>
     <UnittestMode>false</UnittestMode>
@@ -168,6 +168,7 @@
     <Compile Include="game\renderer\rasterizerhp2.d" />
     <Compile Include="game\renderer\rasterizerhp3.d" />
     <Compile Include="game\renderer\rasterizerhp4.d" />
+    <Compile Include="game\renderer\rasetrizerhbrd.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />

@@ -80,9 +80,10 @@ private:
         }
     }
 
-    struct LinesPack(PosT,LineT,bool Affine)
+    struct LinesPack(PosT,TextT,LineT,bool Affine)
     {
     @nogc:
+        enum HasTexture = !is(TextT : void);
         alias vec3 = Vector!(PosT,3);
         alias PlaneT = Plane!(PosT);
         enum NumLines = 3;
@@ -91,6 +92,13 @@ private:
         static if(!Affine)
         {
             immutable PlaneT wplane;
+        }
+        static if(HasTexture)
+        {
+            alias vec3tex = Vector!(TextT,3);
+            alias PlaneTtex = Plane!(TextT);
+            immutable PlaneTtex uplane;
+            immutable PlaneTtex vplane;
         }
         this(VT)(in VT v1, in VT v2, in VT v3) pure nothrow
         {
@@ -102,13 +110,40 @@ private:
 
             static if(!Affine)
             {
-                wplane = PlaneT(vec3(v1.pos.xy, cast(PosT)1 / v1.pos.w),
-                                vec3(v2.pos.xy, cast(PosT)1 / v2.pos.w),
-                                vec3(v3.pos.xy, cast(PosT)1 / v3.pos.w));
+                wplane = PlaneT(vec3(cast(PosT)v1.pos.x, cast(PosT)v1.pos.y, cast(PosT)1 / v1.pos.w),
+                                vec3(cast(PosT)v2.pos.x, cast(PosT)v2.pos.y, cast(PosT)1 / v2.pos.w),
+                                vec3(cast(PosT)v3.pos.x, cast(PosT)v3.pos.y, cast(PosT)1 / v3.pos.w));
+            }
+            static if(HasTexture) 
+            {
+                const TextT tu1 = v1.tpos.u;
+                const TextT tu2 = v2.tpos.u;
+                const TextT tu3 = v3.tpos.u;
+                const TextT tv1 = v1.tpos.v;
+                const TextT tv2 = v2.tpos.v;
+                const TextT tv3 = v3.tpos.v;
+                static if(Affine)
+                {
+                    uplane = PlaneTtex(vec3tex(cast(TextT)v1.pos.x, cast(TextT)v1.pos.y, tu1),
+                                       vec3tex(cast(TextT)v2.pos.x, cast(TextT)v2.pos.y, tu2),
+                                       vec3tex(cast(TextT)v3.pos.x, cast(TextT)v3.pos.y, tu3));
+                    vplane = PlaneTtex(vec3tex(cast(TextT)v1.pos.x, cast(TextT)v1.pos.y, tv1),
+                                       vec3tex(cast(TextT)v2.pos.x, cast(TextT)v2.pos.y, tv2),
+                                       vec3tex(cast(TextT)v3.pos.x, cast(TextT)v3.pos.y, tv3));
+                }
+                else
+                {
+                    uplane = PlaneTtex(vec3tex(cast(TextT)v1.pos.x, cast(TextT)v1.pos.y, tu1 / cast(TextT)v1.pos.w),
+                                       vec3tex(cast(TextT)v2.pos.x, cast(TextT)v2.pos.y, tu2 / cast(TextT)v2.pos.w),
+                                       vec3tex(cast(TextT)v3.pos.x, cast(TextT)v3.pos.y, tu3 / cast(TextT)v3.pos.w));
+                    vplane = PlaneTtex(vec3tex(cast(TextT)v1.pos.x, cast(TextT)v1.pos.y, tv1 / cast(TextT)v1.pos.w),
+                                       vec3tex(cast(TextT)v2.pos.x, cast(TextT)v2.pos.y, tv2 / cast(TextT)v2.pos.w),
+                                       vec3tex(cast(TextT)v3.pos.x, cast(TextT)v3.pos.y, tv3 / cast(TextT)v3.pos.w));
+                }
             }
         }
 
-        void getBarycentric(int x, int y, PosT[] ret) const pure nothrow
+        void getBarycentric(T)(int x, int y, T[] ret) const pure nothrow
         in
         {
             assert(ret.length == NumLines);
@@ -126,14 +161,35 @@ private:
             foreach(i;TupleRange!(1,NumLines))
             {
                 enum li = (i + 1) % NumLines;
-                auto val = lines[li].val(x,y);
-                static if(!Affine)
+                static if(Affine)
                 {
-                    val /= currw;
+                    ret[i] = lines[li].val(x,y);
                 }
-                ret[i] = val;
+                else
+                {
+                    ret[i] = lines[li].val(x,y) / currw;
+                }
             }
             ret[0] = cast(PosT)1 - ret[1] - ret[2];
+        }
+        void getUV(T)(int x, int y, T[] ret) const pure nothrow
+        in
+        {
+            assert(ret.length == 2);
+        }
+        body
+        {
+            static if(Affine)
+            {
+                ret[0] = uplane.get(x,y);
+                ret[1] = vplane.get(x,y);
+            }
+            else
+            {
+                const currw = wplane.get(x,y);
+                ret[0] = uplane.get(x,y) / currw;
+                ret[1] = vplane.get(x,y) / currw;
+            }
         }
     }
 
@@ -185,13 +241,25 @@ private:
         }
         @property auto check() const pure nothrow
         {
+            uint test(T)(in T val) pure nothrow
+            {
+                union u_t
+                {
+                    static assert(T.sizeof == uint.sizeof);
+                    T v;
+                    uint i;
+                }
+                u_t u;
+                u.v = val;
+                return (~u.i) >> 31;
+            }
             uint ret = 0;
             foreach(j;TupleRange!(0,2))
             {
                 foreach(i;TupleRange!(0,NumLines))
                 {
                     import std.conv;
-                    mixin("ret |= ((cx"~text(j)~"[i] > 0) << (i+"~text(NumLines * j)~"));");
+                    mixin("ret |= (test(cx"~text(j)~"[i]) << (i+"~text(NumLines * j)~"));");
                 }
             }
             return ret;
@@ -243,16 +311,24 @@ private:
         }
     }
 
-    struct Spans(int Height,PosT,ColT,DpthT)
+    struct Spans(int Height,PosT,ColT,DpthT,TextT)
     {
         enum HasColor = !is(ColT : void);
         enum HasDepth = !is(DpthT : void);
+        enum HasTexture = !is(TextT : void);
         int[Height] x0 = void;
         int[Height] x1 = void;
         static if(HasColor)
         {
             ColT[Height] col0 = void;
             ColT[Height] col1 = void;
+        }
+        static if(HasTexture)
+        {
+            TextT uv00[2] = void;
+            TextT uv10[2] = void;
+            TextT uv01[2] = void;
+            TextT uv11[2] = void;
         }
         static if(HasDepth)
         {
@@ -271,10 +347,10 @@ private:
             {
                 col0 = col1;
             }
-            x0 = x1;
-            foreach(i;TupleRange!(0,Height))
+            static if(HasTexture)
             {
-                x1[i] += val;
+                uv00 = uv10;
+                uv01 = uv11;
             }
         }
     }
@@ -361,12 +437,8 @@ public:
             alias ColT = Unqual!(typeof(VertT.color));
             immutable ColT vcols[3] = [pverts[0].color,pverts[1].color,pverts[2].color];
             auto calcColor(T)(in T[] bary) pure nothrow
-            in
             {
                 assert(bary.length == vcols.length);
-            }
-            body
-            {
                 return vcols[0] * bary[0] + vcols[1] * bary[1] + vcols[2] * bary[2];
             }
         }
@@ -374,11 +446,20 @@ public:
         {
             alias ColT = void;
         }
+
+        static if(HasTextures)
+        {
+            alias TextT = PosT;
+        }
+        else
+        {
+            alias TextT = void;
+        }
         alias LineT   = Line!(PosT,Affine);
-        alias PackT   = LinesPack!(PosT,LineT,Affine);
+        alias PackT   = LinesPack!(PosT,TextT,LineT,Affine);
         alias TileT   = Tile!(MinTileWidth,MinTileHeight,PosT,PackT);
         alias PointT  = Point!(PosT,PackT,Affine);
-        alias SpansT  = Spans!(MinTileHeight,PosT,ColT,PosT);
+        alias SpansT  = Spans!(MinTileHeight,PosT,ColT,void,TextT);
 
         int minY = cast(int)min(pverts[0].pos.y, pverts[1].pos.y, pverts[2].pos.y);
         int maxY = cast(int)max(pverts[0].pos.y, pverts[1].pos.y, pverts[2].pos.y);
@@ -400,18 +481,65 @@ public:
 
         immutable pack = PackT(pverts[0], pverts[1], pverts[2]);
 
-        @nogc void drawSpans(LineT,SpansT)(auto ref LineT line, in auto ref SpansT spans, int y0, int y1) pure nothrow
+        static if(HasTextures)
         {
+            immutable tw = mTexture.width - 1;
+            immutable th = mTexture.height - 1;
+            const tview = mTexture.view();
+        }
+
+        @nogc void drawSpans(bool Fill,LineT,SpansT)(auto ref LineT line, in auto ref SpansT spans, int x0, int y0, int x1, int y1) /*pure*/ nothrow
+        {
+            static if(HasTextures)
+            {
+                TextT[2] uvs = spans.uv00;
+                TextT[2] uv  = spans.uv00;
+                TextT wdt = x1 - x0;
+                TextT hgt = y1 - y0;
+                const dux = (spans.uv10[0] - spans.uv00[0]) / wdt;
+                const dvx = (spans.uv10[1] - spans.uv00[1]) / wdt;
+                const duy = (spans.uv01[0] - spans.uv00[0]) / hgt;
+                const dvy = (spans.uv01[1] - spans.uv00[1]) / hgt;
+                const oldX0 = x0;
+            }
             foreach(y;y0..y1)
             {
                 const my = y % MinTileHeight;
-                ditherColorLine(line,spans.x0[my],spans.x1[my],my,spans.col0[my],spans.col1[my]);
-                //line[spans.x0[my]..spans.x1[my]] = ColorWhite;
+                static if(!Fill)
+                {
+                    static if(HasTextures)
+                    {
+                        const TextT dx = spans.x0[my] - oldX0;
+                        uv[0] += (dux * dx);
+                        uv[1] += (dvx * dx);
+                    }
+                    x0 = spans.x0[my];
+                    x1 = spans.x1[my];
+                }
+                static if(HasColor)
+                {
+                    ditherColorLine(line,x0,x1,my,spans.col0[my],spans.col1[my]);
+                }
+                static if(HasTextures)
+                {
+                    foreach(x;x0..x1)
+                    {
+                        //pack.getUV(x,y,uv);
+                        const tx = cast(int)(uv[0] * tw) & tw;
+                        const ty = cast(int)(uv[1] * th) & th;
+                        line[x] = tview[ty][tx];
+                        uv[0] += dux;
+                        uv[1] += dvx;
+                    }
+                    uvs[0] += duy;
+                    uvs[1] += dvy;
+                    uv = uvs;
+                }
                 ++line;
             }
         }
 
-        @nogc void fillTile(T)(in auto ref T spans, int x0, int y0, int x1, int y1)
+        @nogc void fillTile(T)(auto ref T spans, int x0, int y0, int x1, int y1)
         {
             assert(x0 >= 0);
             assert(y0 >= 0);
@@ -419,9 +547,9 @@ public:
             assert(x0 < maxX);
             assert(y1 > minY);
             assert(y0 < maxY);
-            drawSpans(mBitmap[y0], spans, y0, y1);
+            drawSpans!true(mBitmap[y0], spans, x0, y0, x1, y1);
         }
-        @nogc void drawTile(int x0, int y0, int x1, int y1)
+        @nogc void drawTile(T)(auto ref T spans, int x0, int y0, int x1, int y1)
         {
             assert(x0 >= 0);
             assert(y0 >= 0);
@@ -443,8 +571,6 @@ public:
                     pt.incX!"+"();
                 }
             }
-
-            SpansT spans = void;
             int ye = y1;
             foreach(y;ys..y1)
             {
@@ -483,10 +609,11 @@ public:
             }
             if(ys >= ye) return;
 
+            const my0 = ys % MinTileHeight;
+            const my1 = (ye - 1) % MinTileHeight;
             static if(HasColor)
             {
-                const my0 = ys % MinTileHeight;
-                const my1 = (ye - 1) % MinTileHeight;
+                const hgt = ye - ys;
                 PosT[3] bary = void;
                 pack.getBarycentric(spans.x0[my0]    , ys    , bary);
                 spans.col0[my0] = calcColor(bary);
@@ -496,12 +623,18 @@ public:
                 spans.col0[my1] = calcColor(bary);
                 pack.getBarycentric(spans.x1[my1] - 1, ye - 1, bary);
                 spans.col1[my1] = calcColor(bary);
-                const hgt = ye - ys;
                 ColT.interpolateLine(hgt, spans.col0[my0..my1 + 1], spans.col0[my0], spans.col0[my1]);
                 ColT.interpolateLine(hgt, spans.col1[my0..my1 + 1], spans.col1[my0], spans.col1[my1]);
             }
+            static if(HasTextures)
+            {
+                pack.getUV(x0, ys, spans.uv00);
+                pack.getUV(x1, ys, spans.uv10);
+                pack.getUV(x0, ye, spans.uv01);
+                //pack.getUV(x1, ye, spans.uv11);
+            }
 
-            drawSpans(mBitmap[ys], spans, ys, ye);
+            drawSpans!false(mBitmap[ys], spans, x0, ys, x1, ye);
         }
 
         int ux, uy;
@@ -521,10 +654,6 @@ public:
         const ty = uy / MinTileHeight;
         TileT currentTile    = TileT(&pack, tx * MinTileWidth, ty * MinTileHeight);
         TileT savedRightTile;
-        /*foreach(y;minY..maxY)
-        {
-            mBitmap[y][minX..maxX] = ColorWhite;
-        }*/
 
         int y0 = uy;
         int y1 = currentTile.curry + MinTileHeight;
@@ -592,6 +721,7 @@ public:
             assert(startX >= (minX - MinTileWidth), debugConv(startX));
             assert(endX   <= (maxX + MinTileWidth), debugConv(startX));
 
+            SpansT spans = void;
             if(endFillX > startFillX)
             {
                 for(auto x = startX; x < startFillX; x += MinTileWidth)
@@ -599,9 +729,9 @@ public:
                     const x0 = x;
                     const x1 = x0 + MinTileWidth;
                     const sx = clamp(ux, x0, x1 - 1);
-                    drawTile(x0, y0, x1, y1);
+                    drawTile(spans, x0, y0, x1, y1);
                 }
-                SpansT spans = void;
+                //SpansT spans = void;
                 spans.setX(startFillX);
                 PosT[3] bary = void;
                 static if(HasColor)
@@ -614,6 +744,11 @@ public:
                         ColT.interpolateLine!MinTileHeight(spans.col1[0..$], col0, col1);
                     }
                 }
+                static if(HasTextures)
+                {
+                    pack.getUV(startFillX, y0, spans.uv10);
+                    pack.getUV(startFillX, y1, spans.uv11);
+                }
                 for(auto x = startFillX; x < endFillX; x += MinTileWidth)
                 {
                     spans.incX(MinTileWidth);
@@ -625,6 +760,11 @@ public:
                         const col1 = calcColor(bary);
                         ColT.interpolateLine!MinTileHeight(spans.col1[0..$], col0, col1);
                     }
+                    static if(HasTextures)
+                    {
+                        pack.getUV(x + MinTileWidth, y0, spans.uv10);
+                        pack.getUV(x + MinTileWidth, y1, spans.uv11);
+                    }
                     const x0 = x;
                     const x1 = x0 + MinTileWidth;
                     fillTile(spans, x0, y0, x1, y1);
@@ -634,7 +774,7 @@ public:
                     const x0 = x;
                     const x1 = x0 + MinTileWidth;
                     const sx = clamp(ux, x0, x1 - 1);
-                    drawTile(x0, y0, x1, y1);
+                    drawTile(spans, x0, y0, x1, y1);
                 }
             }
             else
@@ -644,7 +784,7 @@ public:
                     const x0 = x;
                     const x1 = x0 + MinTileWidth;
                     const sx = clamp(ux, x0, x1 - 1);
-                    drawTile(x0, y0, x1, y1);
+                    drawTile(spans, x0, y0, x1, y1);
                 }
             }
 

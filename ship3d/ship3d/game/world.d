@@ -102,6 +102,8 @@ public:
             verts[3].color = ColorWhite;
 
             mat4_t t = mProjMat * mat4_t.translation(0,mYpos,mDist) * mat4_t.yrotation(mRot);
+            enum HasColor = false;
+            enum HasTexture = !HasColor;
 
             foreach(i;0..verts.length)
             {
@@ -119,8 +121,8 @@ public:
                 rast.texture = mTexture;
                 foreach(i;0..1)
                 {
-                    rast.drawIndexedTriangle(verts, [0,1,2]);
-                    rast.drawIndexedTriangle(verts, [0,2,3]);
+                    rast.drawIndexedTriangle!(HasTexture,HasColor)(verts, [0,1,2]);
+                    rast.drawIndexedTriangle!(HasTexture,HasColor)(verts, [0,2,3]);
                 }
             }
             else
@@ -129,8 +131,8 @@ public:
                 rast.texture = mTexture;
                 foreach(i;0..1)
                 {
-                    rast.drawIndexedTriangle(verts, [0,1,2]);
-                    rast.drawIndexedTriangle(verts, [0,2,3]);
+                    rast.drawIndexedTriangle!(HasTexture,HasColor)(verts, [0,1,2]);
+                    rast.drawIndexedTriangle!(HasTexture,HasColor)(verts, [0,2,3]);
                 }
             }
         }

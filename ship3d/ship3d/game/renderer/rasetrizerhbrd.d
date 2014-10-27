@@ -1,4 +1,4 @@
-﻿module game.renderer.rasterizer;
+﻿module game.renderer.rasetrizerhbrd;
 
 import std.traits;
 import std.algorithm;
@@ -8,17 +8,19 @@ import gamelib.util;
 
 import game.units;
 
-struct Rasterizer(BitmapT,TextureT)
+struct RasetrizerHbrd(BitmapT,TextureT)
 {
 private:
+    enum TileWidth = 8;
+    enum TileHeight = 8;
     BitmapT mBitmap;
     TextureT mTexture;
     Rect mClipRect;
-    enum AffineLength = 16;
-    struct Edge(PosT, bool Affine, bool HasTextures, ColT)
+    struct Edge(int TileWidth, int TileHeight, PosT, bool Affine, TextT, ColT)
     {
     private:
-        enum HasColor = !is(ColT : void);
+        enum HasColor   = !is(ColT  : void);
+        enum HasTexture = !is(TextT : void);
         immutable PosT xStart;
         immutable PosT xDiff;
         PosT xCurr;
@@ -171,10 +173,28 @@ private:
             {
                 scCurr += scDelta;
             }
-            return this; 
+            return this;
         }
     }
-    struct Span(PosT, bool Affine,bool HasTextures, ColT)
+    struct Tile(int TileWidth, int TileHeight, PosT, bool Affine,TextT,ColT)
+    {
+        enum HasColor   = !is(ColT  : void);
+        enum HasTexture = !is(TextT : void);
+
+        int x;
+        int y;
+
+        static if(HasColor)
+        {
+            ColT[TileHeight] cols0 = void;
+            ColT[TileHeight] cols1 = void;
+        }
+
+        this(EdgeT)(in ref EdgeT edge1, in ref EdgeT edge2)
+        {
+        }
+    }
+    /*struct Span(PosT, bool Affine,bool HasTextures, ColT)
     {
         private enum HasColor = !is(ColT : void);
         PosT x1, x2;
@@ -319,7 +339,7 @@ private:
             @property PosT u() const pure nothrow { return pu; }
             @property PosT v() const pure nothrow { return pv; }
         }
-    }
+    }*/
 public:
     this(BitmapT b)
     {
