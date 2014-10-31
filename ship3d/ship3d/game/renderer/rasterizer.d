@@ -413,12 +413,6 @@ public:
         const minX = cast(PosT)(mClipRect.x);
         const maxX = cast(PosT)(mClipRect.x + mClipRect.w);
 
-        static if(HasTextures)
-        {
-            const tw = mTexture.width - 1;
-            const th = mTexture.height - 1;
-            const tview = mTexture.view();
-        }
         void drawSpan(int y,
                       int x1, int x2,
                       in SpanT span)
@@ -430,9 +424,7 @@ public:
                 Unqual!(typeof(span.v)) v = span.v;
                 foreach(x;x1..x2)
                 {
-                    const tx = cast(int)(u * tw) & tw;
-                    const ty = cast(int)(v * th) & th;
-                    line[x] = tview[ty][tx];
+                    line[x] = mTexture.get(u,v);
                     u += span.du;
                     v += span.dv;
                 }

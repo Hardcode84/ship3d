@@ -135,8 +135,8 @@
     <Compile Include="gamelib\autodispose.d" />
     <Compile Include="gamelib\core.d" />
     <Compile Include="gamelib\fixedpoint.d" />
-    <Compile Include="gamelib\linalg.d" />
     <Compile Include="gamelib\math.d" />
+    <Compile Include="gamelib\linalg.d" />
     <Compile Include="gamelib\queue.d" />
     <Compile Include="gamelib\types.d" />
     <Compile Include="gamelib\util.d" />
@@ -169,6 +169,7 @@
     <Compile Include="game\renderer\rasterizerhp3.d" />
     <Compile Include="game\renderer\rasterizerhp4.d" />
     <Compile Include="game\renderer\rasetrizerhbrd.d" />
+    <Compile Include="game\renderer\rasterizerhp5.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />
