@@ -59,6 +59,7 @@
         <Lib>gdi32.lib</Lib>
       </Libs>
     </Libs>
+    <ExtraCompilerArguments>-w</ExtraCompilerArguments>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug LDC|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>

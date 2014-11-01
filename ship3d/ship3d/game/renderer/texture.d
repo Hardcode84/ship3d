@@ -21,6 +21,7 @@ public:
         assert(h > 0);
         assert(ispow2(w));
         assert(ispow2(h));
+        assert(w == h);
         mWidth  = w;
         mHeight = h;
         mPitch  = w;
@@ -31,8 +32,6 @@ public:
 
     @property auto   width()  const pure nothrow { return mWidth; }
     @property auto   height() const pure nothrow { return mHeight; }
-    @property size_t pitch()  const pure nothrow { return mPitch * DataT.sizeof; }
-    @property auto   data()   inout pure nothrow { return mData.ptr; }
 
     auto lock() pure nothrow
     {
