@@ -330,8 +330,8 @@ public:
     in
     {
         assert(b !is null);
-        assert(0 == (b.width  % TileWidth));
-        assert(0 == (b.height % TileHeight));
+        assert(0 == (b.width  % TileWidth),  debugConv(b.width));
+        assert(0 == (b.height % TileHeight), debugConv(b.height));
     }
     body
     {

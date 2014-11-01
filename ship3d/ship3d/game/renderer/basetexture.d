@@ -6,7 +6,7 @@ class BaseTextureRGB(ColT)
 {
 protected:
     alias ColorArrayType = ColT;
-    final auto getColor(in ColT col) const pure nothrow
+    static auto getColor(in ColT col) pure nothrow
     {
         return col;
     }

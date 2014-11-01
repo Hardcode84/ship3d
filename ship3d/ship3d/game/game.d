@@ -38,6 +38,8 @@ private:
                   SDL_SCANCODE_Z:      Actions.ATTACK,
                   SDL_SCANCODE_LSHIFT: Actions.BOOST];
     }*/
+    int mWidth = 0;
+    int mHeight = 0;
 
     uint mFPSCounter = 0;
     uint mLastFPSTicks = 0;
@@ -72,6 +74,9 @@ public:
             {
                 switch(e.type)
                 {
+                    case SDL_WINDOWEVENT:
+                        processWindowEvent(e.window);
+                        break;
                     case SDL_KEYDOWN:
                     case SDL_KEYUP:
                         processKeyEvent(e.key);
@@ -94,22 +99,25 @@ public:
                 ++mUpdateCounter;
             }
             mLastTicks += UpdateInterval * updateCount;
-            draw();
-            ++mFPSCounter;
-            if((newTicks - mLastFPSTicks) > 2000)
+            if(!mWindow.hidden)
             {
-                mFPS = cast(float)mFPSCounter / (cast(float)(newTicks - mLastFPSTicks) / 1000.0f);
-                mLastFPSTicks = newTicks;
-                mFPSCounter = 0;
+                draw();
+                ++mFPSCounter;
+                if((newTicks - mLastFPSTicks) > 2000)
+                {
+                    mFPS = cast(float)mFPSCounter / (cast(float)(newTicks - mLastFPSTicks) / 1000.0f);
+                    mLastFPSTicks = newTicks;
+                    mFPSCounter = 0;
 
-                auto totalSeconds = mUpdateCounter * UpdateInterval / 1000.0f;
-                import std.string: format;
-                auto str = format("%s %s %s", mFPS, totalSeconds, mUpdateCounter);
-                mWindow.title = str;
-                import std.stdio;
-                writeln(str);
+                    auto totalSeconds = mUpdateCounter * UpdateInterval / 1000.0f;
+                    import std.string: format;
+                    auto str = format("%s %s %s", mFPS, totalSeconds, mUpdateCounter);
+                    mWindow.title = str;
+                    import std.stdio;
+                    writeln(str);
+                }
+                present();
             }
-            present();
         }
     }
 
@@ -119,14 +127,14 @@ private:
         import std.getopt;
         bool fullscreen = false;
         bool fullscreenDesktop = false;
-        int width  = 800;
-        int height = 600;
+        mWidth  = 800;
+        mHeight = 600;
         getopt(args,
                "fullscreen|f",         &fullscreen,
                "fullscreenDesktop|fd", &fullscreenDesktop,
-               "width|w",              &width,
-               "height|h",             &height);
-        enforce(width > 0 && height > 0, "Invalid resolution");
+               "width|w",              &mWidth,
+               "height|h",             &mHeight);
+        enforce(mWidth > 0 && mHeight > 0 && 0 == mWidth % 8 && 0 == mHeight % 8, "Invalid resolution");
         mCore = new Core(true);
         Uint32 windowFlags = 0;
         if(fullscreenDesktop)
@@ -137,7 +145,21 @@ private:
         {
             windowFlags |= SDL_WINDOW_FULLSCREEN;
         }
-        mWindow = new Window("game",width,height, windowFlags);
+        mWindow = new Window("game",mWidth,mHeight, windowFlags);
+        initWindowSurface();
+
+        mWorld = new World(Size(mWidth,mHeight));
+    }
+
+    void initWindowSurface()
+    {
+        assert(mWindow !is null);
+        mWindow.setSize(mWidth,mHeight);
+        if(mSurface !is null)
+        {
+            mSurface.dispose();
+            mSurface = null;
+        }
         import std.stdio;
         writeln(mWindow.formatString);
         try
@@ -151,7 +173,6 @@ private:
             const s = mWindow.size;
             mSurface = new FFSurface!ColorT(s.x, s.y);
         }
-        mWorld = new World(Size(width,height));
     }
 
     void handleQuit() pure nothrow
@@ -159,7 +180,27 @@ private:
         mWorld.handleQuit();
     }
 
-    void processKeyEvent(in SDL_KeyboardEvent event) pure
+    void processWindowEvent(in ref SDL_WindowEvent event)
+    {
+        assert(mWindow !is null);
+        if(event.windowID == mWindow.winId)
+        {
+            //debugOut(event.event);
+            switch(event.event)
+            {
+                case SDL_WINDOWEVENT_MINIMIZED:
+                case SDL_WINDOWEVENT_HIDDEN:
+                    break;
+                case SDL_WINDOWEVENT_SHOWN:
+                case SDL_WINDOWEVENT_RESTORED:
+                    initWindowSurface();
+                    break;
+                default: break;
+            }
+        }
+    }
+
+    void processKeyEvent(in ref SDL_KeyboardEvent event) pure
     {
         /*if(event.repeat != 0)
         {

@@ -8,11 +8,11 @@ final class Texture(Base) : Base
 {
 private:
     alias DataT = Base.ColorArrayType;
-    DataT[]        mData;
+    DataT[]       mData;
     immutable int mWidth;
     immutable int mHeight;
     immutable int mPitch;
-    DataT[]        mLockBuffer;
+    DataT[]       mLockBuffer;
     int           mLockCount = 0;
 public:
     this(int w, int h)
