@@ -269,7 +269,7 @@ private:
         PosT[NumLines] cx = void;
         PosT[NumLines] dx = void;
         PosT[NumLines] dy = void;
-        this(PackT)(in PackT p, int x, int y) pure nothrow
+        this(PackT)(in ref PackT p, int x, int y) pure nothrow
         {
             foreach(i;TupleRange!(0,NumLines))
             {
@@ -300,9 +300,25 @@ private:
             curry += 1;
         }
 
+        void incY(int val) pure nothrow
+        {
+            foreach(i;TupleRange!(0,NumLines))
+            {
+                cx[i] += (dy[i] * val);
+            }
+            curry += val;
+        }
+
         bool check() const pure nothrow
         {
             return cx[0] > 0 && cx[1] > 0 && cx[2] > 0;
+        }
+
+        uint vals() const pure nothrow
+        {
+            return (cast(uint)(cx[0] > 0) << 0) |
+                   (cast(uint)(cx[1] > 0) << 1) |
+                   (cast(uint)(cx[2] > 0) << 2);
         }
     }
 
@@ -401,21 +417,22 @@ public:
         alias CtxT    = Context!(TextT);
 
         int minY = cast(int)min(pverts[0].pos.y, pverts[1].pos.y, pverts[2].pos.y);
-        int maxY = cast(int)max(pverts[0].pos.y, pverts[1].pos.y, pverts[2].pos.y);
+        int maxY = cast(int)max(pverts[0].pos.y, pverts[1].pos.y, pverts[2].pos.y) + 1;
 
         int minX = cast(int)min(pverts[0].pos.x, pverts[1].pos.x, pverts[2].pos.x);
-        int maxX = cast(int)max(pverts[0].pos.x, pverts[1].pos.x, pverts[2].pos.x);
+        int maxX = cast(int)max(pverts[0].pos.x, pverts[1].pos.x, pverts[2].pos.x) + 1;
+
+
+
         minX = max(mClipRect.x, minX);
         maxX = min(mClipRect.x + mClipRect.w, maxX);
         minY = max(mClipRect.y, minY);
         maxY = min(mClipRect.y + mClipRect.h, maxY);
 
-        const upperVert = (pverts[0].pos.y < pverts[1].pos.y ?
-                          (pverts[0].pos.y < pverts[2].pos.y ? pverts[0] : pverts[2]) :
-                          (pverts[1].pos.y < pverts[2].pos.y ? pverts[1] : pverts[2]));
-        const lowerVert = (pverts[0].pos.y > pverts[1].pos.y ?
-                          (pverts[0].pos.y > pverts[2].pos.y ? pverts[0] : pverts[2]) :
-                          (pverts[1].pos.y > pverts[2].pos.y ? pverts[1] : pverts[2]));
+        const upperVertInd = (pverts[0].pos.y < pverts[1].pos.y ?
+                          (pverts[0].pos.y < pverts[2].pos.y ? 0 : 2) :
+                          (pverts[1].pos.y < pverts[2].pos.y ? 1 : 2));
+        const upperVert = pverts[upperVertInd];
 
         immutable pack = PackT(pverts[0], pverts[1], pverts[2]);
 
@@ -475,7 +492,7 @@ public:
             int ys = y1;
             outer1: foreach(y;y0..y1)
             {
-                auto pt = PointT(&pack, x0, y);
+                auto pt = PointT(pack, x0, y);
                 foreach(x;x0..x1)
                 {
                     if(pt.check())
@@ -494,7 +511,7 @@ public:
             foreach(y;ys..y1)
             {
                 context.y = y;
-                auto pt = PointT(&pack, x0, y);
+                auto pt = PointT(pack, x0, y);
                 int xs = x1;
                 foreach(x;x0..x1)//find first valid pixel in line
                 {
@@ -541,19 +558,62 @@ public:
             }
         }
 
-        int ux, uy;
-        if(upperVert.pos.y >= minY)
+        int ux = cast(int)upperVert.pos.x;
+        int uy = cast(int)upperVert.pos.y;
+        if(uy >= maxY) return;
+        if(uy >= minY && ux >= minX && ux <= maxX)
         {
-            ux = cast(int)upperVert.pos.x;
-            uy = cast(int)upperVert.pos.y;
         }
         else
         {
-            const dx = lowerVert.pos.x - upperVert.pos.x;
-            const dy = lowerVert.pos.y - upperVert.pos.y;
-            ux = clamp(cast(int)(upperVert.pos.x + dx * (minY - upperVert.pos.y) / dy), minX, maxX - 1);
-            uy = minY;
+            bool test(in ref PointT pt00, in ref PointT pt10, in ref PointT pt01, in ref PointT pt11) nothrow
+            {
+                const mask = (pt00.vals() | pt10.vals() | pt01.vals() | pt11.vals());
+                bool res = (0x0 != (mask & 0b001)) &&
+                           (0x0 != (mask & 0b010)) &&
+                           (0x0 != (mask & 0b100));
+                if(res)
+                {
+                    const dx = (pt10.currx - pt00.currx);
+                    const cx = pt00.currx + dx / 2;
+                    if(dx <= 3)
+                    {
+                        ux = cx + 1;
+                        uy = pt00.curry;
+                        return true;
+                    }
+                    const pt0 = PointT(pack, cx, pt00.curry);
+                    const pt1 = PointT(pack, cx, pt11.curry);
+                    if(test(pt00, pt0, pt01, pt1)) return true;
+                    if(test(pt0, pt10, pt1, pt11)) return true;
+                }
+                return false;
+            }
+            const mintx = (minX / TileWidth)     * TileWidth;
+            const maxtx = ((maxX + TileHeight - 1) / TileWidth) * TileWidth;
+            const minty = (minY / TileHeight)     * TileHeight;
+            const maxty = ((maxY + TileHeight - 1) / TileHeight) * TileHeight;
+
+            auto pt00 = PointT(pack, mintx, minty);
+            auto pt10 = PointT(pack, maxtx, minty);
+            auto pt01 = PointT(pack, mintx, minty + TileHeight);
+            auto pt11 = PointT(pack, maxtx, minty + TileHeight);
+            for(int y = minty; y < maxty; y += TileHeight)
+            {
+
+                if(test(pt00, pt10, pt01, pt11))
+                {
+                    goto found;
+                }
+                pt00.incY(TileHeight);
+                pt10.incY(TileHeight);
+                pt01.incY(TileHeight);
+                pt11.incY(TileHeight);
+            }
+            return;
+        found:
         }
+
         const tx = ux / TileWidth;
         const ty = uy / TileHeight;
         TileT currentTile    = TileT(&pack, tx * TileWidth, ty * TileHeight);
@@ -622,7 +682,7 @@ public:
             startFillX = max(startFillX, startX);
             endFillX   = min(endFillX,   endX);
 
-            assert(startX >= 0,                    debugConv(startX));
+            assert(startX >= 0,                 debugConv(startX));
             assert(startX > (minX - TileWidth), debugConv(startX));
             assert(endX   < (maxX + TileWidth), debugConv(endX));
             assert(endX   >= endFillX);
