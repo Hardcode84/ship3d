@@ -170,6 +170,7 @@
     <Compile Include="game\renderer\rasterizerhp4.d" />
     <Compile Include="game\renderer\rasetrizerhbrd.d" />
     <Compile Include="game\renderer\rasterizerhp5.d" />
+    <Compile Include="game\renderer\palette.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />

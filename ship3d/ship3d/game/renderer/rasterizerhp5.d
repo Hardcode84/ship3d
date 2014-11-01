@@ -22,15 +22,15 @@ private:
     BitmapT mBitmap;
     TextureT mTexture;
     Rect mClipRect;
-    
+
     enum TileWidth  = 8;
     enum TileHeight = 8;
-    
+
     struct Line(PosT,bool Affine)
     {
     @nogc:
         immutable PosT dx, dy, c;
-        
+
         this(VT)(in VT v1, in VT v2, in VT v3, in PosT baryInvDenom) pure nothrow
         {
             const x1 = v1.pos.x;
@@ -43,13 +43,13 @@ private:
             const inc = (dy < 0 || (dy == 0 && dx > 0)) ? cast(PosT)1 / cast(PosT)16 : cast(PosT)0;
             c = (dy * x1 - dx * y1) + inc * baryInvDenom / w;
         }
-        
+
         auto val(int x, int y) const pure nothrow
         {
             return c + dx * y - dy * x;
         }
     }
-    
+
     struct Plane(PosT)
     {
     @nogc:
@@ -60,21 +60,21 @@ private:
         {
             const v12 = v2 - v1;
             const v13 = v3 - v1;
-            
+
             const norm = cross(v12,v13);
             //ax + by + cz = d
             ac = norm.x / norm.z;
             bc = norm.y / norm.z;
             dc = ac * v1.x + bc * v1.y + v1.z;
         }
-        
+
         auto get(int x, int y) const pure nothrow
         {
             //z = d/c - (a/c)x - (b/c)y)
             return dc - ac * x - bc * y;
         }
     }
-    
+
     struct LinesPack(PosT,TextT,LineT,bool Affine)
     {
     @nogc:
@@ -83,7 +83,7 @@ private:
         alias PlaneT = Plane!(PosT);
         enum NumLines = 3;
         immutable LineT[NumLines] lines;
-        
+
         static if(!Affine)
         {
             immutable PlaneT wplane;
@@ -102,14 +102,14 @@ private:
                 LineT(v1, v2, v3, invDenom),
                 LineT(v2, v3, v1, invDenom),
                 LineT(v3, v1, v2, invDenom)];
-            
+
             static if(!Affine)
             {
                 wplane = PlaneT(vec3(cast(PosT)v1.pos.x, cast(PosT)v1.pos.y, cast(PosT)1 / v1.pos.w),
                                 vec3(cast(PosT)v2.pos.x, cast(PosT)v2.pos.y, cast(PosT)1 / v2.pos.w),
                                 vec3(cast(PosT)v3.pos.x, cast(PosT)v3.pos.y, cast(PosT)1 / v3.pos.w));
             }
-            static if(HasTexture) 
+            static if(HasTexture)
             {
                 const TextT tu1 = v1.tpos.u;
                 const TextT tu2 = v2.tpos.u;
@@ -137,7 +137,7 @@ private:
                 }
             }
         }
-        
+
         void getBarycentric(T)(int x, int y, T[] ret) const pure nothrow
         in
         {
@@ -187,7 +187,7 @@ private:
             }
         }
     }
-    
+
     struct Tile(int TileWidth, int TileHeight, PosT,PackT)
     {
         immutable(PackT)* pack;
@@ -195,13 +195,13 @@ private:
         int currx = void;
         int curry = void;
         PosT[NumLines] cx0 = void, cx1 = void;
-        
+
         this(in immutable(PackT)* p, int x, int y) pure nothrow
         {
             pack = p;
             setXY(x,y);
         }
-        
+
         void setXY(int x, int y) pure nothrow
         {
             foreach(i;TupleRange!(0,NumLines))
@@ -213,7 +213,7 @@ private:
             currx = x;
             curry = y;
         }
-        
+
         void incX(string sign)() pure nothrow
         {
             foreach(i;TupleRange!(0,NumLines))
@@ -224,7 +224,7 @@ private:
             }
             mixin("currx"~sign~"= TileWidth;");
         }
-        
+
         void incY() pure nothrow
         {
             foreach(i;TupleRange!(0,NumLines))
@@ -260,7 +260,7 @@ private:
             return ret;
         }
     }
-    
+
     struct Point(PosT,PackT,bool Affine)
     {
         enum NumLines = 3;
@@ -281,7 +281,7 @@ private:
             currx = x;
             curry = y;
         }
-        
+
         void incX(string sign)() pure nothrow
         {
             foreach(i;TupleRange!(0,NumLines))
@@ -290,7 +290,7 @@ private:
             }
             mixin("currx"~sign~"= 1;");
         }
-        
+
         void incY() pure nothrow
         {
             foreach(i;TupleRange!(0,NumLines))
@@ -299,23 +299,31 @@ private:
             }
             curry += 1;
         }
-        
+
         bool check() const pure nothrow
         {
             return cx[0] > 0 && cx[1] > 0 && cx[2] > 0;
         }
     }
-    
+
     struct Spans(int Height,PosT,TextT)
     {
-        enum HasTexture = !is(TextT : void);
-        static if(HasTexture)
-        {
-            TextT[2] uv00 = void;
-            TextT[2] uv10 = void;
-            TextT[2] uv01 = void;
-            TextT[2] uv11 = void;
-        }
+        TextT[2] uv00 = void;
+        TextT[2] uv10 = void;
+        TextT[2] uv01 = void;
+        TextT[2] uv11 = void;
+    }
+
+    struct Context(TextT)
+    {
+        int x = void;
+        int y = void;
+        TextT u = void;
+        TextT v = void;
+        TextT dux = void;
+        TextT dvx = void;
+        TextT duy = void;
+        TextT dvy = void;
     }
 public:
     this(BitmapT b)
@@ -330,10 +338,10 @@ public:
         mBitmap = b;
         mClipRect = Rect(0, 0, mBitmap.width, mBitmap.height);
     }
-    
+
     @property auto texture()       inout pure nothrow { return mTexture; }
     @property void texture(TextureT tex) pure nothrow { mTexture = tex; }
-    
+
     @property void clipRect(in Rect rc) pure nothrow
     {
         const srcLeft   = rc.x;
@@ -346,7 +354,7 @@ public:
         const dstBottom = min(srcBottom, mBitmap.height);
         mClipRect = Rect(dstLeft, dstTop, dstRight - dstLeft, dstBottom - dstTop);
     }
-    
+
     void drawIndexedTriangle(bool HasTextures = false, bool HasColor = true,VertT,IndT)(in VertT[] verts, in IndT[3] indices) pure nothrow if(isIntegral!IndT)
     {
         const c = (verts[1].pos.xyz - verts[0].pos.xyz).cross(verts[2].pos.xyz - verts[0].pos.xyz);
@@ -356,17 +364,17 @@ public:
         }
         const(VertT)*[3] pverts;
         foreach(i,ind; indices) pverts[i] = verts.ptr + ind;
-        
+
         const e1xdiff = pverts[0].pos.x - pverts[2].pos.x;
         const e2xdiff = pverts[0].pos.x - pverts[1].pos.x;
-        
+
         const e1ydiff = pverts[0].pos.y - pverts[2].pos.y;
         const e2ydiff = pverts[0].pos.y - pverts[1].pos.y;
-        
+
         const cxdiff = ((e1xdiff / e1ydiff) * e2ydiff) - e2xdiff;
         const reverseSpans = (cxdiff < 0);
         const affine = false;//(abs(cxdiff) > AffineLength * 25);
-        
+
         if(affine) drawTriangle!(HasTextures, HasColor,true)(pverts);
         else       drawTriangle!(HasTextures, HasColor,false)(pverts);
     }
@@ -376,7 +384,7 @@ public:
         static assert(HasTextures != HasColor);
         //alias PosT = FixedPoint!(16,16,int);
         alias PosT = Unqual!(typeof(VertT.pos.x));
-        
+
         static if(HasTextures)
         {
             alias TextT = PosT;
@@ -390,10 +398,11 @@ public:
         alias TileT   = Tile!(TileWidth,TileHeight,PosT,PackT);
         alias PointT  = Point!(PosT,PackT,Affine);
         alias SpansT  = Spans!(TileHeight,PosT,TextT);
-        
+        alias CtxT    = Context!(TextT);
+
         int minY = cast(int)min(pverts[0].pos.y, pverts[1].pos.y, pverts[2].pos.y);
         int maxY = cast(int)max(pverts[0].pos.y, pverts[1].pos.y, pverts[2].pos.y);
-        
+
         int minX = cast(int)min(pverts[0].pos.x, pverts[1].pos.x, pverts[2].pos.x);
         int maxX = cast(int)max(pverts[0].pos.x, pverts[1].pos.x, pverts[2].pos.x);
         minX = max(mClipRect.x, minX);
@@ -407,9 +416,9 @@ public:
         const lowerVert = (pverts[0].pos.y > pverts[1].pos.y ?
                           (pverts[0].pos.y > pverts[2].pos.y ? pverts[0] : pverts[2]) :
                           (pverts[1].pos.y > pverts[2].pos.y ? pverts[1] : pverts[2]));
-        
+
         immutable pack = PackT(pverts[0], pverts[1], pverts[2]);
-        
+
         @nogc void fillTile(T)(auto ref T spans, int x0, int y0, int x1, int y1)
         {
             assert(x0 >= 0,   debugConv(x0));
@@ -423,23 +432,26 @@ public:
             TextT[2] uvs = spans.uv00;
             const TextT wdt = x1 - x0;
             const TextT hgt = y1 - y0;
-            const dux = (spans.uv10[0] - spans.uv00[0]) / wdt;
-            const dvx = (spans.uv10[1] - spans.uv00[1]) / wdt;
-            const duy = (spans.uv01[0] - spans.uv00[0]) / hgt;
-            const dvy = (spans.uv01[1] - spans.uv00[1]) / hgt;
-            TextT[2] uv  = uvs;
+            CtxT context = void;
+            context.dux = (spans.uv10[0] - spans.uv00[0]) / wdt;
+            context.dvx = (spans.uv10[1] - spans.uv00[1]) / wdt;
+            context.duy = (spans.uv01[0] - spans.uv00[0]) / hgt;
+            context.dvy = (spans.uv01[1] - spans.uv00[1]) / hgt;
             auto line = mBitmap[y0];
             foreach(y;y0..y1)
             {
+                context.y = y;
+                context.u = uvs[0];
+                context.v = uvs[1];
                 foreach(x;x0..x1)
                 {
-                    line[x] = mTexture.get(uv[0], uv[1]);
-                    uv[0] += dux;
-                    uv[1] += dvx;
+                    context.x = x;
+                    line[x] = mTexture.get(context.u, context.v);
+                    context.u += context.dux;
+                    context.v += context.dvx;
                 }
-                uvs[0] += duy;
-                uvs[1] += dvy;
-                uv = uvs;
+                uvs[0] += context.duy;
+                uvs[1] += context.dvy;
                 ++line;
             }
         }
@@ -455,10 +467,11 @@ public:
             TextT[2] uvs = spans.uv00;
             const TextT wdt = x1 - x0;
             const TextT hgt = y1 - y0;
-            const dux = (spans.uv10[0] - spans.uv00[0]) / wdt;
-            const dvx = (spans.uv10[1] - spans.uv00[1]) / wdt;
-            const duy = (spans.uv01[0] - spans.uv00[0]) / hgt;
-            const dvy = (spans.uv01[1] - spans.uv00[1]) / hgt;
+            CtxT context = void;
+            context.dux = (spans.uv10[0] - spans.uv00[0]) / wdt;
+            context.dvx = (spans.uv10[1] - spans.uv00[1]) / wdt;
+            context.duy = (spans.uv01[0] - spans.uv00[0]) / hgt;
+            context.dvy = (spans.uv01[1] - spans.uv00[1]) / hgt;
             int ys = y1;
             outer1: foreach(y;y0..y1)
             {
@@ -475,12 +488,12 @@ public:
             }
 
             const TextT dy = ys - y0;
-            uvs[0] += duy * dy;
-            uvs[1] += dvy * dy;
+            uvs[0] += context.duy * dy;
+            uvs[1] += context.dvy * dy;
             auto line = mBitmap[ys];
             foreach(y;ys..y1)
             {
-
+                context.y = y;
                 auto pt = PointT(&pack, x0, y);
                 int xs = x1;
                 foreach(x;x0..x1)//find first valid pixel in line
@@ -505,27 +518,29 @@ public:
                 const len = xe - xs;
                 if(len > 0)
                 {
-                    TextT[2] uv  = uvs;
+                    context.u = uvs[0];
+                    context.v = uvs[1];
                     const TextT dx = xs - x0;
-                    uv[0] += (dux * dx);
-                    uv[1] += (dvx * dx);
+                    context.u += (context.dux * dx);
+                    context.v += (context.dvx * dx);
                     foreach(x;xs..xe)
                     {
-                        line[x] = mTexture.get(uv[0], uv[1]);
-                        uv[0] += dux;
-                        uv[1] += dvx;
+                        context.x = x;
+                        line[x] = mTexture.get(context.u, context.v);
+                        context.u += context.dux;
+                        context.v += context.dvx;
                     }
                 }
                 else
                 {
                     break;
                 }
-                uvs[0] += duy;
-                uvs[1] += dvy;
+                uvs[0] += context.duy;
+                uvs[1] += context.dvy;
                 ++line;
             }
         }
-        
+
         int ux, uy;
         if(upperVert.pos.y >= minY)
         {
@@ -543,7 +558,7 @@ public:
         const ty = uy / TileHeight;
         TileT currentTile    = TileT(&pack, tx * TileWidth, ty * TileHeight);
         TileT savedRightTile;
-        
+
         int y0 = uy;
         int y1 = currentTile.curry + TileHeight;
         outer: while(true)
@@ -564,19 +579,19 @@ public:
             int startFillX =  9000;
             int endFillX   = -9000;
             int endX       = currentTile.currx + TileWidth;
-            
+
             //move left
             while(currentTile.currx > (minX - TileWidth))
             {
                 currentTile.incX!("-")();
                 tileMask >>= 6;
                 tileMask |= (currentTile.check() << 6);
-                
+
                 if(none(tileMask))
                 {
                     break;
                 }
-                
+
                 if(all(tileMask))
                 {
                     startFillX = currentTile.currx;
@@ -584,7 +599,7 @@ public:
                 }
             }
             startX = currentTile.currx + TileWidth;
-            
+
             //move right
             tileMask = (savedRightTile.check() << 6);
             while(savedRightTile.currx < (maxX + TileWidth))
@@ -596,10 +611,9 @@ public:
                 {
                     break;
                 }
-                
+
                 if(all(tileMask))
                 {
-                    //mBitmap[y0 + 4][savedRightTile.currx - 4] = ColorRed;
                     startFillX = min(startFillX, savedRightTile.currx - TileWidth);
                     endFillX   = savedRightTile.currx;
                 }
@@ -607,12 +621,12 @@ public:
             endX = savedRightTile.currx - TileWidth;
             startFillX = max(startFillX, startX);
             endFillX   = min(endFillX,   endX);
-            
+
             assert(startX >= 0,                    debugConv(startX));
             assert(startX > (minX - TileWidth), debugConv(startX));
             assert(endX   < (maxX + TileWidth), debugConv(endX));
             assert(endX   >= endFillX);
-            
+
             SpansT spans = void;
             if(endFillX > startFillX)
             {
@@ -671,9 +685,9 @@ public:
                     drawTile(spans, x0, y0, x1, y1);
                 }
             }
-            
+
             if(y1 >= maxY) break;
-            
+
             currentTile = TileT(&pack, startX, y1);
             tileMask = (currentTile.check() << 6);
             while(currentTile.currx < endX)
@@ -688,7 +702,7 @@ public:
                     continue outer;
                 }
             }
-            
+
             break;
         }
         //end
