@@ -5,6 +5,7 @@ import game.renderer.palette;
 class BaseTextureRGB(ColT)
 {
 protected:
+    alias ColorType = ColT;
     alias ColorArrayType = ColT;
     static auto getColor(in ColT col) pure nothrow
     {
@@ -18,6 +19,7 @@ private:
     alias PalT = const(Palette!ColT);
     PalT mPalette;
 protected:
+    alias ColorType = ColT;
     alias ColorArrayType = ubyte;
     final auto getColor(ubyte col) const pure nothrow
     {

@@ -33,9 +33,10 @@ public:
     {
         mSize = sz;
         mProjMat = mat4.perspective(sz.w,sz.h,90,0.1,1000);
-        mTexture = new TextureT(256,256);
+        //mTexture = new TextureT(256,256);
+        mTexture = new TextureT("12022011060.bmp");
         mDepthBuff = new MemSurface!float(800,600);
-        fillChess(mTexture);
+        //fillChess(mTexture);
     }
 
     void handleQuit() pure nothrow

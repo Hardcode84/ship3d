@@ -7,6 +7,7 @@ import gamelib.graphics.surfaceview;
 final class Texture(Base) : Base
 {
 private:
+    alias ColT  = Base.ColorType;
     alias DataT = Base.ColorArrayType;
     DataT[]       mData;
     immutable int mWidth;
@@ -28,6 +29,27 @@ public:
         mData.length = mPitch * mHeight;
         import gamelib.types;
         mData[] = ColorBlue;
+    }
+
+    this(in string filename)
+    {
+        import gamelib.graphics.surface;
+        auto surf = loadFromFile!ColT(filename);
+        scope(exit) surf.dispose();
+        surf.lock();
+        scope(exit) surf.unlock();
+        this(surf.width,surf.height);
+        auto srcView = surf[0];
+        auto view = lock();
+        scope(exit) unlock();
+        foreach(y;0..surf.height)
+        {
+            foreach(x;0..surf.width)
+            {
+                view[y][x] = srcView[x];
+            }
+            ++srcView;
+        }
     }
 
     @property auto   width()  const pure nothrow { return mWidth; }
@@ -82,4 +104,3 @@ void fillChess(T)(auto ref T surf)
         }
     }
 }
-
