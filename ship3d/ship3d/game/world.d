@@ -12,6 +12,7 @@ import game.renderer.rasterizerhp3;
 import game.renderer.rasterizerhp4;
 import game.renderer.rasterizerhp5;
 import game.renderer.texture;
+import game.renderer.basetexture;
 
 final class World
 {
@@ -23,7 +24,8 @@ private:
     pos_t mYpos = 0;
     pos_t mDist = -3;
     int mN = 0;
-    Texture!ColorT mTexture;
+    alias TextureT = Texture!(BaseTextureRGB!ColorT);
+    TextureT mTexture;
     MemSurface!float mDepthBuff;
 public:
     alias SurfT  = FFSurface!ColorT;
@@ -31,7 +33,7 @@ public:
     {
         mSize = sz;
         mProjMat = mat4.perspective(sz.w,sz.h,90,0.1,1000);
-        mTexture = new Texture!ColorT(256,256);
+        mTexture = new TextureT(256,256);
         mDepthBuff = new MemSurface!float(800,600);
         fillChess(mTexture);
     }

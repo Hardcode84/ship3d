@@ -30,21 +30,24 @@ private:
             immutable PosT swDelta;
         }
 
-        static if(HasTextures) static if(Affine)
+        static if(HasTextures)
         {
-            PosT uCurr;
-            immutable PosT uDelta;
+            static if(Affine)
+            {
+                PosT uCurr;
+                immutable PosT uDelta;
 
-            PosT vCurr;
-            immutable PosT vDelta;
-        }
-        else
-        {
-            PosT suCurr;
-            immutable PosT suDelta;
+                PosT vCurr;
+                immutable PosT vDelta;
+            }
+            else
+            {
+                PosT suCurr;
+                immutable PosT suDelta;
 
-            PosT svCurr;
-            immutable PosT svDelta;
+                PosT svCurr;
+                immutable PosT svDelta;
+            }
         }
 
         static if(HasColor)
@@ -74,29 +77,32 @@ private:
                 swCurr  = swStart + swDelta * inc;
             }
 
-            static if(HasTextures) static if(Affine)
+            static if(HasTextures) 
             {
-                const uStart = v1.tpos.u;
-                const uDiff  = v2.tpos.u - v1.tpos.u;
-                uDelta = uDiff / ydiff;
-                uCurr = uStart + uDelta * inc;
+                static if(Affine)
+                {
+                    const uStart = v1.tpos.u;
+                    const uDiff  = v2.tpos.u - v1.tpos.u;
+                    uDelta = uDiff / ydiff;
+                    uCurr = uStart + uDelta * inc;
 
-                const vStart = v1.tpos.v;
-                const vDiff  = v2.tpos.v - v1.tpos.v;
-                vDelta = vDiff / ydiff;
-                vCurr = vStart + vDelta * inc;
-            }
-            else
-            {
-                const suStart = v1.tpos.u * w1;
-                const suDiff  = v2.tpos.u * w2 - suStart;
-                suDelta = suDiff / ydiff;
-                suCurr  = suStart + suDelta * inc;
+                    const vStart = v1.tpos.v;
+                    const vDiff  = v2.tpos.v - v1.tpos.v;
+                    vDelta = vDiff / ydiff;
+                    vCurr = vStart + vDelta * inc;
+                }
+                else
+                {
+                    const suStart = v1.tpos.u * w1;
+                    const suDiff  = v2.tpos.u * w2 - suStart;
+                    suDelta = suDiff / ydiff;
+                    suCurr  = suStart + suDelta * inc;
 
-                const svStart = v1.tpos.v * w1;
-                const svDiff  = v2.tpos.v * w2 - svStart;
-                svDelta = svDiff / ydiff;
-                svCurr  = svStart + svDelta * inc;
+                    const svStart = v1.tpos.v * w1;
+                    const svDiff  = v2.tpos.v * w2 - svStart;
+                    svDelta = svDiff / ydiff;
+                    svCurr  = svStart + svDelta * inc;
+                }
             }
 
             static if(HasColor)
@@ -116,15 +122,18 @@ private:
         }
 
         @property auto x() const pure nothrow { return xCurr; }
-        static if(HasTextures) static if(Affine)
+        static if(HasTextures)
         {
-            @property auto u() const pure nothrow { return uCurr; }
-            @property auto v() const pure nothrow { return vCurr; }
-        }
-        else
-        {
-            @property auto su() const pure nothrow { return suCurr; }
-            @property auto sv() const pure nothrow { return svCurr; }
+            static if(Affine)
+            {
+                @property auto u() const pure nothrow { return uCurr; }
+                @property auto v() const pure nothrow { return vCurr; }
+            }
+            else
+            {
+                @property auto su() const pure nothrow { return suCurr; }
+                @property auto sv() const pure nothrow { return svCurr; }
+            }
         }
 
         static if(!Affine)
@@ -156,15 +165,18 @@ private:
                 swCurr += swDelta;
             }
 
-            static if(HasTextures) static if(Affine)
+            static if(HasTextures)
             {
-                uCurr += uDelta;
-                vCurr += vDelta;
-            }
-            else
-            {
-                suCurr += suDelta;
-                svCurr += svDelta;
+                static if(Affine)
+                {
+                    uCurr += uDelta;
+                    vCurr += vDelta;
+                }
+                else
+                {
+                    suCurr += suDelta;
+                    svCurr += svDelta;
+                }
             }
 
             static if(HasColor)
@@ -184,20 +196,23 @@ private:
             immutable PosT dsw;
         }
 
-        static if(HasTextures) static if(Affine)
+        static if(HasTextures) 
         {
-            PosT u, u2;
-            PosT v, v2;
-            immutable PosT du, dv;
-        }
-        else
-        {
-            PosT su1, su2;
-            PosT sv1, sv2;
-            immutable PosT dsu, dsv;
-            PosT nu, nv;
-            PosT pu, pv;
-            PosT du, dv;
+            static if(Affine)
+            {
+                PosT u, u2;
+                PosT v, v2;
+                immutable PosT du, dv;
+            }
+            else
+            {
+                PosT su1, su2;
+                PosT sv1, sv2;
+                immutable PosT dsu, dsv;
+                PosT nu, nv;
+                PosT pu, pv;
+                PosT du, dv;
+            }
         }
 
         static if(HasColor)
@@ -222,27 +237,30 @@ private:
                 dsw = (sw2 - sw1) / (dx);
             }
 
-            static if(HasTextures) static if(Affine)
+            static if(HasTextures)
             {
-                u  = e1.u;
-                u2 = e2.u;
-                v  = e1.v;
-                v2 = e2.v;
-                du = (u2 - u) / dx;
-                dv = (v2 - v) / dx;
-            }
-            else
-            {
-                su1 = e1.su;
-                su2 = e2.su;
-                sv1 = e1.sv;
-                sv2 = e2.sv;
+                static if(Affine)
+                {
+                    u  = e1.u;
+                    u2 = e2.u;
+                    v  = e1.v;
+                    v2 = e2.v;
+                    du = (u2 - u) / dx;
+                    dv = (v2 - v) / dx;
+                }
+                else
+                {
+                    su1 = e1.su;
+                    su2 = e2.su;
+                    sv1 = e1.sv;
+                    sv2 = e2.sv;
 
-                dsu = (su2 - su1) / dx;
-                dsv = (sv2 - sv1) / dx;
+                    dsu = (su2 - su1) / dx;
+                    dsv = (sv2 - sv1) / dx;
 
-                nu = su1 / sw1;
-                nv = sv1 / sw1;
+                    nu = su1 / sw1;
+                    nv = sv1 / sw1;
+                }
             }
 
             static if(HasColor)
@@ -290,21 +308,24 @@ private:
                 sw1 += dsw * val;
             }
 
-            static if(HasTextures) static if(Affine)
+            static if(HasTextures)
             {
-                u += du * val;
-                v += dv * val;
-            }
-            else
-            {
-                pu = nu;
-                pv = nv;
-                su1 += dsu * val;
-                sv1 += dsv * val;
-                nu = su1 / sw1;
-                nv = sv1 / sw1;
-                du = (nu - pu) / val;
-                dv = (nv - pv) / val;
+                static if(Affine)
+                {
+                    u += du * val;
+                    v += dv * val;
+                }
+                else
+                {
+                    pu = nu;
+                    pv = nv;
+                    su1 += dsu * val;
+                    sv1 += dsv * val;
+                    nu = su1 / sw1;
+                    nv = sv1 / sw1;
+                    du = (nu - pu) / val;
+                    dv = (nv - pv) / val;
+                }
             }
 
             static if(HasColor && !Affine)

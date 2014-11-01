@@ -26,6 +26,7 @@
         <Lib>gdi32.lib</Lib>
       </Libs>
     </Libs>
+    <ExtraCompilerArguments>-w</ExtraCompilerArguments>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <OutputPath>bin\Release</OutputPath>
@@ -171,6 +172,7 @@
     <Compile Include="game\renderer\rasetrizerhbrd.d" />
     <Compile Include="game\renderer\rasterizerhp5.d" />
     <Compile Include="game\renderer\palette.d" />
+    <Compile Include="game\renderer\basetexture.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />

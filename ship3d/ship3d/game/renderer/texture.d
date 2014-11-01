@@ -4,14 +4,15 @@ import gamelib.math;
 import gamelib.util;
 import gamelib.graphics.surfaceview;
 
-final class Texture(ColT)
+final class Texture(Base) : Base
 {
 private:
-    ColT[]        mData;
+    alias DataT = Base.ColorArrayType;
+    DataT[]        mData;
     immutable int mWidth;
     immutable int mHeight;
     immutable int mPitch;
-    ColT[]        mLockBuffer;
+    DataT[]        mLockBuffer;
     int           mLockCount = 0;
 public:
     this(int w, int h)
@@ -30,7 +31,7 @@ public:
 
     @property auto   width()  const pure nothrow { return mWidth; }
     @property auto   height() const pure nothrow { return mHeight; }
-    @property size_t pitch()  const pure nothrow { return mPitch * ColT.sizeof; }
+    @property size_t pitch()  const pure nothrow { return mPitch * DataT.sizeof; }
     @property auto   data()   inout pure nothrow { return mData.ptr; }
 
     auto lock() pure nothrow
@@ -41,7 +42,7 @@ public:
             mLockBuffer.length = width * height;
         }
         ++mLockCount;
-        return SurfaceView!(ColT)(width,height,width * ColT.sizeof, mLockBuffer.ptr);
+        return SurfaceView!(DataT)(width,height,width * DataT.sizeof, mLockBuffer.ptr);
     }
 
     void unlock() pure nothrow
@@ -58,33 +59,8 @@ public:
     {
         const tx = cast(int)(u * mWidth)  & (mWidth  - 1);
         const ty = cast(int)(v * mHeight) & (mHeight - 1);
-        return mData[tx + ty * mPitch];
+        return getColor(mData[tx + ty * mPitch]);
     }
-    /*void getLine(int W,T)(in T u, in T v, in T du, in T dv, ColT[] ret) const pure nothrow
-    {
-        static assert(W > 0);
-        static assert(W <= Border);
-        import gamelib.fixedpoint;
-        enum Frac = 10;
-        alias Fix = FixedPoint!(32 - Frac,Frac,int);
-        const wmask = (mWidth  << Frac) - 1;
-        const hmask = (mHeight << Frac) - 1;
-
-        const fw     = cast(Fix)mWidth;
-        const fh     = cast(Fix)mHeight;
-        const tu     = (cast(Fix)u * fw) & wmask;
-        const tv     = (cast(Fix)v * fh) & hmask;
-        const dtu    = cast(Fix)du * fw;
-        const dtv    = cast(Fix)dv * fh;
-        auto  offset = tu  + mPitch * tv;
-        const inc    = dtu + mPitch * dtv;
-        const ptr    = mData.ptr;
-        foreach(i;TupleRange!(0,W))
-        {
-            ret[i] = ptr + cast(size_t)offset;
-            offset += inc;
-        }
-    }*/
 }
 
 void fillChess(T)(auto ref T surf)
