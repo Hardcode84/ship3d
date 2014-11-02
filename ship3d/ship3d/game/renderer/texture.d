@@ -7,7 +7,6 @@ import gamelib.graphics.surfaceview;
 final class Texture(Base) : Base
 {
 private:
-    alias ColT  = Base.ColorType;
     alias DataT = Base.ColorArrayType;
     DataT[]       mData;
     immutable int mWidth;
@@ -16,6 +15,7 @@ private:
     DataT[]       mLockBuffer;
     int           mLockCount = 0;
 public:
+    alias ColT  = Base.ColorType;
     this(int w, int h)
     {
         assert(w > 0);
@@ -29,27 +29,6 @@ public:
         mData.length = mPitch * mHeight;
         import gamelib.types;
         mData[] = ColorBlue;
-    }
-
-    this(in string filename)
-    {
-        import gamelib.graphics.surface;
-        auto surf = loadFromFile!ColT(filename);
-        scope(exit) surf.dispose();
-        surf.lock();
-        scope(exit) surf.unlock();
-        this(surf.width,surf.height);
-        auto srcView = surf[0];
-        auto view = lock();
-        scope(exit) unlock();
-        foreach(y;0..surf.height)
-        {
-            foreach(x;0..surf.width)
-            {
-                view[y][x] = srcView[x];
-            }
-            ++srcView;
-        }
     }
 
     @property auto   width()  const pure nothrow { return mWidth; }
@@ -103,4 +82,27 @@ void fillChess(T)(auto ref T surf)
             }
         }
     }
+}
+
+auto loadTextureFromFile(TexT)(in string filename)
+{
+    import gamelib.graphics.surface;
+    alias ColT = TexT.ColT;
+    auto surf = loadSurfaceFromFile!ColT(filename);
+    scope(exit) surf.dispose();
+    surf.lock();
+    scope(exit) surf.unlock();
+    auto ret = new TexT(surf.width,surf.height);
+    auto srcView = surf[0];
+    auto view = ret.lock();
+    scope(exit) ret.unlock();
+    foreach(y;0..surf.height)
+    {
+        foreach(x;0..surf.width)
+        {
+            view[y][x] = srcView[x];
+        }
+        ++srcView;
+    }
+    return ret;
 }

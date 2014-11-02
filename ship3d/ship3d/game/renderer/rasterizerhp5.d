@@ -40,7 +40,7 @@ private:
             const w = Affine ? cast(PosT)1 : cast(PosT)v3.pos.w;
             dx = (x2 - x1) * baryInvDenom / w;
             dy = (y2 - y1) * baryInvDenom / w;
-            const inc = (dy < 0 || (dy == 0 && dx > 0)) ? cast(PosT)1 / cast(PosT)16 : cast(PosT)0;
+            const inc = (dy < 0 || (dy == 0 && dx > 0)) ? cast(PosT)1 / cast(PosT)8 : cast(PosT)0;
             c = (dy * x1 - dx * y1) + inc * baryInvDenom / w;
         }
 
