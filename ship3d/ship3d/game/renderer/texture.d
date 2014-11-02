@@ -1,5 +1,7 @@
 ﻿module game.renderer.texture;
 
+import std.traits;
+
 import gamelib.math;
 import gamelib.util;
 import gamelib.graphics.surfaceview;
@@ -24,11 +26,37 @@ public:
         mData[] = ColorBlue;
     }
 
-    auto get(T)(in T u, in T v) const pure nothrow
+    deprecated auto get(T)(in T u, in T v) const pure nothrow
     {
         const tx = cast(int)(u * width)  & (width  - 1);
         const ty = cast(int)(v * height) & (height - 1);
         return getColor(mData[tx + ty * width]);
+    }
+
+    void getLine(int W, C, T)(in ref C context, T[] outLine) const pure nothrow
+    {
+        assert(outLine.length == W);
+        static assert(W > 0);
+        const w = width;
+        const h = height;
+        const wmask = w - 1;
+        const hmask = h - 1;
+        alias TextT = Unqual!(typeof(context.u));
+        TextT u = context.u;
+        TextT v = context.v;
+        const TextT dux = context.dux;
+        const TextT dvx = context.dvx;
+
+        auto dstPtr = outLine.ptr;
+        foreach(i;TupleRange!(0,W))
+        {
+            const x = cast(int)(u * w) & wmask;
+            const y = cast(int)(v * h) & hmask;
+            *dstPtr = getColor(mData[x + y * width]);
+            u += dux;
+            v += dvx;
+            ++dstPtr;
+        }
     }
 }
 

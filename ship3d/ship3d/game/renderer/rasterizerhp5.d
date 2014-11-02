@@ -422,8 +422,6 @@ public:
         int minX = cast(int)min(pverts[0].pos.x, pverts[1].pos.x, pverts[2].pos.x);
         int maxX = cast(int)max(pverts[0].pos.x, pverts[1].pos.x, pverts[2].pos.x) + 1;
 
-
-
         minX = max(mClipRect.x, minX);
         maxX = min(mClipRect.x + mClipRect.w, maxX);
         minY = max(mClipRect.y, minY);
@@ -460,13 +458,7 @@ public:
                 context.y = y;
                 context.u = uvs[0];
                 context.v = uvs[1];
-                foreach(x;x0..x1)
-                {
-                    context.x = x;
-                    line[x] = mTexture.get(context.u, context.v);
-                    context.u += context.dux;
-                    context.v += context.dvx;
-                }
+                mTexture.getLine!TileWidth(context, line[x0..x1]);
                 uvs[0] += context.duy;
                 uvs[1] += context.dvy;
                 ++line;
@@ -533,7 +525,14 @@ public:
                     pt.incX!"+"();
                 }
                 const len = xe - xs;
-                if(len > 0)
+                if(len == TileWidth)
+                {
+                    context.x = x0;
+                    context.u = uvs[0];
+                    context.v = uvs[1];
+                    mTexture.getLine!TileWidth(context, line[x0..x1]);
+                }
+                else if(len > 0)
                 {
                     context.u = uvs[0];
                     context.v = uvs[1];
@@ -543,7 +542,7 @@ public:
                     foreach(x;xs..xe)
                     {
                         context.x = x;
-                        line[x] = mTexture.get(context.u, context.v);
+                        mTexture.getLine!1(context, line[x..x+1]);
                         context.u += context.dux;
                         context.v += context.dvx;
                     }

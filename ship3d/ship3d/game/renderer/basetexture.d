@@ -28,8 +28,8 @@ public:
     }
 
 final:
-    @property auto   width()  const pure nothrow { return mWidth; }
-    @property auto   height() const pure nothrow { return mHeight; }
+    @property auto width()  const pure nothrow { return mWidth; }
+    @property auto height() const pure nothrow { return mHeight; }
 
     auto lock() pure nothrow
     {
@@ -47,7 +47,6 @@ final:
         assert(mLockCount > 0);
         if(0 == --mLockCount)
         {
-            //mData[0..$] = mLockBuffer[0..$];
             setData(mLockBuffer);
             mLockBuffer.length = 0;
         }
