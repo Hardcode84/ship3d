@@ -2,7 +2,59 @@
 
 import game.renderer.palette;
 
-class BaseTextureRGB(ColT)
+import gamelib.math;
+import gamelib.util;
+import gamelib.graphics.surfaceview;
+
+class BaseTexture(ColT)
+{
+private:
+    immutable int mWidth;
+    immutable int mHeight;
+    ColT[]        mLockBuffer;
+    int           mLockCount = 0;
+protected:
+    abstract void setData(in ColT[] data) pure nothrow;
+public:
+    this(int w, int h)
+    {
+        assert(w > 0);
+        assert(h > 0);
+        assert(ispow2(w));
+        assert(ispow2(h));
+        assert(w == h);
+        mWidth  = w;
+        mHeight = h;
+    }
+
+final:
+    @property auto   width()  const pure nothrow { return mWidth; }
+    @property auto   height() const pure nothrow { return mHeight; }
+
+    auto lock() pure nothrow
+    {
+        assert(mLockCount >= 0);
+        if(mLockCount == 0)
+        {
+            mLockBuffer.length = width * height;
+        }
+        ++mLockCount;
+        return SurfaceView!(ColT)(width,height,width * ColT.sizeof, mLockBuffer.ptr);
+    }
+
+    void unlock() pure nothrow
+    {
+        assert(mLockCount > 0);
+        if(0 == --mLockCount)
+        {
+            //mData[0..$] = mLockBuffer[0..$];
+            setData(mLockBuffer);
+            mLockBuffer.length = 0;
+        }
+    }
+}
+
+abstract class BaseTextureRGB(ColT) : BaseTexture!ColT
 {
 protected:
     alias ColorType = ColT;
@@ -11,9 +63,14 @@ protected:
     {
         return col;
     }
+public:
+    this(int w, int h)
+    {
+        super(w, h);
+    }
 }
 
-class BaseTexturePaletted(ColT)
+abstract class BaseTexturePaletted(ColT) : BaseTexture!ColT
 {
 private:
     alias PalT = const(Palette!ColT);
@@ -27,6 +84,11 @@ protected:
         return mPalette[col];
     }
 public:
+    this(int w, int h)
+    {
+        super(w, h);
+    }
+
     @property auto palette() const pure nothrow { return mPalette; }
     @property void palette(in PalT p) pure nothrow { mPalette = p; }
 }
