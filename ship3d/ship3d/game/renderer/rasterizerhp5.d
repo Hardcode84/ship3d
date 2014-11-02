@@ -589,29 +589,32 @@ public:
                 }
                 return false;
             }
-            const mintx = (minX / TileWidth)     * TileWidth;
-            const maxtx = ((maxX + TileHeight - 1) / TileWidth) * TileWidth;
-            const minty = (minY / TileHeight)     * TileHeight;
-            const maxty = ((maxY + TileHeight - 1) / TileHeight) * TileHeight;
 
-            auto pt00 = PointT(pack, mintx, minty);
-            auto pt10 = PointT(pack, maxtx, minty);
-            auto pt01 = PointT(pack, mintx, minty + TileHeight);
-            auto pt11 = PointT(pack, maxtx, minty + TileHeight);
-            for(int y = minty; y < maxty; y += TileHeight)
+            found: do
             {
+                const mintx = (minX / TileWidth)     * TileWidth;
+                const maxtx = ((maxX + TileHeight - 1) / TileWidth) * TileWidth;
+                const minty = (minY / TileHeight)     * TileHeight;
+                const maxty = ((maxY + TileHeight - 1) / TileHeight) * TileHeight;
 
-                if(test(pt00, pt10, pt01, pt11))
+                auto pt00 = PointT(pack, mintx, minty);
+                auto pt10 = PointT(pack, maxtx, minty);
+                auto pt01 = PointT(pack, mintx, minty + TileHeight);
+                auto pt11 = PointT(pack, maxtx, minty + TileHeight);
+                for(int y = minty; y < maxty; y += TileHeight)
                 {
-                    goto found;
+                    if(test(pt00, pt10, pt01, pt11))
+                    {
+                        break found;
+                    }
+                    pt00.incY(TileHeight);
+                    pt10.incY(TileHeight);
+                    pt01.incY(TileHeight);
+                    pt11.incY(TileHeight);
                 }
-                pt00.incY(TileHeight);
-                pt10.incY(TileHeight);
-                pt01.incY(TileHeight);
-                pt11.incY(TileHeight);
+                return;
             }
-            return;
-        found:
+            while(false);
         }
 
         const tx = ux / TileWidth;
