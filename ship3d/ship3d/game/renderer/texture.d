@@ -26,7 +26,7 @@ public:
         mData[] = ColorBlue;
     }
 
-    deprecated auto get(T)(in T u, in T v) const pure nothrow
+    /*deprecated*/ auto get(T)(in T u, in T v) const pure nothrow
     {
         const tx = cast(int)(u * width)  & (width  - 1);
         const ty = cast(int)(v * height) & (height - 1);
@@ -57,6 +57,27 @@ public:
             v += dvx;
             ++dstPtr;
         }
+    }
+}
+
+final class TextureTiled(Base) : Base
+{
+private:
+    alias DataT = Base.ColorArrayType;
+    DataT[]       mData;
+protected:
+    override void setData(in ColT[] data) pure nothrow
+    {
+        mData[] = data[];
+    }
+public:
+    alias ColT  = Base.ColorType;
+    this(int w, int h)
+    {
+        super(w, h);
+        mData.length = w * h;
+        import gamelib.types;
+        mData[] = ColorBlue;
     }
 }
 

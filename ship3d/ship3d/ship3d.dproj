@@ -42,7 +42,7 @@
         <Lib>gdi32.lib</Lib>
       </Libs>
     </Libs>
-    <ExtraCompilerArguments>-boundscheck=off</ExtraCompilerArguments>
+    <ExtraCompilerArguments>-boundscheck=off -g</ExtraCompilerArguments>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Unittest|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>

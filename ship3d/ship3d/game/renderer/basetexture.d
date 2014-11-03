@@ -62,6 +62,10 @@ protected:
     {
         return col;
     }
+    static auto avgColor(in ColT col00, in ColT col10, in ColT col01, in ColT col11) pure nothrow
+    {
+        return ColT.average(ColT.average(col00,col10),ColT.average(col01,col11));
+    }
 public:
     this(int w, int h)
     {
