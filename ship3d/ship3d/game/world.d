@@ -26,7 +26,8 @@ private:
     int mN = 0;
     alias TextureT = Texture!(BaseTextureRGB!ColorT);
     TextureT mTexture;
-    MemSurface!float mDepthBuff;
+    alias TiledTextureT = TextureTiled!(BaseTextureRGB!ColorT);
+    TiledTextureT mTiledTexture;
 public:
     alias SurfT  = FFSurface!ColorT;
     this(in Size sz)
@@ -34,8 +35,8 @@ public:
         mSize = sz;
         mProjMat = mat4.perspective(sz.w,sz.h,90,0.1,1000);
         //mTexture = new TextureT(256,256);
-        mTexture = loadTextureFromFile!TextureT("12022011060.bmp");
-        mDepthBuff = new MemSurface!float(800,600);
+        mTexture      = loadTextureFromFile!TextureT("12022011060.bmp");
+        mTiledTexture = loadTextureFromFile!TiledTextureT("12022011060.bmp");
         //fillChess(mTexture);
     }
 
