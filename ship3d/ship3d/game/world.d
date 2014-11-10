@@ -122,7 +122,7 @@ public:
             static int n = 0;
             if(0 != (mN % 2))
             {
-                Rasterizer!(SurfT,typeof(mTexture)) rast = surf;
+                RasterizerHP5!(SurfT,typeof(mTexture)) rast = surf;
                 rast.texture = mTexture;
                 foreach(i;0..1)
                 {
@@ -132,8 +132,8 @@ public:
             }
             else
             {
-                RasterizerHP5!(SurfT,typeof(mTexture)) rast = surf;
-                rast.texture = mTexture;
+                RasterizerHP5!(SurfT,typeof(mTiledTexture)) rast = surf;
+                rast.texture = mTiledTexture;
                 foreach(i;0..1)
                 {
                     rast.drawIndexedTriangle!(HasTexture,HasColor)(verts, [0,1,2]);
