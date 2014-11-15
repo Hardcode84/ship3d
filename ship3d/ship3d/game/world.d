@@ -123,6 +123,7 @@ public:
             static immutable int[3] ind1 = [0,1,2];
             static immutable int[3] ind2 = [0,2,3];
             const clipRect = Rect(0, 0, surf.width, surf.height);
+            RasterizerHP5 rast;
             if(0 != (mN % 2))
             {
                 struct Context1
@@ -132,11 +133,10 @@ public:
                     TextureT texture;
                 }
                 Context1 ctx = {surf, clipRect, mTexture};
-                //rast.texture = mTexture;
                 foreach(i;0..1)
                 {
-                    drawIndexedTriangle!(HasTexture,HasColor)(ctx, verts, ind1);
-                    drawIndexedTriangle!(HasTexture,HasColor)(ctx, verts, ind2);
+                    rast.drawIndexedTriangle!(HasTexture)(ctx, verts, ind1);
+                    rast.drawIndexedTriangle!(HasTexture)(ctx, verts, ind2);
                 }
             }
             else
@@ -148,11 +148,10 @@ public:
                     TiledTextureT texture;
                 }
                 Context2 ctx = {surf, clipRect, mTiledTexture};
-                //rast.texture = mTiledTexture;
                 foreach(i;0..1)
                 {
-                    drawIndexedTriangle!(HasTexture,HasColor)(ctx, verts, ind1);
-                    drawIndexedTriangle!(HasTexture,HasColor)(ctx, verts, ind2);
+                    rast.drawIndexedTriangle!(HasTexture)(ctx, verts, ind1);
+                    rast.drawIndexedTriangle!(HasTexture)(ctx, verts, ind2);
                 }
             }
         }

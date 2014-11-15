@@ -9,6 +9,7 @@ struct Polygon
     const(Polygon)* mConnection = null;
     int[6]          mIndices;
     vec4_t          mNormal;
+    texture_t       mtexture;
     /*this()
     {
         // Constructor code

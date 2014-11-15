@@ -9,6 +9,8 @@ import gamelib.util;
 import gamelib.fixedpoint;
 import gamelib.graphics.surfaceview;
 
+public import game.renderer.basetexture;
+
 final class Texture(Base) : Base
 {
 private:

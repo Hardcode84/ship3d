@@ -15,28 +15,32 @@ import game.units;
 
 @nogc:
 
-public void drawIndexedTriangle(bool HasTextures = false, bool HasColor = true,CtxT,VertT,IndT)(auto ref CtxT context,in VertT[] verts, in IndT[3] indices) pure nothrow if(isIntegral!IndT)
+struct RasterizerHP5
 {
-    const c = (verts[1].pos.xyz - verts[0].pos.xyz).cross(verts[2].pos.xyz - verts[0].pos.xyz);
-    if(c.z <= 0)
+    @nogc static public void drawIndexedTriangle(bool HasTextures = false,CtxT,VertT,IndT)(auto ref CtxT context,in VertT[] verts, in IndT[] indices) pure nothrow if(isIntegral!IndT)
     {
-        return;
+        assert(indices.length == 3);
+        const c = (verts[1].pos.xyz - verts[0].pos.xyz).cross(verts[2].pos.xyz - verts[0].pos.xyz);
+        if(c.z <= 0)
+        {
+            return;
+        }
+        const(VertT)*[3] pverts;
+        foreach(i,ind; indices) pverts[i] = verts.ptr + ind;
+        
+        const e1xdiff = pverts[0].pos.x - pverts[2].pos.x;
+        const e2xdiff = pverts[0].pos.x - pverts[1].pos.x;
+        
+        const e1ydiff = pverts[0].pos.y - pverts[2].pos.y;
+        const e2ydiff = pverts[0].pos.y - pverts[1].pos.y;
+        
+        const cxdiff = ((e1xdiff / e1ydiff) * e2ydiff) - e2xdiff;
+        const reverseSpans = (cxdiff < 0);
+        const affine = false;//(abs(cxdiff) > AffineLength * 25);
+        
+        if(affine) drawTriangle!(HasTextures, true)(context, pverts);
+        else       drawTriangle!(HasTextures, false)(context, pverts);
     }
-    const(VertT)*[3] pverts;
-    foreach(i,ind; indices) pverts[i] = verts.ptr + ind;
-    
-    const e1xdiff = pverts[0].pos.x - pverts[2].pos.x;
-    const e2xdiff = pverts[0].pos.x - pverts[1].pos.x;
-    
-    const e1ydiff = pverts[0].pos.y - pverts[2].pos.y;
-    const e2ydiff = pverts[0].pos.y - pverts[1].pos.y;
-    
-    const cxdiff = ((e1xdiff / e1ydiff) * e2ydiff) - e2xdiff;
-    const reverseSpans = (cxdiff < 0);
-    const affine = false;//(abs(cxdiff) > AffineLength * 25);
-    
-    if(affine) drawTriangle!(HasTextures, HasColor,true)(context, pverts);
-    else       drawTriangle!(HasTextures, HasColor,false)(context, pverts);
 }
 
 private:
@@ -349,20 +353,23 @@ struct Spans(int Height,PosT,TextT)
 
 struct Context(TextT)
 {
+    enum HasTextures = !is(TextT : void);
     int x = void;
     int y = void;
-    TextT u = void;
-    TextT v = void;
-    TextT dux = void;
-    TextT dvx = void;
-    TextT duy = void;
-    TextT dvy = void;
+    static if(HasTextures)
+    {
+        TextT u = void;
+        TextT v = void;
+        TextT dux = void;
+        TextT dvx = void;
+        TextT duy = void;
+        TextT dvy = void;
+    }
 }
 
-void drawTriangle(bool HasTextures, bool HasColor,bool Affine,CtxT,VertT)(auto ref CtxT extContext, in VertT[3] pverts) pure nothrow
+void drawTriangle(bool HasTextures,bool Affine,CtxT,VertT)(auto ref CtxT extContext, in VertT[3] pverts) pure nothrow
 {
     static assert(HasTextures);
-    static assert(HasTextures != HasColor);
     //alias PosT = FixedPoint!(16,16,int);
     alias PosT = Unqual!(typeof(VertT.pos.x));
 

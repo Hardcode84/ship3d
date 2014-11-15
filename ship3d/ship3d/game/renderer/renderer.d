@@ -1,16 +1,16 @@
 ﻿module game.renderer.renderer;
 
-import game.units;
+import std.traits;
+
+//import game.units;
 import game.renderer.rasterizerhp5;
 
-class Renderer(BitmapT,TextureT)
+class Renderer(State)
 {
 private:
-    alias RastT = RasterizerHP5!(BitmapT,TextureT);
-    RastT         mRasterizer;
-    mat4_t[]      mMatrixStack = [mat4_t];
-    int           mCurrentMatrix = 0;
-    Size          mViewport;
+    State[]         mStateStack = [State()];
+    int             mCurrentState = 0;
+    Size            mViewport;
 
     enum                VertexCacheSize = 512; //in bytes
     void[]              mCachedVertices;
@@ -18,56 +18,84 @@ private:
     enum                BitArraySize = VertexCacheSize / uint.sizeof;
     uint[BitArraySize]  mCacheBitArray;
 
-    void resetVertexCache() pure nothrow
+    bool isCached(T1, T2)(in ref T1 vert, in T2 ind) const pure nothrow
     {
-        mCacheBitArray = 0;
+        assert(ind < (VertexCacheSize / T1.sizeof));
+        return mCacheBitArray[ind / 32] & (1u << (ind % 32));
     }
-
-public:
-    this(auto ref BitmapT surf) pure nothrow
-    {
-        // Constructor code
-        mRasterizer = surf;
-    }
-
-    void setMatrix(in ref mat4_t m) pure nothrow
-    {
-        assert(mCurrentMatrix >= 0);
-        assert(mCurrentMatrix < mMatrixStack.lenght);
-        mMatrixStack[mCurrentMatrix] = m;
-    }
-
-    void pushMatrix(in ref mat4_t m) pure nothrow
-    {
-        if(mCurrentMatrix >= (mMatrixStack.length))
-        {
-            mMatrixStack.length = max(mMatrixStack.length * 2, 1);
-        }
-        ++mCurrentMatrix;
-        mMatrixStack[mCurrentMatrix] = m;
-        resetVertexCache();
-    }
-
-    void popMatrix() pure nothrow
-    {
-        assert(mCurrentMatrix > 0);
-        --mCurrentMatrix;
-        resetVertexCache();
-    }
-
-    auto ref getMatrix() const pure nothrow
-    {
-        return mMatrixStack[mCurrentMatrix];
-    }
-
     auto transformVertex(T)(in ref T src) const pure nothrow
     {
-        const pos = getMatrix() * src.pos;
+        const pos = getState().matrix * src.pos;
         const w = pos.w;
         T ret = src;
         ret.pos.x = (pos.x / w) * mViewport.w + mViewport.w / 2;
         ret.pos.y = (pos.y / w) * mViewport.h + mViewport.h / 2;
         return ret;
+    }
+
+public:
+    /*this(auto ref BitmapT surf) pure nothrow
+    {
+        // Constructor code
+        mBitmap = surf;
+    }*/
+
+    /*void setMatrix(in ref mat4_t m) pure nothrow
+    {
+        assert(mCurrentMatrix >= 0);
+        assert(mCurrentMatrix < mMatrixStack.length);
+        mMatrixStack[mCurrentMatrix] = m;
+    }*/
+
+    void pushState() pure nothrow
+    {
+        if(mCurrentState >= (mStateStack.length))
+        {
+            mStateStack.length = max(mStateStack.length * 2, 1);
+        }
+
+        ++mCurrentState;
+        mStateStackp[mCurrentState] = mStateStackp[mCurrentState - 1];
+    }
+
+    void popMatrix() pure nothrow
+    {
+        assert(mCurrentState > 0);
+        --mCurrentState;
+    }
+
+    inout auto ref getState() inout pure nothrow
+    {
+        assert(mCurrentState >= 0);
+        assert(mCurrentState < mStateStack.length);
+        return mStateStackp[mCurrentState];
+    }
+
+    void resetVertexCache() pure nothrow
+    {
+        mCacheBitArray = 0;
+    }
+
+    void drawIndexedTriangle(RasterizerT,CtxT,VertexT,IndexT)(auto ref CtxT context,in VertexT[] verts, in IndexT[] indices)
+    {
+        static assert(isIntegral!IndexT);
+        assert(indices.length % 3 == 0);
+        assert(verts.length < (VertexCacheSize / VertexT.sizeof));
+        auto transformedVerts = cast(VertexT[])(mCachedVertices[]);
+        RasterizerT rast;
+        foreach(i;0..indices.length / 3)
+        {
+            const i0 = i * 3;
+            const i1 = i1 + 3;
+            foreach(j;i0..i1)
+            {
+                if(!isCached(verts[j], j))
+                {
+                    transformedVerts[j] = transformVertex(verts[j]);
+                }
+            }
+            rast.drawIndexedTriangle!(true,false)(mBitmap, context, transformedVerts, indices[i0..i1]);
+        }
     }
 }
 
