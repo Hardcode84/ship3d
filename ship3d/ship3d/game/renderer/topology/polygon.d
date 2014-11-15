@@ -7,7 +7,6 @@ struct Polygon
 {
     Room*           mRoom;
     const(Polygon)* mConnection = null;
-    const(Vertex)[] mVertices;
     int[6]          mIndices;
     vec4_t          mNormal;
     /*this()

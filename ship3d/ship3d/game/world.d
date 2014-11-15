@@ -117,29 +117,42 @@ public:
                 verts[i].pos = verts[i].pos / w;
                 verts[i].pos.w = w;
                 verts[i].pos.x = verts[i].pos.x * mSize.w + mSize.w / 2;
-                verts[i].pos.y = verts[i].pos.y * mSize.h + mSize.h / 2;
+                verts[i].pos.y = verts[i].pos.y * mSize.h+ mSize.h / 2;
             }
             static int n = 0;
             static immutable int[3] ind1 = [0,1,2];
             static immutable int[3] ind2 = [0,2,3];
+            const clipRect = Rect(0, 0, surf.width, surf.height);
             if(0 != (mN % 2))
             {
-                RasterizerHP5!(SurfT,typeof(mTexture)) rast = surf;
-                rast.texture = mTexture;
+                struct Context1
+                {
+                    SurfT surface;
+                    Rect clipRect;
+                    TextureT texture;
+                }
+                Context1 ctx = {surf, clipRect, mTexture};
+                //rast.texture = mTexture;
                 foreach(i;0..1)
                 {
-                    rast.drawIndexedTriangle!(HasTexture,HasColor)(verts, ind1);
-                    rast.drawIndexedTriangle!(HasTexture,HasColor)(verts, ind2);
+                    drawIndexedTriangle!(HasTexture,HasColor)(ctx, verts, ind1);
+                    drawIndexedTriangle!(HasTexture,HasColor)(ctx, verts, ind2);
                 }
             }
             else
             {
-                RasterizerHP5!(SurfT,typeof(mTiledTexture)) rast = surf;
-                rast.texture = mTiledTexture;
+                struct Context2
+                {
+                    SurfT surface;
+                    Rect clipRect;
+                    TiledTextureT texture;
+                }
+                Context2 ctx = {surf, clipRect, mTiledTexture};
+                //rast.texture = mTiledTexture;
                 foreach(i;0..1)
                 {
-                    rast.drawIndexedTriangle!(HasTexture,HasColor)(verts, ind1);
-                    rast.drawIndexedTriangle!(HasTexture,HasColor)(verts, ind2);
+                    drawIndexedTriangle!(HasTexture,HasColor)(ctx, verts, ind1);
+                    drawIndexedTriangle!(HasTexture,HasColor)(ctx, verts, ind2);
                 }
             }
         }
