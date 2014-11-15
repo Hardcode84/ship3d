@@ -120,14 +120,16 @@ public:
                 verts[i].pos.y = verts[i].pos.y * mSize.h + mSize.h / 2;
             }
             static int n = 0;
+            static immutable int[3] ind1 = [0,1,2];
+            static immutable int[3] ind2 = [0,2,3];
             if(0 != (mN % 2))
             {
                 RasterizerHP5!(SurfT,typeof(mTexture)) rast = surf;
                 rast.texture = mTexture;
                 foreach(i;0..1)
                 {
-                    rast.drawIndexedTriangle!(HasTexture,HasColor)(verts, [0,1,2]);
-                    rast.drawIndexedTriangle!(HasTexture,HasColor)(verts, [0,2,3]);
+                    rast.drawIndexedTriangle!(HasTexture,HasColor)(verts, ind1);
+                    rast.drawIndexedTriangle!(HasTexture,HasColor)(verts, ind2);
                 }
             }
             else
@@ -136,8 +138,8 @@ public:
                 rast.texture = mTiledTexture;
                 foreach(i;0..1)
                 {
-                    rast.drawIndexedTriangle!(HasTexture,HasColor)(verts, [0,1,2]);
-                    rast.drawIndexedTriangle!(HasTexture,HasColor)(verts, [0,2,3]);
+                    rast.drawIndexedTriangle!(HasTexture,HasColor)(verts, ind1);
+                    rast.drawIndexedTriangle!(HasTexture,HasColor)(verts, ind2);
                 }
             }
         }

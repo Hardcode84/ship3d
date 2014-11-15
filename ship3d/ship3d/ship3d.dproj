@@ -174,11 +174,15 @@
     <Compile Include="game\renderer\rasterizerhp5.d" />
     <Compile Include="game\renderer\palette.d" />
     <Compile Include="game\renderer\basetexture.d" />
+    <Compile Include="game\renderer\topology\room.d" />
+    <Compile Include="game\renderer\topology\polygon.d" />
+    <Compile Include="game\renderer\renderer.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />
     <Folder Include="game\renderer\" />
     <Folder Include="gamelib\" />
+    <Folder Include="game\renderer\topology\" />
   </ItemGroup>
   <ItemGroup>
     <None Include="gamelib\3rdparty\build.bat" />

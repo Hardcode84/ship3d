@@ -66,6 +66,89 @@ public:
 final class TextureTiled(Base) : Base
 {
 private:
+    enum TileSize = 4;
+    alias DataT = Base.ColorArrayType;
+    alias ArrT  = DataT[];
+    ArrT          mData;
+protected:
+    override void setData(in ColT[] data) pure nothrow
+    {
+        //debugOut("setData");
+        //scope(exit) debugOut("setData done");
+        const mtx = width  / TileSize;
+        const mty = height / TileSize;
+        enum TileDataSize = TileSize * TileSize;
+        const pitch = TileDataSize * (width / TileSize);
+        foreach(ty;0..mty)
+        {
+            foreach(tx;0..mtx)
+            {
+                const offset = TileDataSize * tx + pitch * ty;
+                auto tileData = mData[offset..offset + TileDataSize];
+                foreach(y;0..TileSize)
+                {
+                    const srcy = (ty * TileSize + y);
+                    foreach(x;0..TileSize)
+                    {
+                        const srcx = (tx * TileSize + x);
+                        //debugOut(x);
+                        //debugOut(y);
+                        tileData[x + y * TileSize] = data[srcx + width * srcy];
+                    }
+                }
+            }
+        }
+    }
+public:
+    alias ColT  = Base.ColorType;
+    this(int w, int h) pure nothrow
+    {
+        assert(w >= TileSize);
+        assert(h >= TileSize);
+        super(w, h);
+        mData.length = w * h;
+        import gamelib.types;
+        mData[] = ColorBlue;
+    }
+
+    void getLine(int W, C, T)(in ref C context, T[] outLine) const pure nothrow
+    {
+        assert(outLine.length == W);
+        static assert(W > 0);
+        const w = width;
+        const h = height;
+        const wmask = w - 1;
+        const hmask = h - 1;
+        alias TextT = Unqual!(typeof(context.u));
+        TextT u = context.u;
+        TextT v = context.v;
+        const TextT dux = context.dux;
+        const TextT dvx = context.dvx;
+
+        enum TileDataSize = TileSize * TileSize;
+        const tilePitch = TileDataSize * (width / TileSize);
+        auto dstPtr = outLine.ptr;
+        foreach(i;TupleRange!(0,W))
+        {
+            const x = cast(int)(u * w) & wmask;
+            const y = cast(int)(v * h) & hmask;
+            const tx = x / TileSize;
+            const ty = y / TileSize;
+            const offset = TileDataSize * tx + tilePitch * ty;
+            const tile = mData[offset..offset + TileDataSize];
+            const x1 = x - tx * TileSize;
+            const y1 = y - ty * TileSize;
+            *dstPtr = getColor(tile[x1 + y1 * TileSize]);
+            u += dux;
+            v += dvx;
+            ++dstPtr;
+        }
+    }
+}
+
+final class TextureTiled2(Base) : Base
+{
+private:
     enum TileSize = 16;
     alias DataT = Base.ColorArrayType;
     alias ArrT  = DataT[];
@@ -83,42 +166,26 @@ private:
     auto getLevel(T)(in T du, in T dv) const pure nothrow
     {
         enum T MaxLine = TileSize / 2;
-        const md = max(du, dv) * MaxLine;
+        const md = abs(max(du, dv) * MaxLine);
         const levSize = MaxLine / md;
         return max(mNumLevels - log2(cast(int)levSize) - 1, 0);
     }
-    /*auto getTile(T)(in T u, in T v, in T du, in T dv, int lev) const pure nothrow
-    {
-        const minU = min(u, u + du);
-        const minV = min(v, v + dv);
-        const w = max(width  >> lev, 1);
-        const h = max(height >> lev, 1);
-        const wmask = w - 1;
-        const hmask = h - 1;
-        const x = cast(int)(w * minU) & wmask;
-        const y = cast(int)(h * minV) & hmask;
-        const tx = x / (TileSize / 2);
-        const ty = y / (TileSize / 2);
-        enum TileDataSize = TileSize * TileSize;
-        const pitch = TileDataSize * (w / (TileSize / 2));
-        const offset = tx * TileDataSize + ty * pitch; 
-        return mLevels[lev][offset..offset + TileDataSize];
-    }*/
 protected:
     override void setData(in ColT[] data) pure nothrow
     {
         void fillLevel(DataT[] level, in DataT[] source, int w, int h)
         {
+            enum HalfTile = TileSize / 2;
             assert(w > 0);
             assert(h > 0);
             assert(ispow2(w));
             assert(ispow2(h));
             const wmask = w - 1;
             const hmask = h - 1;
-            const mtx = max(w, TileSize) / (TileSize / 2);
-            const mty = max(h, TileSize) / (TileSize / 2);
+            const mtx = max(w, TileSize) / HalfTile;
+            const mty = max(h, TileSize) / HalfTile;
             enum TileDataSize = TileSize * TileSize;
-            const pitch = TileDataSize * (w / (TileSize / 2));
+            const pitch = TileDataSize * (w / HalfTile);
             foreach(ty;0..mty)
             {
                 foreach(tx;0..mtx)
@@ -127,13 +194,21 @@ protected:
                     auto tileData = level[offset..offset + TileDataSize];
                     foreach(y;0..TileSize)
                     {
-                        const srcy = (ty * TileSize + y) & hmask;
+                        const srcy = (ty * HalfTile + y) & hmask;
                         foreach(x;0..TileSize)
                         {
-                            const srcx = (tx * TileSize + x) & wmask;
+                            const srcx = (tx * HalfTile + x) & wmask;
                             tileData[x + y * TileSize] = source[srcx + w * srcy];
                         }
                     }
+                    /*if(tx % 2 == ty % 2)
+                    {
+                        tileData[] = ColorGreen;
+                    }
+                    else
+                    {
+                        tileData[] = ColorBlue;
+                    }*/
                 }
             }
         }
@@ -188,25 +263,25 @@ public:
             mLevels[i] = mData[levelOffset..levelOffset + size];
             levelOffset += size;
         }
-
+        //debugOut(mNumLevels);
         import gamelib.types;
         mData[] = ColorBlue;
     }
 
     void getLine(int W, C, T)(in ref C context, T[] outLine) const pure nothrow
     {
-        debugOut("-------");
+        //debugOut("-------");
         enum HalfTile = TileSize / 2;
         assert(outLine.length == W);
         static assert(W > 0);
         static assert(W <= HalfTile);
         const lev = getLevel(context.dux, context.dvx);
-        debugOut(lev);
-        debugOut("u v dux dvx");
+        //debugOut(lev);
+        /*debugOut("u v dux dvx");
         debugOut(context.u);
         debugOut(context.v);
         debugOut(context.dux);
-        debugOut(context.dvx);
+        debugOut(context.dvx);*/
         //const tile  = getTile(context.u, context.v, context.dux, context.dvx, level);
 
         const minU = min(context.u, context.u + context.dux);
@@ -217,46 +292,61 @@ public:
         const hmask = h - 1;
         const minx = cast(int)(w * minU) & wmask;
         const miny = cast(int)(h * minV) & hmask;
-        debugOut("minx miny");
+        /*debugOut("minx miny");
         debugOut(minx);
-        debugOut(miny);
-        const tx = minx / (TileSize / 2);
-        const ty = miny / (TileSize / 2);
-        debugOut("tx ty");
+        debugOut(miny);*/
+        const tx = minx / HalfTile;
+        const ty = miny / HalfTile;
+        /*debugOut("tx ty");
         debugOut(tx);
-        debugOut(ty);
+        debugOut(ty);*/
         enum TileDataSize = TileSize * TileSize;
-        const pitch = TileDataSize * (w / (TileSize / 2));
+        const pitch = TileDataSize * max(w / HalfTile, 1);
         const offset = tx * TileDataSize + ty * pitch; 
         const tile = mLevels[lev][offset..offset + TileDataSize];
 
         alias FixedT = FixedPoint!(16,16,int);
-        const fwmask = (w << 16) - 1;
-        const fhmask = (h << 16) - 1;
-        auto x = (cast(FixedT)(w * context.u) & fwmask) - tx * (TileSize / 2);
-        auto y = (cast(FixedT)(h * context.v) & fhmask) - ty * (TileSize / 2);
+        //const fwmask = cast(FixedT)wmask;
+        //const fhmask = cast(FixedT)hmask;
+        //debugOut(cast(void*)(fwmask.value));
+        //debugOut(fwmask);
+        //auto x = cast(FixedT)(cast(int)(w * context.u) & wmask) - tx * HalfTile;
+        //auto y = cast(FixedT)(cast(int)(h * context.v) & hmask) - ty * HalfTile;
+        /*debugOut(x);
+        debugOut(y);
+
+        debugOut((cast(int)(w * context.u)));
+        debugOut((cast(int)(h * context.v)));
+
         debugOut((cast(FixedT)(w * context.u) & fwmask));
-        debugOut((cast(FixedT)(h * context.v) & fhmask));
-        assert(x >= 0, debugConv(cast(float)x));
+        debugOut((cast(FixedT)(h * context.v) & fhmask));*/
+        /*assert(x >= 0, debugConv(cast(float)x));
         assert(y >= 0, debugConv(cast(float)y));
-        assert(x < TileSize);
-        assert(y < TileSize);
+        assert(x < TileSize, debugConv(cast(float)x));
+        assert(y < TileSize, debugConv(cast(float)y));*/
         const dx = cast(FixedT)(w * context.dux);
         const dy = cast(FixedT)(h * context.dvx);
         enum tilewf = cast(FixedT)TileSize;
         auto dstPtr = outLine.ptr;
-        debugOut("-");
+        //debugOut("-");
         foreach(i;TupleRange!(0,W))
         {
-            debugOut(x);
+            auto x = cast(FixedT)(cast(int)(w * (context.u + context.dux * i)) & wmask) - tx * HalfTile;
+            auto y = cast(FixedT)(cast(int)(h * (context.v + context.dvx * i)) & hmask) - ty * HalfTile;
+            /*debugOut(x);
             debugOut(y);
             debugOut(cast(int)x);
-            debugOut(cast(int)y);
+            debugOut(cast(int)y);*/
             const tileoffset = cast(int)(x + y * tilewf);
-            debugOut(tileoffset);
-            if(tileoffset > 0)
+            //debugOut(tileoffset);
+            //assert(tileoffset >= 0, debugConv(tileoffset));
+            if(tileoffset >= 0)
             {
                 *dstPtr = getColor(tile[tileoffset]);
+            }
+            else
+            {
+                *dstPtr = ColorRed;
             }
             x += dx;
             y += dy;

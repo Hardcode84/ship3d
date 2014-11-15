@@ -358,7 +358,7 @@ public:
     @property auto texture()       inout pure nothrow { return mTexture; }
     @property void texture(TextureT tex) pure nothrow { mTexture = tex; }
 
-    @property void clipRect(in Rect rc) pure nothrow
+    void clip(in ref Rect rc) pure nothrow
     {
         const srcLeft   = rc.x;
         const srcTop    = rc.y;
@@ -369,6 +369,15 @@ public:
         const dstRight  = min(srcRight,  mBitmap.width);
         const dstBottom = min(srcBottom, mBitmap.height);
         mClipRect = Rect(dstLeft, dstTop, dstRight - dstLeft, dstBottom - dstTop);
+    }
+
+    @property void clipRect(in ref Rect rc) pure nothrow
+    {
+        mClipRect = rc;
+    }
+    @property auto clipRect() const pure nothrow
+    {
+        return mClipRect;
     }
 
     void drawIndexedTriangle(bool HasTextures = false, bool HasColor = true,VertT,IndT)(in VertT[] verts, in IndT[3] indices) pure nothrow if(isIntegral!IndT)

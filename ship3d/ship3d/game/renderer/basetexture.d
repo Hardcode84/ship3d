@@ -95,4 +95,3 @@ public:
     @property auto palette() const pure nothrow { return mPalette; }
     @property void palette(in PalT p) pure nothrow { mPalette = p; }
 }
-
