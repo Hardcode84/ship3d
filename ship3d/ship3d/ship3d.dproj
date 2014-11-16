@@ -178,6 +178,7 @@
     <Compile Include="game\renderer\topology\polygon.d" />
     <Compile Include="game\renderer\renderer.d" />
     <Compile Include="game\renderer\rasterizer2.d" />
+    <Compile Include="gamelib\interpolate.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />
