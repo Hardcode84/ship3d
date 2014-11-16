@@ -6,6 +6,7 @@ import gamelib.graphics.memsurface;
 
 import game.units;
 import game.renderer.rasterizer;
+import game.renderer.rasterizer2;
 import game.renderer.rasterizerhp;
 import game.renderer.rasterizerhp2;
 import game.renderer.rasterizerhp3;
@@ -26,8 +27,8 @@ private:
     int mN = 0;
     alias TextureT = Texture!(BaseTextureRGB!ColorT);
     TextureT mTexture;
-    alias TiledTextureT = TextureTiled!(BaseTextureRGB!ColorT);
-    TiledTextureT mTiledTexture;
+    //alias TiledTextureT = TextureTiled!(BaseTextureRGB!ColorT);
+    //TiledTextureT mTiledTexture;
 public:
     alias SurfT  = FFSurface!ColorT;
     this(in Size sz)
@@ -36,7 +37,7 @@ public:
         mProjMat = mat4.perspective(sz.w,sz.h,90,0.1,1000);
         //mTexture = new TextureT(256,256);
         mTexture      = loadTextureFromFile!TextureT("12022011060.bmp");
-        mTiledTexture = loadTextureFromFile!TiledTextureT("12022011060.bmp");
+        //mTiledTexture = loadTextureFromFile!TiledTextureT("12022011060.bmp");
         //fillChess(mTexture);
     }
 
@@ -123,35 +124,38 @@ public:
             static immutable int[3] ind1 = [0,1,2];
             static immutable int[3] ind2 = [0,2,3];
             const clipRect = Rect(0, 0, surf.width, surf.height);
-            RasterizerHP5 rast;
+            RasterizerHP5 rast1;
+            Rasterizer2 rast2;
+            struct OutContext
+            {
+                SurfT surface;
+                Rect clipRect;
+            }
+            OutContext octx = {surf, clipRect};
             if(0 != (mN % 2))
             {
                 struct Context1
                 {
-                    SurfT surface;
-                    Rect clipRect;
                     TextureT texture;
                 }
-                Context1 ctx = {surf, clipRect, mTexture};
+                Context1 ctx = {mTexture};
                 foreach(i;0..1)
                 {
-                    rast.drawIndexedTriangle!(HasTexture)(ctx, verts, ind1);
-                    rast.drawIndexedTriangle!(HasTexture)(ctx, verts, ind2);
+                    rast2.drawIndexedTriangle!(HasTexture)(octx,ctx, verts, ind1);
+                    rast2.drawIndexedTriangle!(HasTexture)(octx,ctx, verts, ind2);
                 }
             }
             else
             {
                 struct Context2
                 {
-                    SurfT surface;
-                    Rect clipRect;
-                    TiledTextureT texture;
+                    TextureT texture;
                 }
-                Context2 ctx = {surf, clipRect, mTiledTexture};
+                Context2 ctx = {mTexture};
                 foreach(i;0..1)
                 {
-                    rast.drawIndexedTriangle!(HasTexture)(ctx, verts, ind1);
-                    rast.drawIndexedTriangle!(HasTexture)(ctx, verts, ind2);
+                    rast1.drawIndexedTriangle!(HasTexture)(octx,ctx, verts, ind1);
+                    rast1.drawIndexedTriangle!(HasTexture)(octx,ctx, verts, ind2);
                 }
             }
         }

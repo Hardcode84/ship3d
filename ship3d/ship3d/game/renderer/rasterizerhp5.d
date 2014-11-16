@@ -17,7 +17,8 @@ import game.units;
 
 struct RasterizerHP5
 {
-    @nogc static public void drawIndexedTriangle(bool HasTextures = false,CtxT,VertT,IndT)(auto ref CtxT context,in VertT[] verts, in IndT[] indices) pure nothrow if(isIntegral!IndT)
+    void drawIndexedTriangle(bool HasTextures,CtxT1,CtxT2,VertT,IndT)
+        (auto ref CtxT1 outputContext, auto ref CtxT2 extContext, in VertT[] verts, in IndT[] indices) if(isIntegral!IndT)
     {
         assert(indices.length == 3);
         const c = (verts[1].pos.xyz - verts[0].pos.xyz).cross(verts[2].pos.xyz - verts[0].pos.xyz);
@@ -38,8 +39,8 @@ struct RasterizerHP5
         const reverseSpans = (cxdiff < 0);
         const affine = false;//(abs(cxdiff) > AffineLength * 25);
         
-        if(affine) drawTriangle!(HasTextures, true)(context, pverts);
-        else       drawTriangle!(HasTextures, false)(context, pverts);
+        if(affine) drawTriangle!(HasTextures, true)(outputContext,extContext, pverts);
+        else       drawTriangle!(HasTextures, false)(outputContext,extContext, pverts);
     }
 }
 
@@ -367,7 +368,8 @@ struct Context(TextT)
     }
 }
 
-void drawTriangle(bool HasTextures,bool Affine,CtxT,VertT)(auto ref CtxT extContext, in VertT[3] pverts) pure nothrow
+void drawTriangle(bool HasTextures,bool Affine,CtxT1,CtxT2,VertT)
+(auto ref CtxT1 outContext, auto ref CtxT2 extContext, in VertT[] pverts)
 {
     static assert(HasTextures);
     //alias PosT = FixedPoint!(16,16,int);
@@ -394,14 +396,15 @@ void drawTriangle(bool HasTextures,bool Affine,CtxT,VertT)(auto ref CtxT extCont
     int minX = cast(int)min(pverts[0].pos.x, pverts[1].pos.x, pverts[2].pos.x);
     int maxX = cast(int)max(pverts[0].pos.x, pverts[1].pos.x, pverts[2].pos.x) + 1;
 
-    minX = max(extContext.clipRect.x, minX);
-    maxX = min(extContext.clipRect.x + extContext.clipRect.w, maxX);
-    minY = max(extContext.clipRect.y, minY);
-    maxY = min(extContext.clipRect.y + extContext.clipRect.h, maxY);
+    const clipRect = outContext.clipRect;
+    minX = max(clipRect.x, minX);
+    maxX = min(clipRect.x + clipRect.w, maxX);
+    minY = max(clipRect.y, minY);
+    maxY = min(clipRect.y + clipRect.h, maxY);
 
     const upperVertInd = (pverts[0].pos.y < pverts[1].pos.y ?
-                      (pverts[0].pos.y < pverts[2].pos.y ? 0 : 2) :
-                      (pverts[1].pos.y < pverts[2].pos.y ? 1 : 2));
+                         (pverts[0].pos.y < pverts[2].pos.y ? 0 : 2) :
+                         (pverts[1].pos.y < pverts[2].pos.y ? 1 : 2));
     const upperVert = pverts[upperVertInd];
 
     immutable pack = PackT(pverts[0], pverts[1], pverts[2]);
@@ -424,7 +427,7 @@ void drawTriangle(bool HasTextures,bool Affine,CtxT,VertT)(auto ref CtxT extCont
         context.dvx = (spans.uv10[1] - spans.uv00[1]) / wdt;
         context.duy = (spans.uv01[0] - spans.uv00[0]) / hgt;
         context.dvy = (spans.uv01[1] - spans.uv00[1]) / hgt;
-        auto line = extContext.surface[y0];
+        auto line = outContext.surface[y0];
         foreach(y;y0..y1)
         {
             context.y = y;
@@ -471,7 +474,7 @@ void drawTriangle(bool HasTextures,bool Affine,CtxT,VertT)(auto ref CtxT extCont
         const TextT dy = ys - y0;
         uvs[0] += context.duy * dy;
         uvs[1] += context.dvy * dy;
-        auto line = extContext.surface[ys];
+        auto line = outContext.surface[ys];
         foreach(y;ys..y1)
         {
             context.y = y;

@@ -20,6 +20,7 @@ private:
 
     bool isCached(T1, T2)(in ref T1 vert, in T2 ind) const pure nothrow
     {
+        static assert(isIntegral!T2);
         assert(ind < (VertexCacheSize / T1.sizeof));
         return mCacheBitArray[ind / 32] & (1u << (ind % 32));
     }
@@ -58,7 +59,7 @@ public:
         mStateStackp[mCurrentState] = mStateStackp[mCurrentState - 1];
     }
 
-    void popMatrix() pure nothrow
+    void popState() pure nothrow
     {
         assert(mCurrentState > 0);
         --mCurrentState;
@@ -73,10 +74,10 @@ public:
 
     void resetVertexCache() pure nothrow
     {
-        mCacheBitArray = 0;
+        mCacheBitArray[] = 0;
     }
 
-    void drawIndexedTriangle(RasterizerT,CtxT,VertexT,IndexT)(auto ref CtxT context,in VertexT[] verts, in IndexT[] indices)
+    void drawIndexedTriangle(RasterizerT,CtxT,VertexT,IndexT)(in auto ref CtxT context, in VertexT[] verts, in IndexT[] indices)
     {
         static assert(isIntegral!IndexT);
         assert(indices.length % 3 == 0);
@@ -94,7 +95,7 @@ public:
                     transformedVerts[j] = transformVertex(verts[j]);
                 }
             }
-            rast.drawIndexedTriangle!(true,false)(mBitmap, context, transformedVerts, indices[i0..i1]);
+            rast.drawIndexedTriangle!(true)(getState(), context, transformedVerts, indices[i0..i1]);
         }
     }
 }

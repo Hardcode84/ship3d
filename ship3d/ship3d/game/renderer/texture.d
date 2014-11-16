@@ -31,13 +31,6 @@ public:
         mData[] = ColorBlue;
     }
 
-    /*deprecated*/ auto get(T)(in T u, in T v) const pure nothrow
-    {
-        const tx = cast(int)(u * width)  & (width  - 1);
-        const ty = cast(int)(v * height) & (height - 1);
-        return getColor(mData[tx + ty * width]);
-    }
-
     void getLine(int W, C, T)(in ref C context, T[] outLine) const pure nothrow
     {
         assert(outLine.length == W);
