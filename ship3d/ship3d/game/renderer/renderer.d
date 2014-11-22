@@ -1,11 +1,14 @@
 ﻿module game.renderer.renderer;
 
 import std.traits;
+import std.algorithm;
+
+import gamelib.types;
 
 //import game.units;
 import game.renderer.rasterizerhp5;
 
-class Renderer(State)
+struct Renderer(State)
 {
 private:
     State[]         mStateStack = [State()];
@@ -22,7 +25,7 @@ private:
     {
         static assert(isIntegral!T2);
         assert(ind < (VertexCacheSize / T1.sizeof));
-        return mCacheBitArray[ind / 32] & (1u << (ind % 32));
+        return 0x0 != (mCacheBitArray[ind / 32] & (1u << (ind % 32)));
     }
     auto transformVertex(T)(in ref T src) const pure nothrow
     {
@@ -41,12 +44,8 @@ public:
         mBitmap = surf;
     }*/
 
-    /*void setMatrix(in ref mat4_t m) pure nothrow
-    {
-        assert(mCurrentMatrix >= 0);
-        assert(mCurrentMatrix < mMatrixStack.length);
-        mMatrixStack[mCurrentMatrix] = m;
-    }*/
+    @property viewport() const pure nothrow { return mViewport; }
+    @property viewport(in Size rc) pure nothrow { mViewport = rc; }
 
     void pushState() pure nothrow
     {
@@ -56,7 +55,7 @@ public:
         }
 
         ++mCurrentState;
-        mStateStackp[mCurrentState] = mStateStackp[mCurrentState - 1];
+        mStateStack[mCurrentState] = mStateStack[mCurrentState - 1];
     }
 
     void popState() pure nothrow
@@ -69,7 +68,7 @@ public:
     {
         assert(mCurrentState >= 0);
         assert(mCurrentState < mStateStack.length);
-        return mStateStackp[mCurrentState];
+        return mStateStack[mCurrentState];
     }
 
     void resetVertexCache() pure nothrow
@@ -87,7 +86,7 @@ public:
         foreach(i;0..indices.length / 3)
         {
             const i0 = i * 3;
-            const i1 = i1 + 3;
+            const i1 = i0 + 3;
             foreach(j;i0..i1)
             {
                 if(!isCached(verts[j], j))

@@ -5,6 +5,7 @@ import gamelib.graphics.graph;
 import gamelib.graphics.memsurface;
 
 import game.units;
+import game.renderer.renderer;
 import game.renderer.rasterizer;
 import game.renderer.rasterizer2;
 import game.renderer.rasterizerhp;
@@ -14,6 +15,10 @@ import game.renderer.rasterizerhp4;
 import game.renderer.rasterizerhp5;
 import game.renderer.texture;
 import game.renderer.basetexture;
+
+import game.topology.room;
+import game.entities.player;
+import game.generators.worldgen;
 
 final class World
 {
@@ -29,7 +34,17 @@ private:
     TextureT mTexture;
     //alias TiledTextureT = TextureTiled!(BaseTextureRGB!ColorT);
     //TiledTextureT mTiledTexture;
+    int mUpdateCounter = 0;
+    int mDrawCounter   = 0;
+
+    Room[] mRooms;
+    Player mPlayer;
+
+    int mCurrentId = 0;
 public:
+    @property updateCounter() const pure nothrow { return mUpdateCounter; }
+    @property drawCounter()   const pure nothrow { return mDrawCounter; }
+
     alias SurfT  = FFSurface!ColorT;
     this(in Size sz)
     {
@@ -39,7 +54,11 @@ public:
         mTexture      = loadTextureFromFile!TextureT("12022011060.bmp");
         //mTiledTexture = loadTextureFromFile!TiledTextureT("12022011060.bmp");
         //fillChess(mTexture);
+        mRooms = generateWorld(this, 1);
+        mPlayer = new Player;
     }
+
+    auto generateId() pure nothrow { return ++mCurrentId; }
 
     void handleQuit() pure nothrow
     {
@@ -48,6 +67,7 @@ public:
 
     bool update()
     {
+        ++mUpdateCounter;
         return !mQuitReq;
     }
 
@@ -87,10 +107,33 @@ public:
 
     void draw(SurfT surf)
     {
+        ++mDrawCounter;
         surf.fill(ColorBlack);
         surf.lock();
         scope(exit) surf.unlock();
-        foreach(j;0..1)
+
+        struct OutContext
+        {
+            SurfT surface;
+            Rect clipRect;
+            mat4_t matrix;
+        }
+        const clipRect = Rect(0, 0, surf.width, surf.height);
+        const mat = mProjMat;
+        OutContext octx = {surf, clipRect, mat};
+        Renderer!OutContext renderer;
+        renderer.viewport = mSize;
+        auto playerCon  = mPlayer.connections[0];
+        auto playerRoom = playerCon.room;
+        const playerPos = playerCon.pos;
+        const playerDir = playerCon.dir;
+        playerRoom.draw(renderer, playerPos, playerDir);
+
+        /*foreach(r; mRooms)
+        {
+            r.draw(renderer);
+        }*/
+        /*foreach(j;0..1)
         {
             Vertex[4] verts;
 
@@ -158,7 +201,7 @@ public:
                     rast1.drawIndexedTriangle!(HasTexture)(octx,ctx, verts, ind2);
                 }
             }
-        }
+        }*/
     }
 }
 

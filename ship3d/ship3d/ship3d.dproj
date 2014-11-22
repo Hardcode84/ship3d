@@ -133,7 +133,6 @@
     <Compile Include="game\units.d" />
     <Compile Include="game\world.d" />
     <Compile Include="game\renderer\rasterizer.d" />
-    <Compile Include="game\renderer\texture.d" />
     <Compile Include="gamelib\autodispose.d" />
     <Compile Include="gamelib\core.d" />
     <Compile Include="gamelib\fixedpoint.d" />
@@ -173,18 +172,25 @@
     <Compile Include="game\renderer\rasetrizerhbrd.d" />
     <Compile Include="game\renderer\rasterizerhp5.d" />
     <Compile Include="game\renderer\palette.d" />
+    <Compile Include="game\renderer\texture.d" />
     <Compile Include="game\renderer\basetexture.d" />
-    <Compile Include="game\renderer\topology\room.d" />
-    <Compile Include="game\renderer\topology\polygon.d" />
     <Compile Include="game\renderer\renderer.d" />
     <Compile Include="game\renderer\rasterizer2.d" />
     <Compile Include="gamelib\interpolate.d" />
+    <Compile Include="game\entities\entity.d" />
+    <Compile Include="game\topology\polygon.d" />
+    <Compile Include="game\topology\room.d" />
+    <Compile Include="game\entities\player.d" />
+    <Compile Include="game\generators\worldgen.d" />
+    <Compile Include="game\generators\roomgen.d" />
+    <Compile Include="game\generators\texturegen.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />
     <Folder Include="game\renderer\" />
     <Folder Include="gamelib\" />
-    <Folder Include="game\renderer\topology\" />
+    <Folder Include="game\entities\" />
+    <Folder Include="game\generators\" />
   </ItemGroup>
   <ItemGroup>
     <None Include="gamelib\3rdparty\build.bat" />
