@@ -17,8 +17,11 @@ import game.renderer.texture;
 import game.renderer.basetexture;
 
 import game.topology.room;
+import game.topology.entityref;
 import game.entities.player;
 import game.generators.worldgen;
+
+import game.memory.stackalloc;
 
 final class World
 {
@@ -41,21 +44,29 @@ private:
     Player mPlayer;
 
     int mCurrentId = 0;
+
+    StackAlloc mAllocator;
+    EntityRefAllocator mERefAlloc;
 public:
     @property updateCounter() const pure nothrow { return mUpdateCounter; }
     @property drawCounter()   const pure nothrow { return mDrawCounter; }
+    @property allocator()     inout pure nothrow { return mAllocator; }
+    @property erefAllocator() inout pure nothrow { return mERefAlloc; }
 
     alias SurfT  = FFSurface!ColorT;
     this(in Size sz)
     {
+        mAllocator = new StackAlloc(0xFFFFFF);
+        mERefAlloc = new EntityRefAllocator(0xFF);
         mSize = sz;
-        mProjMat = mat4.perspective(sz.w,sz.h,90,0.1,1000);
+        mProjMat = mat4_t.perspective(sz.w,sz.h,90,0.1,1000);
         //mTexture = new TextureT(256,256);
         mTexture      = loadTextureFromFile!TextureT("12022011060.bmp");
         //mTiledTexture = loadTextureFromFile!TiledTextureT("12022011060.bmp");
         //fillChess(mTexture);
         mRooms = generateWorld(this, 1);
         mPlayer = new Player;
+        mRooms[0].addEntity(mPlayer, vec3_t(0,0,0), quat_t.identity);
     }
 
     auto generateId() pure nothrow { return ++mCurrentId; }
@@ -123,32 +134,29 @@ public:
         OutContext octx = {surf, clipRect, mat};
         Renderer!OutContext renderer;
         renderer.viewport = mSize;
+        renderer.getState() = octx;
         auto playerCon  = mPlayer.connections[0];
         auto playerRoom = playerCon.room;
         const playerPos = playerCon.pos;
         const playerDir = playerCon.dir;
         playerRoom.draw(renderer, playerPos, playerDir);
 
-        /*foreach(r; mRooms)
-        {
-            r.draw(renderer);
-        }*/
         /*foreach(j;0..1)
         {
             Vertex[4] verts;
 
             verts[0].pos  = vec4_t(-1,-1,0,1);
             verts[0].tpos = vec2_t(0,0);
-            verts[0].color = ColorRed;
+            //verts[0].color = ColorRed;
             verts[1].pos  = vec4_t( 1,-1,0,1);
             verts[1].tpos = vec2_t(1,0);
-            verts[1].color = ColorBlue;
+            //verts[1].color = ColorBlue;
             verts[2].pos  = vec4_t( 1, 1,0,1);
             verts[2].tpos = vec2_t(1,1);
-            verts[2].color = ColorGreen;
+            //verts[2].color = ColorGreen;
             verts[3].pos  = vec4_t(-1, 1,0,1);
             verts[3].tpos = vec2_t(0,1);
-            verts[3].color = ColorWhite;
+            //verts[3].color = ColorWhite;
 
             mat4_t t = mProjMat * mat4_t.translation(0,mYpos,mDist) * mat4_t.yrotation(mRot);
             enum HasColor = false;
@@ -202,6 +210,8 @@ public:
                 }
             }
         }*/
+
+
     }
 }
 

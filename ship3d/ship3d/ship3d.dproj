@@ -184,6 +184,10 @@
     <Compile Include="game\generators\worldgen.d" />
     <Compile Include="game\generators\roomgen.d" />
     <Compile Include="game\generators\texturegen.d" />
+    <Compile Include="game\memory\stackalloc.d" />
+    <Compile Include="game\topology\entityref.d" />
+    <Compile Include="gamelib\memory\intrusiveptr.d" />
+    <Compile Include="gamelib\memory\memory.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />
@@ -191,6 +195,8 @@
     <Folder Include="gamelib\" />
     <Folder Include="game\entities\" />
     <Folder Include="game\generators\" />
+    <Folder Include="game\memory\" />
+    <Folder Include="gamelib\memory\" />
   </ItemGroup>
   <ItemGroup>
     <None Include="gamelib\3rdparty\build.bat" />

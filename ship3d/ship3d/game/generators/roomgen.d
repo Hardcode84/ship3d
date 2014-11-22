@@ -1,6 +1,6 @@
 ﻿module game.generators.roomgen;
 
-import std.range;
+import std.array;
 
 import gamelib.util;
 
@@ -22,8 +22,8 @@ Room generateRoom(R)(auto ref R random, World world)
     const minY = -maxY;
     const minZ = -maxZ;*/
 
-    Vertex[] vertices;
-    Polygon[] polygons;
+    auto vertices = appender!(Vertex[])();
+    auto polygons = appender!(Polygon[])();
     /*foreach(i;TupleRange!(0,6))
     {
         static if(0 == i)
@@ -58,5 +58,5 @@ Room generateRoom(R)(auto ref R random, World world)
     polygons.put(Polygon([4,5,1,4,1,0]));//up
     polygons.put(Polygon([7,6,2,7,2,3]));//down
 
-    return new Room(world, vertices, polygons);
+    return new Room(world, vertices.data, polygons.data);
 }

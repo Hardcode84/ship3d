@@ -1,49 +1,63 @@
 ﻿module game.entities.entity;
 
-import std.range;
+import std.algorithm;
 
 import game.units;
 import game.topology.room;
+import game.topology.entityref;
 
 class Entity
 {
 private:
     int mUpdateCounter = 0;
     int mDrawCounter   = 0;
-    EntityRef[] mConnections;
+    vec3_t      mRefPos = vec3_t(0,0,0);
+    quat_t      mRefDir = quat_t.identity;
+    EntityRef*[] mConnections;
 public:
-    final @property updateCounter() const pure nothrow { return mUpdateCounter; }
-    final @property drawCounter()   const pure nothrow { return mDrawCounter; }
-    final @property updateCounter(int value) pure nothrow { mUpdateCounter = value; }
-    final @property drawCounter(int value)   pure nothrow { mDrawCounter   = value; }
+pure nothrow:
+    final @property updateCounter() const    { return mUpdateCounter; }
+    final @property drawCounter()   const    { return mDrawCounter; }
+    final @property updateCounter(int value) { mUpdateCounter = value; }
+    final @property drawCounter(int value)   { mDrawCounter   = value; }
 
     this()
     {
         // Constructor code
     }
 
-    @property connections() inout pure nothrow 
+    final @property connections() inout
     {
         assert(mConnections.length > 0);
         return mConnections[];
     }
 
-    void draw(T)(in auto ref T renderer) const pure nothrow
+    void draw(T)(in auto ref T renderer) const
     {
     }
 
-    final void onAddedToRoom(ref EntityRef eref) pure nothrow
+    final void move(in ref vec3_t offset)
     {
-        mConnections.put(eref);
-    }
-
-    final void onRemovedFromRoom(in ref EntityRef eref) pure nothrow
-    {
-        foreach(i,const ref c; mConnections[])
+        mRefPos += offset;
+        foreach(ref c; mConnections[])
         {
-            if(eref.id == c.id)
+        }
+    }
+
+    final void onAddedToRoom(EntityRef* eref)
+    {
+        assert(!canFind(mConnections[], eref));
+        mConnections ~= eref;
+    }
+
+    final void onRemovedFromRoom(EntityRef* eref)
+    {
+        foreach(i,c; mConnections[])
+        {
+            if(eref is c)
             {
                 mConnections[i] = mConnections[$ - 1];
+                mConnections.length--;
                 return;
             }
         }

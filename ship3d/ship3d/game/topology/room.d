@@ -8,14 +8,7 @@ import game.world;
 import game.entities.entity;
 import game.topology.polygon;
 
-struct EntityRef
-{
-    int id = 0;
-    Room room;
-    Entity ent;
-    vec3_t pos;
-    quat_t dir;
-}
+import game.topology.entityref;
 
 final class Room
 {
@@ -25,7 +18,7 @@ private:
     Polygon[]   mPolygons;
 
     //Array!EntityRef mEntities;
-    EntityRef[]     mEntities;
+    EntityRef*[]     mEntities;
 public:
     @property world() inout pure nothrow { return mWorld; }
     this(World w, Vertex[] vertices, Polygon[] polygons) pure nothrow
@@ -45,12 +38,39 @@ public:
 
     void draw(T)(auto ref T renderer, in vec3_t pos, in quat_t dir) pure nothrow
     {
+        //debugOut("Room.draw");
+        auto alloc = mWorld.allocator;
+        auto allocState = alloc.state;
+        scope(exit) alloc.restoreState(allocState);
+
         const srcMat = renderer.getState().matrix;
         renderer.getState().matrix = srcMat * mat4_t.translation(pos.x,pos.y,pos.z) * dir.to_matrix!(4,4)();
         const mat = renderer.getState().matrix;
+
+        auto transformedVertices = alloc.alloc!(Vertex)(mVertices.length);
+        auto transformedVerticesFlags = alloc.alloc!(bool)(mVertices.length);
+        transformedVerticesFlags[] = false;
+        auto polygonsToProcess = alloc.alloc!(const(Polygon)*)(mPolygons.length);
+        int polygonsToProcessCount = 0;
         foreach(const ref p; mPolygons)
         {
-            p.draw(renderer, pos, dir);
+            //if(...) //check polygon
+            {
+                foreach(i; p.indices[])
+                {
+                    if(!transformedVerticesFlags[i])
+                    {
+                        transformedVertices[i] = renderer.transformVertex(mVertices[i]);
+                        transformedVerticesFlags[i] = true;
+                    }
+                }
+                polygonsToProcess[polygonsToProcessCount++] = &p;
+            }
+        }
+
+        foreach(const ref p; polygonsToProcess[0..polygonsToProcessCount])
+        {
+            p.draw(renderer, transformedVertices, pos, dir);
         }
         //sort entities
         const worldDrawCounter = world.drawCounter;
@@ -78,12 +98,18 @@ public:
         }
     }
 
-    void addEntity(Entity e, in vec3_t pos, in quat_t dir) pure nothrow
+    void addEntity(Entity e, in vec3_t epos, in quat_t edir) pure nothrow
     {
         assert(e !is null);
         const id = world.generateId();
-        EntityRef r = {id: id, room: this, pos: pos, dir: dir, ent: e};
-        mEntities.put(r);
+        //EntityRef* r = {id: id, room: this, pos: epos, dir: edir, ent: e};
+        auto r = world.erefAllocator.allocate();
+        r.room = this;
+        r.ent = e;
+        r.pos = epos;
+        r.dir = edir;
+
+        mEntities ~= r;
         e.onAddedToRoom(r);
     }
 }
