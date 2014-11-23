@@ -9,7 +9,7 @@ import game.topology.room;
 import game.generators.roomgen;
 import game.generators.texturegen;
 
-Room[] generateWorld(World world, uint seed) pure nothrow
+Room[] generateWorld(World world, uint seed) /*pure nothrow*/
 {
     Random rnd = seed;
     TextureGen texgen = seed;

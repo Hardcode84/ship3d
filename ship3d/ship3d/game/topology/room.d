@@ -20,8 +20,9 @@ private:
     //Array!EntityRef mEntities;
     EntityRef*[]     mEntities;
 public:
-    @property world() inout pure nothrow { return mWorld; }
-    this(World w, Vertex[] vertices, Polygon[] polygons) pure nothrow
+//pure nothrow:
+    @property world() inout { return mWorld; }
+    this(World w, Vertex[] vertices, Polygon[] polygons)
     {
         assert(w !is null);
         mWorld = w;
@@ -30,13 +31,14 @@ public:
         foreach(ref p;mPolygons[])
         {
             p.mRoom = this;
+            p.updateNormals();
         }
     }
 
-    @property auto vertices() inout pure nothrow { return mVertices[]; }
-    @property auto polygons() inout pure nothrow { return mPolygons[]; }
+    @property auto vertices() inout { return mVertices[]; }
+    @property auto polygons() inout { return mPolygons[]; }
 
-    void draw(T)(auto ref T renderer, in vec3_t pos, in quat_t dir) pure nothrow
+    void draw(T)(auto ref T renderer, in vec3_t pos, in quat_t dir)
     {
         //debugOut("Room.draw");
         auto alloc = mWorld.allocator;
@@ -54,7 +56,7 @@ public:
         int polygonsToProcessCount = 0;
         foreach(const ref p; mPolygons)
         {
-            //if(...) //check polygon
+            //if(p.checkNormals(dir))
             {
                 foreach(i; p.indices[])
                 {
@@ -73,32 +75,15 @@ public:
             p.draw(renderer, transformedVertices, pos, dir);
         }
         //sort entities
-        const worldDrawCounter = world.drawCounter;
         foreach(ref e; mEntities)
         {
             auto entity = e.ent;
-            if(entity.drawCounter != worldDrawCounter)
-            {
-                renderer.getState().matrix = mat * mat4_t.translation(e.pos.x,e.pos.y,e.pos.z) * e.dir.to_matrix!(4,4)();
-                entity.draw(renderer);
-                entity.drawCounter = worldDrawCounter;
-            }
+            renderer.getState().matrix = mat * mat4_t.translation(e.pos.x,e.pos.y,e.pos.z) * e.dir.to_matrix!(4,4)();
+            entity.draw(renderer);
         }
     }
 
-    void update()
-    {
-        const worldUpdateCounter = world.updateCounter;
-        foreach(ref e; mEntities)
-        {
-            if(e.ent.updateCounter != worldUpdateCounter)
-            {
-                e.ent.updateCounter = worldUpdateCounter;
-            }
-        }
-    }
-
-    void addEntity(Entity e, in vec3_t epos, in quat_t edir) pure nothrow
+    void addEntity(Entity e, in vec3_t epos, in quat_t edir)
     {
         assert(e !is null);
         const id = world.generateId();

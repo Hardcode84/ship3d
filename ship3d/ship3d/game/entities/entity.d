@@ -9,17 +9,11 @@ import game.topology.entityref;
 class Entity
 {
 private:
-    int mUpdateCounter = 0;
-    int mDrawCounter   = 0;
     vec3_t      mRefPos = vec3_t(0,0,0);
     quat_t      mRefDir = quat_t.identity;
     EntityRef*[] mConnections;
 public:
 pure nothrow:
-    final @property updateCounter() const    { return mUpdateCounter; }
-    final @property drawCounter()   const    { return mDrawCounter; }
-    final @property updateCounter(int value) { mUpdateCounter = value; }
-    final @property drawCounter(int value)   { mDrawCounter   = value; }
 
     this()
     {
@@ -36,11 +30,21 @@ pure nothrow:
     {
     }
 
-    final void move(in ref vec3_t offset)
+    final void move(in vec3_t offset)
     {
         mRefPos += offset;
         foreach(ref c; mConnections[])
         {
+            c.pos += offset;
+        }
+    }
+
+    final void rotate(in quat_t rot)
+    {
+        mRefDir *= rot;
+        foreach(ref c; mConnections[])
+        {
+            c.dir *= rot;
         }
     }
 

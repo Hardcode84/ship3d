@@ -21,7 +21,7 @@ struct RasterizerHP5
         (auto ref CtxT1 outputContext, auto ref CtxT2 extContext, in VertT[] verts, in IndT[] indices) if(isIntegral!IndT)
     {
         assert(indices.length == 3);
-        const c = (verts[1].pos.xyz - verts[0].pos.xyz).cross(verts[2].pos.xyz - verts[0].pos.xyz);
+        const c = (verts[indices[1]].pos.xyz - verts[indices[0]].pos.xyz).cross(verts[indices[2]].pos.xyz - verts[indices[0]].pos.xyz);
         if(c.z <= 0)
         {
             return;

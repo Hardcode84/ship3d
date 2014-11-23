@@ -21,7 +21,7 @@ public:
         // Constructor code
         mBitmap = surf;
     }*/
-    pure nothrow:
+//pure nothrow:
 
     @property viewport() const { return mViewport; }
     @property viewport(in Size rc)  { mViewport = rc; }
@@ -57,6 +57,8 @@ public:
         T ret = src;
         ret.pos.x = (pos.x / w) * mViewport.w + mViewport.w / 2;
         ret.pos.y = (pos.y / w) * mViewport.h + mViewport.h / 2;
+        ret.pos.z = pos.z / w;
+        ret.pos.w = w;
         return ret;
     }
 

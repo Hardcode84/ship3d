@@ -15,8 +15,15 @@ public:
         (auto ref CtxT1 outputContext, auto ref CtxT2 extContext, in VertT[] verts, in IndT[] indices) if(isIntegral!IndT)
     {
         assert(indices.length == 3);
+        //if(verts[indices[0]].pos.z < 0 && verts[indices[1]].pos.z < 0 && verts[indices[2]].pos.z < 0) return;
+
         const(VertT)*[3] pverts;
         foreach(i,ind; indices) pverts[i] = verts.ptr + ind;
+        const c = (pverts[1].pos.xyz - pverts[0].pos.xyz).cross(pverts[2].pos.xyz - pverts[0].pos.xyz);
+        if(c.z <= 0)
+        {
+            return;
+        }
         sort!("a.pos.y < b.pos.y")(pverts[0..$]);
 
         const e1xdiff = pverts[0].pos.x - pverts[2].pos.x;
@@ -327,6 +334,10 @@ struct Span(PosT, bool Affine,bool HasTextures)
     {
         assert((x2 - x1) <= AffineLength);
         if(x1 >= x2) return;
+        static if(!Affine)
+        {
+            if(span.sw1 <= 0) return;
+        }
         static if(HasTextures)
         {
             alias TexT = Unqual!(typeof(span.u));

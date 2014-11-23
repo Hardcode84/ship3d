@@ -37,8 +37,6 @@ private:
     TextureT mTexture;
     //alias TiledTextureT = TextureTiled!(BaseTextureRGB!ColorT);
     //TiledTextureT mTiledTexture;
-    int mUpdateCounter = 0;
-    int mDrawCounter   = 0;
 
     Room[] mRooms;
     Player mPlayer;
@@ -48,8 +46,6 @@ private:
     StackAlloc mAllocator;
     EntityRefAllocator mERefAlloc;
 public:
-    @property updateCounter() const pure nothrow { return mUpdateCounter; }
-    @property drawCounter()   const pure nothrow { return mDrawCounter; }
     @property allocator()     inout pure nothrow { return mAllocator; }
     @property erefAllocator() inout pure nothrow { return mERefAlloc; }
 
@@ -78,7 +74,6 @@ public:
 
     bool update()
     {
-        ++mUpdateCounter;
         return !mQuitReq;
     }
 
@@ -89,18 +84,22 @@ public:
         if(SDL_SCANCODE_LEFT == key)
         {
             mRot += spd;
+            mPlayer.rotate(quat_t.yrotation(0.03));
         }
         else if(SDL_SCANCODE_RIGHT == key)
         {
             mRot -= spd;
+            mPlayer.rotate(quat_t.yrotation(-0.03));
         }
         else if(SDL_SCANCODE_UP == key)
         {
             mYpos -= asd;
+            mPlayer.rotate(quat_t.xrotation(0.03));
         }
         else if(SDL_SCANCODE_DOWN == key)
         {
             mYpos += asd;
+            mPlayer.rotate(quat_t.xrotation(-0.03));
         }
         else if(SDL_SCANCODE_SPACE == key)
         {
@@ -109,16 +108,17 @@ public:
         else if(SDL_SCANCODE_KP_PLUS == key)
         {
             mDist += 0.1f;
+            mPlayer.move(vec3_t(0,0,0.5));
         }
         else if(SDL_SCANCODE_KP_MINUS == key)
         {
             mDist -= 0.1f;
+            mPlayer.move(vec3_t(0,0,-0.5));
         }
     }
 
     void draw(SurfT surf)
     {
-        ++mDrawCounter;
         surf.fill(ColorBlack);
         surf.lock();
         scope(exit) surf.unlock();
