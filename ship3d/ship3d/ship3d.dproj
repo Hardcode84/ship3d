@@ -188,6 +188,7 @@
     <Compile Include="game\topology\entityref.d" />
     <Compile Include="gamelib\memory\intrusiveptr.d" />
     <Compile Include="gamelib\memory\memory.d" />
+    <Compile Include="game\renderer\rasterizerhp6.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />
