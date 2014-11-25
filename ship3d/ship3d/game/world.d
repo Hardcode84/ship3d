@@ -13,6 +13,7 @@ import game.renderer.rasterizerhp2;
 import game.renderer.rasterizerhp3;
 import game.renderer.rasterizerhp4;
 import game.renderer.rasterizerhp5;
+import game.renderer.rasterizerhp6;
 import game.renderer.texture;
 import game.renderer.basetexture;
 
@@ -123,7 +124,7 @@ public:
         surf.lock();
         scope(exit) surf.unlock();
 
-        struct OutContext
+        /*struct OutContext
         {
             SurfT surface;
             Rect clipRect;
@@ -139,9 +140,9 @@ public:
         auto playerRoom = playerCon.room;
         const playerPos = playerCon.pos;
         const playerDir = playerCon.dir;
-        playerRoom.draw(renderer, playerPos, playerDir);
+        playerRoom.draw(renderer, playerPos, playerDir);*/
 
-        /*foreach(j;0..1)
+        foreach(j;0..1)
         {
             Vertex[4] verts;
 
@@ -175,7 +176,7 @@ public:
             static immutable int[3] ind1 = [0,1,2];
             static immutable int[3] ind2 = [0,2,3];
             const clipRect = Rect(0, 0, surf.width, surf.height);
-            RasterizerHP5 rast1;
+            RasterizerHP6 rast1;
             Rasterizer2 rast2;
             struct OutContext
             {
@@ -209,7 +210,7 @@ public:
                     rast1.drawIndexedTriangle!(HasTexture)(octx,ctx, verts, ind2);
                 }
             }
-        }*/
+        }
 
 
     }

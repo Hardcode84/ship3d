@@ -28,7 +28,7 @@ struct Polygon
 
     void updateNormals()
     {
-        debugOut("updateNormals");
+        //debugOut("updateNormals");
         assert(mIndices.length > 0);
         assert(room !is null);
         const verts = room.vertices;
@@ -39,7 +39,6 @@ struct Polygon
             const i1 = mIndices[i * 3 + 1];
             const i2 = mIndices[i * 3 + 2];
             const normal = cross(verts[i1].pos.xyz - verts[i0].pos.xyz, verts[i2].pos.xyz - verts[i0].pos.xyz).normalized;
-            debugOut(normal);
             if(0 == i)
             {
                 mNormals[0] = normal;

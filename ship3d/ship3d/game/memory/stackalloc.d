@@ -3,6 +3,7 @@
 import std.traits;
 
 import gamelib.types;
+import gamelib.memory.utils;
 
 final class StackAlloc
 {
@@ -44,10 +45,8 @@ public:
     body
     {
         static assert(__traits(isPOD,T));
-        enum alignment = T.alignof;
-        static assert(alignment > 0);
         enum size = T.sizeof;
-        auto ptr = cast(void*)((cast(size_t)mPtr + (alignment - 1)) & ~(alignment - 1));
+        auto ptr = alignPointer!T(mPtr);
         auto ptrEnd = ptr + size * count;
         const memEnd = mMemory.ptr + mMemory.length;
         assert(ptr >= mMemory.ptr);

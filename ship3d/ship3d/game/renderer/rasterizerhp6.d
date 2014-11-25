@@ -7,6 +7,15 @@ import std.string;
 import std.functional;
 import std.range;
 
+version(LDC)
+{
+    pragma(LDC_alloca) void* alloca(size_t);
+}
+else
+{
+    import std.c.stdlib: alloca;
+}
+
 import gamelib.util;
 import gamelib.math;
 import gamelib.graphics.graph;
@@ -59,7 +68,8 @@ struct Line(PosT,bool Affine)
         const w = Affine ? cast(PosT)1 : cast(PosT)v3.pos.w;
         dx = (x2 - x1) / w;
         dy = (y2 - y1) / w;
-        c = (dy * x1 - dx * y1);
+        const inc = (dy < 0 || (dy == 0 && dx > 0)) ? cast(PosT)1 / cast(PosT)1 : cast(PosT)0;
+        c = (dy * x1 - dx * y1) + inc;
     }
 
     auto val(int x, int y) const pure nothrow
@@ -331,14 +341,6 @@ struct Point(PosT,PackT,bool Affine)
     }
 }
 
-/*struct Spans(int Height,PosT,TextT)
-{
-    TextT[2] uv00 = void;
-    TextT[2] uv10 = void;
-    TextT[2] uv01 = void;
-    TextT[2] uv11 = void;
-}*/
-
 struct Context(TextT)
 {
     enum HasTextures = !is(TextT : void);
@@ -384,7 +386,7 @@ void drawTriangle(bool HasTextures,bool Affine,CtxT1,CtxT2,VertT)
     int maxX = cast(int)max(pverts[0].pos.x, pverts[1].pos.x, pverts[2].pos.x) + 1;
 
     const clipRect = outContext.clipRect;
-    const size = outContext.size;
+    //const size = outContext.size;
     /*minX = max(clipRect.x, minX);
     maxX = min(clipRect.x + clipRect.w, maxX);
     minY = max(clipRect.y, minY);
@@ -397,51 +399,61 @@ void drawTriangle(bool HasTextures,bool Affine,CtxT1,CtxT2,VertT)
     immutable pack = PackT(pverts[0], pverts[1], pverts[2]);
 
     //find first valid point
-    Vector!(int,2) start;
-findStart: do
+
+    bool findStart(int x, int y, ref PointT start)
     {
-        foreach(const ref v; pverts)
+        enum W = 5;
+        enum H = 5;
+        x -= W / 2;
+        y -= H / 2;
+
+        foreach(i; TupleRange!(0,H))
         {
-            const w = v.pos.w;
-            enum W = 3;
-            enum H = 3;
-            const x = cast(int)((v.pos.x / w) * size.w) + size.w / 2 - W / 2;
-            const y = cast(int)((v.pos.y / w) * size.h) + size.h / 2 - H / 2;
-            auto pt = PointT(pack, x, y);
-            foreach(i; TupleRange!(0,H))
+            const sy = y + i;
+            auto pt = PointT(pack, x, sy);
+            int count = 0;
+            foreach(j; TupleRange!(0,W))
             {
-                const sy = y + i;
-                foreach(j; TupleRange(0,W))
+                const sx = x + j;
+                if(sx >= minX && sx < maxX &&
+                   sy >= minY && sy < maxY &&
+                   pt.check())
                 {
-                    const sx = x + j;
-                    if(sx >= minX && sx < maxX &&
-                       sy >= minY && sy < maxY &&
-                       pt.check())
+                    if(++count > 1)
                     {
-                        start.x = sx;
-                        start.y = sy;
-                        break findStart;
-                    }
-                    static if(j != (W - 1))
-                    {
-                        pt.incX(0 == i % 2 ? 1 : -1);
+                        start = pt;
+                        return true;
                     }
                 }
-                static if(i != (H - 1))
-                {
-                    pt.incY(1);
-                }
+                pt.incX(1);
             }
         }
-        //TODO: check edges
-        //nothing found
-        return;
+        return false;
     }
-    while(false);
+
+    PointT startPoint = void;
+    foreach(const ref v; pverts)
+    {
+        const w = v.pos.w;
+        //const x = cast(int)((v.pos.x / w) * size.w) + size.w / 2 - W / 2;
+        //const y = cast(int)((v.pos.y / w) * size.h) + size.h / 2 - H / 2;
+        const x = cast(int)v.pos.x;
+        const y = cast(int)v.pos.y;
+        if(findStart(x, y, startPoint))
+        {
+            goto found;
+        }
+    }
+    //TODO: check edges
+    //nothing found
+    return;
+found:
 
     auto fillLine(T)(in ref PointT pt, auto ref T line)
     {
-        enum Step = 32;
+        //debugOut("fill line");
+        //debugOut(pt.curry);
+        enum Step = 64;
         const leftBound  = minX;
         const rightBound = maxX;
         if(leftBound < rightBound)
@@ -449,95 +461,159 @@ findStart: do
             int findLeft()
             {
                 PointT newPt = pt;
-                while(newPt.currx > (leftBound + Step))
+                //assert(newPt.check());
+                const count = (newPt.currx - leftBound) / Step;
+                foreach(i;0..count)
                 {
                     newPt.incX(-Step);
-                    if(newPt.check())
+                    if(!newPt.check)
                     {
-                        const x0 = newPt.currx;
-                        const x1 = x0 + Step;
-                        line[x0..x1] = ColorRed;
-                    }
-                    else
-                    {
-                        const x1 = newPt.currx + Step;
-                        foreach(i;0..Step)
+                        do
                         {
                             newPt.incX(1);
-                            if(newPt.check())
-                            {
-                                const x0 = newPt.currx;
-                                line[x0..x1] = ColorBlue;
-                                return x0;
-                            }
                         }
+                        while(!newPt.check());
+                        return newPt.currx;
                     }
                 }
-                const x1 = newPt.currx;
-                const rem = x1 - leftBound;
-                foreach(i;0..rem)
+                while(newPt.currx >= leftBound && newPt.check())
                 {
                     newPt.incX(-1);
-                    if(!newPt.check())
-                    {
-                        const x0 = newPt.currx + 1;
-                        line[x0..x1] = ColorWhite;
-                        return x0;
-                    }
                 }
-                line[leftBound..x1] = ColorGreen;
-                return leftBound;
-            } //find left
+                return newPt.currx + 1;
+            }
             int findRight()
             {
                 PointT newPt = pt;
-                while(newPt.currx < (rightBound - Step))
+                //assert(newPt.check());
+                const count = (rightBound - newPt.currx) / Step;
+                foreach(i;0..count)
                 {
                     newPt.incX(Step);
-                    if(newPt.check())
+                    if(!newPt.check)
                     {
-                        const x1 = newPt.currx;
-                        const x0 = x1 - Step;
-                        line[x0..x1] = ColorGreen;
-                    }
-                    else
-                    {
-                        const x0 = newPt.currx - Step;
-                        foreach(i;0..Step)
+                        do
                         {
                             newPt.incX(-1);
-                            if(newPt.check())
-                            {
-                                const x1 = newPt.currx + 1;
-                                line[x0..x1] = ColorGreen;
-                                return x1;
-                            }
                         }
+                        while(!newPt.check());
+                        return newPt.currx + 1;
                     }
                 }
-                const x0 = newPt.currx;
-                const rem = rightBound - x0;
-                foreach(i;0..rem)
+                while(newPt.currx < (rightBound - 0) && newPt.check())
                 {
                     newPt.incX(1);
-                    if(!newPt.check())
-                    {
-                        const x1 = newPt.currx;
-                        line[x0..x1] = ColorWhite;
-                        return x1;
-                    }
                 }
-                line[x0..rightBound] = ColorRed;
-                return rightBound;
-            } //find right
+                return newPt.currx;
+            }
             const x0 = findLeft();
             const x1 = findRight();
-            return Vector!(int, 2)(x0, x1);
+            line[x0..x1] = ColorRed;
+            return vec2i(x0, x1);
         }
-        return Vector!(int, 2)(0, 0);
+        assert(false);
+        //return vec2i(0, 0);
     }
 
-    const startPoint = PointT(pack, start.x, start.y);
+    bool findPoint(T)(int y, in T bounds, out int x)
+    {
+        //debugOut("find point");
+        const x0 = max(bounds.x - 4, minX);
+        const x1 = min(bounds.y + 4, maxX);
+        auto none(in uint val) pure nothrow
+        {
+            return 0x0 == (val & 0b001_001) ||
+                   0x0 == (val & 0b010_010) ||
+                   0x0 == (val & 0b100_100);
+        }
+        const pt0 = PointT(pack, x0, y);
+        const pt1 = PointT(pack, x1, y);
+        if(none(pt0.vals() | (pt1.vals() << 3)))
+        {
+            return false;
+        }
+        enum Step = 64;
+        if((x1 - x0) >= Step)
+        {
+            foreach(i;0..Step)
+            {
+                auto pt = PointT(pack, x0 + i, y);
+                while(pt.currx < x1)
+                {
+                    if(pt.check())
+                    {
+                        x = pt.currx;
+                        return true;
+                    }
+                    pt.incX(Step);
+                }
+            }
+        }
+        const e = x0 + ((x1 - x0) / Step) * Step;
+        auto pt = PointT(pack, e, y);
+        while(pt.currx < x1)
+        {
+            //debugOut("check");
+            //debugOut(pt.currx);
+            if(pt.check())
+            {
+                x = pt.currx;
+                return true;
+            }
+            pt.incX(1);
+        }
+        bool findP(T)(in ref T p0, in ref T p1)
+        {
+            if(none(p0.vals() | (p1.vals() << 3)))
+            {
+                return false;
+            }
+            const d = p1.currx - p0.currx;
+            if(d <= 1)
+            {
+                x = p0.currx;
+                return true;
+            }
+            const cp = PointT(pack, p0.currx + d / 2, y);
+            if(!findP(p0,cp))
+            {
+                findP(cp,p1);
+            }
+            return true;
+        }
+        findP(pt0, pt1);
+        return false;
+    }
+    void search(bool Down)(vec2i bounds, int y)
+    {
+        enum Inc = (Down ? 1 : -1);
+        y += Inc;
+        int x;
+        bool check()
+        {
+            static if(Down)
+            {
+                return bounds.y > bounds.x && y < maxY;
+            }
+            else
+            {
+                return bounds.y > bounds.x && y >= minY;
+            }
+        }
+        while(check() && findPoint(y, bounds, x))
+        {
+            const pt = PointT(pack, x, y);
+            bounds = fillLine(pt, outContext.surface[y]);
+            outContext.surface[y][x] = ColorBlue;
+            y += Inc;
+        }
+    }
 
+    const y = startPoint.curry;
+    const bounds = fillLine(startPoint, outContext.surface[y]);
+    //debugOut(bounds);
+    search!true(bounds, y);
+    search!false(bounds, y);
+    outContext.surface[y][startPoint.currx] = ColorGreen;
     //end
 }

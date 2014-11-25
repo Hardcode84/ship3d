@@ -165,7 +165,6 @@
     <Compile Include="gamelib\graphics\renderer2d\vectorfont.d" />
     <Compile Include="game\renderer\rasterizerhp.d" />
     <Compile Include="gamelib\graphics\memsurface.d" />
-    <Compile Include="game\renderer\compositebuffer.d" />
     <Compile Include="game\renderer\rasterizerhp2.d" />
     <Compile Include="game\renderer\rasterizerhp3.d" />
     <Compile Include="game\renderer\rasterizerhp4.d" />
@@ -189,6 +188,7 @@
     <Compile Include="gamelib\memory\intrusiveptr.d" />
     <Compile Include="gamelib\memory\memory.d" />
     <Compile Include="game\renderer\rasterizerhp6.d" />
+    <Compile Include="gamelib\memory\utils.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />
