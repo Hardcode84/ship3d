@@ -166,55 +166,6 @@ struct LinesPack(PosT,TextT,LineT,bool Affine)
             }
         }
     }
-
-    /*void getBarycentric(T)(int x, int y, T[] ret) const pure nothrow
-    in
-    {
-        assert(ret.length == NumLines);
-    }
-    out
-    {
-        //assert(almost_equal(cast(PosT)1, ret.sum, 1.0f/255.0f), debugConv(ret.sum));
-    }
-    body
-    {
-        static if(!Affine)
-        {
-            const currw = wplane.get(x,y);
-        }
-        foreach(i;TupleRange!(1,NumLines))
-        {
-            enum li = (i + 1) % NumLines;
-            static if(Affine)
-            {
-                ret[i] = lines[li].val(x,y);
-            }
-            else
-            {
-                ret[i] = lines[li].val(x,y) / currw;
-            }
-        }
-        ret[0] = cast(PosT)1 - ret[1] - ret[2];
-    }
-    void getUV(T)(int x, int y, T[] ret) const pure nothrow
-    in
-    {
-        assert(ret.length == 2);
-    }
-    body
-    {
-        static if(Affine)
-        {
-            ret[0] = uplane.get(x,y);
-            ret[1] = vplane.get(x,y);
-        }
-        else
-        {
-            const currw = wplane.get(x,y);
-            ret[0] = uplane.get(x,y) / currw;
-            ret[1] = vplane.get(x,y) / currw;
-        }
-    }*/
 }
 
 struct Point(PosT,PackT,bool Affine)
