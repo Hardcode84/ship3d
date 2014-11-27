@@ -19,6 +19,7 @@ else
 import gamelib.util;
 import gamelib.math;
 import gamelib.graphics.graph;
+import gamelib.memory.utils;
 
 import game.units;
 
@@ -59,7 +60,7 @@ struct Line(PosT,bool Affine)
 @nogc:
     immutable PosT dx, dy, c;
 
-    this(VT)(in VT v1, in VT v2, in VT v3) pure nothrow
+    this(VT,ST)(in VT v1, in VT v2, in VT v3, in ST size) pure nothrow
     {
         const x1 = v1.pos.x;
         const x2 = v2.pos.x;
@@ -68,7 +69,7 @@ struct Line(PosT,bool Affine)
         const w = Affine ? cast(PosT)1 : cast(PosT)v3.pos.w;
         dx = (x2 - x1) / w;
         dy = (y2 - y1) / w;
-        const inc = (dy < 0 || (dy == 0 && dx > 0)) ? cast(PosT)1 / cast(PosT)1 : cast(PosT)0;
+        const inc = (dy < 0 || (dy == 0 && dx > 0)) ? cast(PosT)1 / cast(PosT)8 : cast(PosT)0;
         c = (dy * x1 - dx * y1) + inc;
     }
 
@@ -123,13 +124,13 @@ struct LinesPack(PosT,TextT,LineT,bool Affine)
         immutable PlaneTtex uplane;
         immutable PlaneTtex vplane;
     }
-    this(VT)(in VT v1, in VT v2, in VT v3) pure nothrow
+    this(VT,ST)(in VT v1, in VT v2, in VT v3, in ST size) pure nothrow
     {
         const invDenom = cast(PosT)(1 / ((v2.pos - v1.pos).xy.wedge((v3.pos - v1.pos).xy)));
         lines = [
-            LineT(v1, v2, v3),
-            LineT(v2, v3, v1),
-            LineT(v3, v1, v2)];
+            LineT(v1, v2, v3, size),
+            LineT(v2, v3, v1, size),
+            LineT(v3, v1, v2, size)];
 
         static if(!Affine)
         {
@@ -216,79 +217,6 @@ struct LinesPack(PosT,TextT,LineT,bool Affine)
     }*/
 }
 
-/*struct Tile(int TileWidth, int TileHeight, PosT,PackT)
-{
-    immutable(PackT)* pack;
-    enum NumLines = 3;
-    int currx = void;
-    int curry = void;
-    PosT[NumLines] cx0 = void, cx1 = void;
-
-    this(in immutable(PackT)* p, int x, int y) pure nothrow
-    {
-        pack = p;
-        setXY(x,y);
-    }
-
-    void setXY(int x, int y) pure nothrow
-    {
-        foreach(i;TupleRange!(0,NumLines))
-        {
-            const val = pack.lines[i].val(x, y);
-            cx0[i] = val;
-            cx1[i] = val + pack.lines[i].dx * TileHeight;
-        }
-        currx = x;
-        curry = y;
-    }
-
-    void incX(string sign)() pure nothrow
-    {
-        foreach(i;TupleRange!(0,NumLines))
-        {
-            const dx = pack.lines[i].dy * -TileWidth;
-            mixin("cx0[i] "~sign~"= dx;");
-            mixin("cx1[i] "~sign~"= dx;");
-        }
-        mixin("currx"~sign~"= TileWidth;");
-    }
-
-    void incY() pure nothrow
-    {
-        foreach(i;TupleRange!(0,NumLines))
-        {
-            cx0[i] = cx1[i];
-            cx1[i] += pack.lines[i].dx * TileHeight;
-        }
-        curry += TileHeight;
-    }
-    @property auto check() const pure nothrow
-    {
-        uint test(T)(in T val) pure nothrow
-        {
-            union u_t
-            {
-                static assert(T.sizeof == uint.sizeof);
-                T v;
-                uint i;
-            }
-            u_t u;
-            u.v = val;
-            return (~u.i) >> 31;
-        }
-        uint ret = 0;
-        foreach(j;TupleRange!(0,2))
-        {
-            foreach(i;TupleRange!(0,NumLines))
-            {
-                import std.conv;
-                mixin("ret |= (test(cx"~text(j)~"[i]) << (i+"~text(NumLines * j)~"));");
-            }
-        }
-        return ret;
-    }
-}*/
-
 struct Point(PosT,PackT,bool Affine)
 {
     enum NumLines = 3;
@@ -374,9 +302,7 @@ void drawTriangle(bool HasTextures,bool Affine,CtxT1,CtxT2,VertT)
     }
     alias LineT   = Line!(PosT,Affine);
     alias PackT   = LinesPack!(PosT,TextT,LineT,Affine);
-    //alias TileT   = Tile!(TileWidth,TileHeight,PosT,PackT);
     alias PointT  = Point!(PosT,PackT,Affine);
-    //alias SpansT  = Spans!(TileHeight,PosT,TextT);
     alias CtxT    = Context!(TextT);
 
     int minY = cast(int)min(pverts[0].pos.y, pverts[1].pos.y, pverts[2].pos.y);
@@ -396,7 +322,8 @@ void drawTriangle(bool HasTextures,bool Affine,CtxT1,CtxT2,VertT)
     minY = clipRect.y;
     maxY = clipRect.y + clipRect.h;
 
-    immutable pack = PackT(pverts[0], pverts[1], pverts[2]);
+    const size = outContext.size;
+    immutable pack = PackT(pverts[0], pverts[1], pverts[2], size);
 
     //find first valid point
 
@@ -432,24 +359,78 @@ void drawTriangle(bool HasTextures,bool Affine,CtxT1,CtxT2,VertT)
     }
 
     PointT startPoint = void;
-    foreach(const ref v; pverts)
+    do
     {
-        const w = v.pos.w;
-        //const x = cast(int)((v.pos.x / w) * size.w) + size.w / 2 - W / 2;
-        //const y = cast(int)((v.pos.y / w) * size.h) + size.h / 2 - H / 2;
-        const x = cast(int)v.pos.x;
-        const y = cast(int)v.pos.y;
-        if(findStart(x, y, startPoint))
+        foreach(const ref v; pverts)
+        {
+            const w = v.pos.w;
+            //const x = cast(int)((v.pos.x / w) * size.w) + size.w / 2 - W / 2;
+            //const y = cast(int)((v.pos.y / w) * size.h) + size.h / 2 - H / 2;
+            const x = cast(int)v.pos.x;
+            const y = cast(int)v.pos.y;
+            if(findStart(x, y, startPoint))
+            {
+                goto found;
+            }
+        }
+
+        bool checkQuad(in PointT pt00, in PointT pt10, in PointT pt01, in PointT pt11)
+        {
+            const x0 = pt00.currx;
+            const x1 = pt11.currx;
+            const y0 = pt00.curry;
+            const y1 = pt11.curry;
+            auto none(in uint val) pure nothrow
+            {
+                return 0x0 == (val & 0b001_001_001_001) ||
+                       0x0 == (val & 0b010_010_010_010) ||
+                       0x0 == (val & 0b100_100_100_100);
+            }
+            if(none((pt00.vals() << 0) |
+                    (pt10.vals() << 3) |
+                    (pt01.vals() << 6) |
+                    (pt11.vals() << 9)))
+            {
+                return false;
+            }
+            const cx = x0 + (x1 - x0) / 2;
+            const cy = y0 + (y1 - y0) / 2;
+            if((x1 - x0) <= 4 &&
+               (y1 - y0) <= 4)
+            {
+                return findStart(cx, cy, startPoint);
+            }
+            auto ptc0 = PointT(pack, cx, y0);
+            auto pt0c = PointT(pack, x0, cy);
+            auto ptcc = PointT(pack, cx, cy);
+            auto pt1c = PointT(pack, x1, cy);
+            auto ptc1 = PointT(pack, cx, y1);
+            return checkQuad(pt00, ptc0, pt0c, ptcc) ||
+                   checkQuad(ptc0, pt10, ptcc, pt1c) ||
+                   checkQuad(pt0c, ptcc, pt01, ptc1) ||
+                   checkQuad(ptcc, pt1c, ptc1, pt11);
+        }
+        if(checkQuad(PointT(pack, minX, minY),
+                     PointT(pack, maxX, minY), 
+                     PointT(pack, minX, maxY),
+                     PointT(pack, maxX, maxY)))
         {
             goto found;
         }
+        //nothing found
+        return;
     }
-    //TODO: check edges
-    //nothing found
-    return;
+    while(false);
 found:
 
-    auto fillLine(T)(in ref PointT pt, auto ref T line)
+    struct Span
+    {
+        int x0, x1;
+    }
+
+    auto spans = alignPointer!Span(alloca(size.h * Span.sizeof + Span.alignof))[0..size.h];
+
+    auto fillLine(in ref PointT pt)
     {
         //debugOut("fill line");
         //debugOut(pt.curry);
@@ -460,19 +441,21 @@ found:
         {
             int findLeft()
             {
+                //debugOut("findLeft");
                 PointT newPt = pt;
                 //assert(newPt.check());
                 const count = (newPt.currx - leftBound) / Step;
+                //debugOut(count);
                 foreach(i;0..count)
                 {
                     newPt.incX(-Step);
                     if(!newPt.check)
                     {
-                        do
+                        foreach(j;0..Step)
                         {
                             newPt.incX(1);
+                            if(newPt.check()) break;
                         }
-                        while(!newPt.check());
                         return newPt.currx;
                     }
                 }
@@ -484,6 +467,7 @@ found:
             }
             int findRight()
             {
+                //debugOut("findRight");
                 PointT newPt = pt;
                 //assert(newPt.check());
                 const count = (rightBound - newPt.currx) / Step;
@@ -492,11 +476,11 @@ found:
                     newPt.incX(Step);
                     if(!newPt.check)
                     {
-                        do
+                        foreach(j;0..Step)
                         {
                             newPt.incX(-1);
+                            if(newPt.check()) break;
                         }
-                        while(!newPt.check());
                         return newPt.currx + 1;
                     }
                 }
@@ -508,7 +492,9 @@ found:
             }
             const x0 = findLeft();
             const x1 = findRight();
-            line[x0..x1] = ColorRed;
+            //outContext.surface[pt.curry][x0..x1] = ColorRed;
+            spans[pt.curry].x0 = x0;
+            spans[pt.curry].x1 = x1;
             return vec2i(x0, x1);
         }
         assert(false);
@@ -584,8 +570,9 @@ found:
         findP(pt0, pt1);
         return false;
     }
-    void search(bool Down)(vec2i bounds, int y)
+    int search(bool Down)(vec2i bounds, int y)
     {
+        //debugOut("search");
         enum Inc = (Down ? 1 : -1);
         y += Inc;
         int x;
@@ -603,17 +590,26 @@ found:
         while(check() && findPoint(y, bounds, x))
         {
             const pt = PointT(pack, x, y);
-            bounds = fillLine(pt, outContext.surface[y]);
-            outContext.surface[y][x] = ColorBlue;
+            bounds = fillLine(pt);
+            //outContext.surface[y][x] = ColorBlue;
             y += Inc;
         }
+        return y;
     }
 
-    const y = startPoint.curry;
-    const bounds = fillLine(startPoint, outContext.surface[y]);
+    const sy = startPoint.curry;
+    //debugOut("start");
+    const bounds = fillLine(startPoint);
     //debugOut(bounds);
-    search!true(bounds, y);
-    search!false(bounds, y);
-    outContext.surface[y][startPoint.currx] = ColorGreen;
+    const y1 = search!true(bounds, sy);
+    const y0 = search!false(bounds, sy) + 1;
+    foreach(y; y0..y1)
+    {
+        const x0 = spans[y].x0;
+        const x1 = spans[y].x1;
+        outContext.surface[y][x0..x1] = ColorRed;
+    }
+    //x * (y1*w2 - y2*w1) - y * (x1*w2 - x2*w1) - (x2*y1 - x1*y2) > 0
+    outContext.surface[sy][startPoint.currx] = ColorGreen;
     //end
 }

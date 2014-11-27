@@ -182,8 +182,9 @@ public:
             {
                 SurfT surface;
                 Rect clipRect;
+                Size size;
             }
-            OutContext octx = {surf, clipRect};
+            OutContext octx = {surf, clipRect, mSize};
             if(0 != (mN % 2))
             {
                 struct Context1
