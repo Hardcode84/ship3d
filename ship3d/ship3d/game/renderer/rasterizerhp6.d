@@ -30,24 +30,13 @@ struct RasterizerHP6
         }*/
         const(VertT)*[3] pverts;
         foreach(i,ind; indices) pverts[i] = verts.ptr + ind;
-
-        const e1xdiff = pverts[0].pos.x - pverts[2].pos.x;
-        const e2xdiff = pverts[0].pos.x - pverts[1].pos.x;
-
-        const e1ydiff = pverts[0].pos.y - pverts[2].pos.y;
-        const e2ydiff = pverts[0].pos.y - pverts[1].pos.y;
-
-        const cxdiff = ((e1xdiff / e1ydiff) * e2ydiff) - e2xdiff;
-        const affine = false;//(abs(cxdiff) > AffineLength * 25);
-
-        if(affine) drawTriangle!(HasTextures, true)(outputContext,extContext, pverts);
-        else       drawTriangle!(HasTextures, false)(outputContext,extContext, pverts);
+        drawTriangle!(HasTextures)(outputContext,extContext, pverts);
     }
 }
 
 private:
 enum AffineLength = 32;
-struct Line(PosT,bool Affine)
+struct Line(PosT)
 {
 @nogc:
     immutable PosT dx, dy, c;
@@ -109,7 +98,7 @@ pure nothrow:
     }
 }
 
-struct LinesPack(PosT,TextT,LineT,bool Affine)
+struct LinesPack(PosT,TextT,LineT)
 {
 @nogc:
     immutable bool degenerate;
@@ -119,10 +108,8 @@ struct LinesPack(PosT,TextT,LineT,bool Affine)
     enum NumLines = 3;
     immutable LineT[NumLines] lines;
 
-    static if(!Affine)
-    {
-        immutable PlaneT wplane;
-    }
+    immutable PlaneT wplane;
+
     static if(HasTexture)
     {
         alias vec3tex = Vector!(TextT,3);
@@ -147,16 +134,10 @@ struct LinesPack(PosT,TextT,LineT,bool Affine)
         const w1 = v1.pos.w;
         const w2 = v2.pos.w;
         const w3 = v3.pos.w;
-        /*assert(!almost_equal(w1, 0));
-        assert(!almost_equal(w2, 0));
-        assert(!almost_equal(w3, 0));*/
 
-        static if(!Affine)
-        {
-            wplane = PlaneT(vec3(cast(PosT)x1, cast(PosT)y1, cast(PosT)1 / w1),
-                            vec3(cast(PosT)x2, cast(PosT)y2, cast(PosT)1 / w2),
-                            vec3(cast(PosT)x3, cast(PosT)y3, cast(PosT)1 / w3));
-        }
+        wplane = PlaneT(vec3(cast(PosT)x1, cast(PosT)y1, cast(PosT)1 / w1),
+                        vec3(cast(PosT)x2, cast(PosT)y2, cast(PosT)1 / w2),
+                        vec3(cast(PosT)x3, cast(PosT)y3, cast(PosT)1 / w3));
         static if(HasTexture)
         {
             const TextT tu1 = v1.tpos.u;
@@ -165,24 +146,13 @@ struct LinesPack(PosT,TextT,LineT,bool Affine)
             const TextT tv1 = v1.tpos.v;
             const TextT tv2 = v2.tpos.v;
             const TextT tv3 = v3.tpos.v;
-            static if(Affine)
-            {
-                uplane = PlaneTtex(vec3tex(cast(TextT)x1, cast(TextT)y1, tu1),
-                                   vec3tex(cast(TextT)x2, cast(TextT)y2, tu2),
-                                   vec3tex(cast(TextT)x3, cast(TextT)y3, tu3));
-                vplane = PlaneTtex(vec3tex(cast(TextT)x1, cast(TextT)y1, tv1),
-                                   vec3tex(cast(TextT)x2, cast(TextT)y2, tv2),
-                                   vec3tex(cast(TextT)x3, cast(TextT)y3, tv3));
-            }
-            else
-            {
-                uplane = PlaneTtex(vec3tex(cast(TextT)x1, cast(TextT)y1, tu1 / cast(TextT)w1),
-                                   vec3tex(cast(TextT)x2, cast(TextT)y2, tu2 / cast(TextT)w2),
-                                   vec3tex(cast(TextT)x3, cast(TextT)y3, tu3 / cast(TextT)w3));
-                vplane = PlaneTtex(vec3tex(cast(TextT)x1, cast(TextT)y1, tv1 / cast(TextT)w1),
-                                   vec3tex(cast(TextT)x2, cast(TextT)y2, tv2 / cast(TextT)w2),
-                                   vec3tex(cast(TextT)x3, cast(TextT)y3, tv3 / cast(TextT)w3));
-            }
+
+            uplane = PlaneTtex(vec3tex(cast(TextT)x1, cast(TextT)y1, tu1 / cast(TextT)w1),
+                               vec3tex(cast(TextT)x2, cast(TextT)y2, tu2 / cast(TextT)w2),
+                               vec3tex(cast(TextT)x3, cast(TextT)y3, tu3 / cast(TextT)w3));
+            vplane = PlaneTtex(vec3tex(cast(TextT)x1, cast(TextT)y1, tv1 / cast(TextT)w1),
+                               vec3tex(cast(TextT)x2, cast(TextT)y2, tv2 / cast(TextT)w2),
+                               vec3tex(cast(TextT)x3, cast(TextT)y3, tv3 / cast(TextT)w3));
         }
         /*auto mat = Matrix!(PosT,3,3)(v1.pos.x, v1.pos.y, v1.pos.w,
                                      v2.pos.x, v2.pos.y, v2.pos.w,
@@ -197,11 +167,8 @@ struct LinesPack(PosT,TextT,LineT,bool Affine)
         {
             degenerate = false;
         }
-        const invMat = mat.inverted;
-        static if(!Affine)
-        {
-            wplane = PlaneT(invMat * vec3(1,1,1));
-        }*/
+        const invMat = mat.inverse;
+        wplane = PlaneT(invMat * vec3(1,1,1));*/
     }
 }
 
@@ -263,13 +230,11 @@ pure nothrow:
     }
 }
 
-struct Span(PosT,bool Affine)
+struct Span(PosT)
 {
-    static if(!Affine)
-    {
-        PosT wStart = void, wCurr = void;
-        immutable PosT dwx, dwy;
-    }
+    PosT wStart = void, wCurr = void;
+    immutable PosT dwx, dwy;
+
     PosT suStart = void, svStart = void;
     PosT suCurr  = void, svCurr  = void;
     immutable PosT dsux, dsuy;
@@ -289,50 +254,31 @@ pure nothrow:
         svCurr  = svStart;
         dsvx    = pack.vplane.ac;
         dsvy    = pack.vplane.bc;
-        static if(!Affine)
-        {
-            wStart = pack.wplane.get(x, y);
-            wCurr  = wStart;
-            dwx    = pack.wplane.ac;
-            dwy    = pack.wplane.bc;
-        }
-        else
-        {
-            dux = dsux;
-            dvx = dsvx;
-        }
+
+        wStart = pack.wplane.get(x, y);
+        wCurr  = wStart;
+        dwx    = pack.wplane.ac;
+        dwy    = pack.wplane.bc;
     }
 
     void incX(int dx)
     {
         suCurr += dsux * dx;
         svCurr += dsvx * dx;
-        static if(Affine)
-        {
-            u = u1;
-            v = v1;
-            u1 = suCurr;
-            v1 = svCurr;
-        }
-        else
-        {
-            u = u1;
-            v = v1;
-            wCurr += dwx * dx;
-            u1 = suCurr / wCurr;
-            v1 = svCurr / wCurr;
-            dux = (u1 - u) / dx;
-            dvx = (v1 - v) / dx;
-        }
+        u = u1;
+        v = v1;
+        wCurr += dwx * dx;
+        u1 = suCurr / wCurr;
+        v1 = svCurr / wCurr;
+        dux = (u1 - u) / dx;
+        dvx = (v1 - v) / dx;
     }
 
     void incY()
     {
-        static if(!Affine)
-        {
-            wStart += dwy;
-            wCurr  = wStart;
-        }
+        wStart += dwy;
+        wCurr  = wStart;
+
         suStart += dsuy;
         suCurr  = suStart;
         svStart += dsvy;
@@ -340,7 +286,7 @@ pure nothrow:
     }
 }
 
-void drawTriangle(bool HasTextures,bool Affine,CtxT1,CtxT2,VertT)
+void drawTriangle(bool HasTextures,CtxT1,CtxT2,VertT)
     (auto ref CtxT1 outContext, auto ref CtxT2 extContext, in VertT[] pverts)
 {
     static assert(HasTextures);
@@ -355,10 +301,10 @@ void drawTriangle(bool HasTextures,bool Affine,CtxT1,CtxT2,VertT)
     {
         alias TextT = void;
     }
-    alias LineT   = Line!(PosT,Affine);
-    alias PackT   = LinesPack!(PosT,TextT,LineT,Affine);
+    alias LineT   = Line!(PosT);
+    alias PackT   = LinesPack!(PosT,TextT,LineT);
     alias PointT  = Point!(PosT);
-    alias SpanT   = Span!(PosT,Affine);
+    alias SpanT   = Span!(PosT);
 
     const clipRect = outContext.clipRect;
     const size = outContext.size;
@@ -687,38 +633,23 @@ found:
         const x1 = spans[y].x1;
         //outContext.surface[y][x0..x1] = ColorRed;
         span.incX(x0 - sx);
-        static if(Affine)
+        int x = x0;
+        while(true)
         {
-            int x = x0;
-            const xend = (x1 - AffineLength);
-            for(; x < xend; x += AffineLength)
+            const nx = (x + AffineLength);
+            if(nx < x1)
             {
                 span.incX(AffineLength);
-                drawSpan!true(y, x, x + AffineLength, span, line);
+                drawSpan!true(y, x, nx, span, line);
             }
-            span.incX(1);
-            drawSpan!false(y, x, x1, span, line);
-        }
-        else
-        {
-            int x = x0;
-            while(true)
+            else
             {
-                const nx = (x + AffineLength);
-                if(nx < x1)
-                {
-                    span.incX(AffineLength);
-                    drawSpan!true(y, x, nx, span, line);
-                }
-                else
-                {
-                    const rem = (x1 - x);
-                    span.incX(rem);
-                    drawSpan!false(y, x, x1, span, line);
-                    break;
-                }
-                x = nx;
+                const rem = (x1 - x);
+                span.incX(rem);
+                drawSpan!false(y, x, x1, span, line);
+                break;
             }
+            x = nx;
         }
         span.incY();
         ++line;
