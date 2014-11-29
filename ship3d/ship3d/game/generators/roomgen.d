@@ -52,12 +52,11 @@ Room generateRoom(R)(auto ref R random, World world)
     //  3---2
 
     //polygons.put(Polygon([0,1,2,0,2,3]));//front
-    polygons.put(Polygon([0,1,2,0,2,3]));//front
-    polygons.put(Polygon([4,6,5,4,7,6]));//back
-    polygons.put(Polygon([0,7,4,0,3,7]));//left
+    //polygons.put(Polygon([4,6,5,4,7,6]));//back
+    //polygons.put(Polygon([0,7,4,0,3,7]));//left
     polygons.put(Polygon([1,5,6,1,6,2]));//right
-    polygons.put(Polygon([4,5,1,4,1,0]));//up
-    polygons.put(Polygon([7,2,6,7,3,2]));//down
+    //polygons.put(Polygon([4,5,1,4,1,0]));//up
+    //polygons.put(Polygon([7,2,6,7,3,2]));//down
 
     return new Room(world, vertices.data, polygons.data);
 }
