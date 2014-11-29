@@ -124,15 +124,16 @@ public:
         surf.lock();
         scope(exit) surf.unlock();
 
-        /*struct OutContext
+        struct OutContext
         {
+            Size size;
             SurfT surface;
             Rect clipRect;
             mat4_t matrix;
         }
         const clipRect = Rect(0, 0, surf.width, surf.height);
         const mat = mProjMat;
-        OutContext octx = {surf, clipRect, mat};
+        OutContext octx = {mSize, surf, clipRect, mat};
         Renderer!OutContext renderer;
         renderer.viewport = mSize;
         renderer.getState() = octx;
@@ -140,9 +141,9 @@ public:
         auto playerRoom = playerCon.room;
         const playerPos = playerCon.pos;
         const playerDir = playerCon.dir;
-        playerRoom.draw(renderer, playerPos, playerDir);*/
+        playerRoom.draw(renderer, playerPos, playerDir);
 
-        foreach(j;0..1)
+        /*foreach(j;0..1)
         {
             Vertex[4] verts;
 
@@ -166,11 +167,11 @@ public:
             foreach(i;0..verts.length)
             {
                 verts[i].pos = t * verts[i].pos;
-                /*const w = verts[i].pos.w;
+                /+const w = verts[i].pos.w;
                 verts[i].pos = verts[i].pos / w;
                 verts[i].pos.w = w;
                 verts[i].pos.x = verts[i].pos.x * mSize.w + mSize.w / 2;
-                verts[i].pos.y = verts[i].pos.y * mSize.h+ mSize.h / 2;*/
+                verts[i].pos.y = verts[i].pos.y * mSize.h+ mSize.h / 2;+/
             }
             static int n = 0;
             static immutable int[3] ind1 = [0,1,2];
@@ -211,7 +212,7 @@ public:
                     rast1.drawIndexedTriangle!(HasTexture)(octx,ctx, verts, ind2);
                 }
             }
-        }
+        }*/
 
 
     }

@@ -23,11 +23,11 @@ struct RasterizerHP6
         (auto ref CtxT1 outputContext, auto ref CtxT2 extContext, in VertT[] verts, in IndT[] indices) if(isIntegral!IndT)
     {
         assert(indices.length == 3);
-        const c = (verts[indices[1]].pos.xyz - verts[indices[0]].pos.xyz).cross(verts[indices[2]].pos.xyz - verts[indices[0]].pos.xyz);
+        /*const c = (verts[indices[1]].pos.xyz - verts[indices[0]].pos.xyz).cross(verts[indices[2]].pos.xyz - verts[indices[0]].pos.xyz);
         if(c.z <= 0)
         {
             return;
-        }
+        }*/
         const(VertT)*[3] pverts;
         foreach(i,ind; indices) pverts[i] = verts.ptr + ind;
 
@@ -67,7 +67,7 @@ struct Line(PosT,bool Affine)
         //c = (dy * x1 - dx * y1) + inc;
         dy = (y2 * w1 - y1 * w2) / size.w;
         dx = (x2 * w1 - x1 * w2) / size.h;
-        const inc = (dy < 0 || (dy == 0 && dx > 0)) ? cast(PosT)1 / cast(PosT)8 : cast(PosT)0;//TODO: fix
+        const inc = (dy < 0 || (almost_equal(dy, 0) && dx > 0)) ? cast(PosT)1 / cast(PosT)8 : cast(PosT)0;//TODO: fix
         c  = (x1 * y2 - x2 * y1) - dx * (size.h / 2) + dy * (size.w / 2) - inc * (dy + dx);
     }
 
@@ -79,32 +79,40 @@ struct Line(PosT,bool Affine)
 
 struct Plane(PosT)
 {
+pure nothrow:
 @nogc:
     immutable PosT ac;
     immutable PosT bc;
     immutable PosT dc;
-    this(V)(in V v1, in V v2, in V v3) pure nothrow
+    this(V)(in V v1, in V v2, in V v3)
     {
         const v12 = v2 - v1;
         const v13 = v3 - v1;
 
         const norm = cross(v12,v13);
         //ax + by + cz = d
-        ac = norm.x / norm.z;
-        bc = norm.y / norm.z;
-        dc = ac * v1.x + bc * v1.y + v1.z;
+        ac = -norm.x / norm.z;
+        bc = -norm.y / norm.z;
+        dc = v1.z - ac * v1.x - bc * v1.y;
+    }
+    this(V)(in V vec)
+    {
+        ac = vec.x;
+        bc = vec.y;
+        dc = vec.z;
     }
 
-    auto get(int x, int y) const pure nothrow
+    auto get(int x, int y) const
     {
         //z = d/c - (a/c)x - (b/c)y)
-        return dc - ac * x - bc * y;
+        return dc + ac * x + bc * y;
     }
 }
 
 struct LinesPack(PosT,TextT,LineT,bool Affine)
 {
 @nogc:
+    immutable bool degenerate;
     enum HasTexture = !is(TextT : void);
     alias vec3 = Vector!(PosT,3);
     alias PlaneT = Plane!(PosT);
@@ -129,6 +137,7 @@ struct LinesPack(PosT,TextT,LineT,bool Affine)
             LineT(v2, v3, v1, size),
             LineT(v3, v1, v2, size)];
 
+        degenerate = false;
         const x1 = (v1.pos.x / v1.pos.w) * size.w + size.w / 2;
         const x2 = (v2.pos.x / v2.pos.w) * size.w + size.w / 2;
         const x3 = (v3.pos.x / v3.pos.w) * size.w + size.w / 2;
@@ -138,6 +147,9 @@ struct LinesPack(PosT,TextT,LineT,bool Affine)
         const w1 = v1.pos.w;
         const w2 = v2.pos.w;
         const w3 = v3.pos.w;
+        /*assert(!almost_equal(w1, 0));
+        assert(!almost_equal(w2, 0));
+        assert(!almost_equal(w3, 0));*/
 
         static if(!Affine)
         {
@@ -172,18 +184,37 @@ struct LinesPack(PosT,TextT,LineT,bool Affine)
                                    vec3tex(cast(TextT)x3, cast(TextT)y3, tv3 / cast(TextT)w3));
             }
         }
+        /*auto mat = Matrix!(PosT,3,3)(v1.pos.x, v1.pos.y, v1.pos.w,
+                                     v2.pos.x, v2.pos.y, v2.pos.w,
+                                     v3.pos.x, v3.pos.y, v3.pos.w);
+        const d = mat.det;
+        if(d <= 0)
+        {
+            degenerate = true;
+            return;
+        }
+        else
+        {
+            degenerate = false;
+        }
+        const invMat = mat.inverted;
+        static if(!Affine)
+        {
+            wplane = PlaneT(invMat * vec3(1,1,1));
+        }*/
     }
 }
 
-struct Point(PosT,PackT,bool Affine)
+struct Point(PosT)
 {
+pure nothrow:
     enum NumLines = 3;
     int currx = void;
     int curry = void;
     PosT[NumLines] cx = void;
     PosT[NumLines] dx = void;
     PosT[NumLines] dy = void;
-    this(PackT)(in ref PackT p, int x, int y) pure nothrow
+    this(PackT)(in ref PackT p, int x, int y) 
     {
         foreach(i;TupleRange!(0,NumLines))
         {
@@ -196,7 +227,7 @@ struct Point(PosT,PackT,bool Affine)
         curry = y;
     }
 
-    void incX(int val) pure nothrow
+    void incX(int val)
     {
         foreach(i;TupleRange!(0,NumLines))
         {
@@ -205,7 +236,7 @@ struct Point(PosT,PackT,bool Affine)
         currx += val;
     }
 
-    void incY(int val) pure nothrow
+    void incY(int val)
     {
         foreach(i;TupleRange!(0,NumLines))
         {
@@ -214,16 +245,21 @@ struct Point(PosT,PackT,bool Affine)
         curry += val;
     }
 
-    bool check() const pure nothrow
+    bool check() const
     {
         return cx[0] > 0 && cx[1] > 0 && cx[2] > 0;
     }
 
-    uint vals() const pure nothrow
+    uint vals() const
     {
         return (cast(uint)(cx[0] > 0) << 0) |
                (cast(uint)(cx[1] > 0) << 1) |
                (cast(uint)(cx[2] > 0) << 2);
+    }
+
+    auto val(int i) const
+    {
+        return cx[i];
     }
 }
 
@@ -244,21 +280,21 @@ struct Span(PosT,bool Affine)
 pure nothrow:
     this(PackT)(in ref PackT pack, int x, int y)
     {
-        suStart =  pack.uplane.get(x, y);
-        suCurr  =  suStart;
-        dsux    = -pack.uplane.ac;
-        dsuy    = -pack.uplane.bc;
+        suStart = pack.uplane.get(x, y);
+        suCurr  = suStart;
+        dsux    = pack.uplane.ac;
+        dsuy    = pack.uplane.bc;
 
-        svStart =  pack.vplane.get(x, y);
-        svCurr  =  svStart;
-        dsvx    = -pack.vplane.ac;
-        dsvy    = -pack.vplane.bc;
+        svStart = pack.vplane.get(x, y);
+        svCurr  = svStart;
+        dsvx    = pack.vplane.ac;
+        dsvy    = pack.vplane.bc;
         static if(!Affine)
         {
-            wStart =  pack.wplane.get(x, y);
-            wCurr  =  wStart;
-            dwx    = -pack.wplane.ac;
-            dwy    = -pack.wplane.bc;
+            wStart = pack.wplane.get(x, y);
+            wCurr  = wStart;
+            dwx    = pack.wplane.ac;
+            dwy    = pack.wplane.bc;
         }
         else
         {
@@ -321,7 +357,7 @@ void drawTriangle(bool HasTextures,bool Affine,CtxT1,CtxT2,VertT)
     }
     alias LineT   = Line!(PosT,Affine);
     alias PackT   = LinesPack!(PosT,TextT,LineT,Affine);
-    alias PointT  = Point!(PosT,PackT,Affine);
+    alias PointT  = Point!(PosT);
     alias SpanT   = Span!(PosT,Affine);
 
     const clipRect = outContext.clipRect;
@@ -333,6 +369,7 @@ void drawTriangle(bool HasTextures,bool Affine,CtxT1,CtxT2,VertT)
     const maxY = clipRect.y + clipRect.h;
 
     immutable pack = PackT(pverts[0], pverts[1], pverts[2], size);
+    if(pack.degenerate) return;
 
     //find first valid point
 

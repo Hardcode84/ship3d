@@ -52,13 +52,16 @@ public:
 
     auto transformVertex(T)(in ref T src) const
     {
-        const pos = getState().matrix * src.pos;
+        /*const pos = getState().matrix * src.pos;
         const w = pos.w;
         T ret = src;
         ret.pos.x = (pos.x / w) * mViewport.w + mViewport.w / 2;
         ret.pos.y = (pos.y / w) * mViewport.h + mViewport.h / 2;
         ret.pos.z = pos.z / w;
         ret.pos.w = w;
+        return ret;*/
+        T ret = src;
+        ret.pos = getState().matrix * src.pos;
         return ret;
     }
 

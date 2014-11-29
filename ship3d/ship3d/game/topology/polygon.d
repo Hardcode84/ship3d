@@ -4,7 +4,7 @@ import game.units;
 import game.topology.room;
 
 import game.renderer.rasterizer2;
-import game.renderer.rasterizerhp5;
+import game.renderer.rasterizerhp6;
 
 struct Polygon
 {
@@ -77,7 +77,7 @@ struct Polygon
         }
         else
         {
-            renderer.drawIndexedTriangle!RasterizerHP5(ctx, transformedVerts[], mIndices[]);
+            renderer.drawIndexedTriangle!RasterizerHP6(ctx, transformedVerts[], mIndices[]);
             //renderer.drawIndexedTriangle!Rasterizer2(ctx, transformedVerts[], mIndices[]);
         }
     }
