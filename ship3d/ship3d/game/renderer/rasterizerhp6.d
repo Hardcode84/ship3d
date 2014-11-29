@@ -300,7 +300,7 @@ void drawTriangle(bool HasTextures,CtxT1,CtxT2,VertT)
 
     //find first valid point
 
-    bool findStart(int x, int y, ref PointT start)
+    /*bool findStart(int x, int y, ref PointT start)
     {
         enum W = 5;
         enum H = 5;
@@ -329,6 +329,33 @@ void drawTriangle(bool HasTextures,CtxT1,CtxT2,VertT)
             }
         }
         return false;
+    }*/
+    bool findStart(int x0, int y0, int x1, int y1, ref PointT start)
+    {
+        assert(x0 <= x1);
+        assert(x0 >= minX);
+        assert(x1 <= maxX);
+        assert(y0 <= y1);
+        assert(y0 >= minY);
+        assert(y1 <= maxY);
+        foreach(y;y0..y1)
+        {
+            auto pt = PointT(pack, x0, y);
+            int count = 0;
+            foreach(x;x0..x1)
+            {
+                if(pt.check())
+                {
+                    if(++count > 1)
+                    {
+                        start = pt;
+                        return true;
+                    }
+                }
+                pt.incX(1);
+            }
+        }
+        return false;
     }
 
     PointT startPoint = void;
@@ -339,9 +366,11 @@ void drawTriangle(bool HasTextures,CtxT1,CtxT2,VertT)
             const w = v.pos.w;
             const x = cast(int)((v.pos.x / w) * size.w) + size.w / 2;
             const y = cast(int)((v.pos.y / w) * size.h) + size.h / 2;
-            //const x = cast(int)v.pos.x;
-            //const y = cast(int)v.pos.y;
-            if(findStart(x, y, startPoint))
+
+
+            if(x >= minX && x < maxX &&
+               y >= minY && y < maxY &&
+               findStart(max(x - 2, minX), max(y - 2, minY), min(x + 3, maxX), min(y + 3, maxY), startPoint))
             {
                 goto found;
             }
@@ -366,13 +395,13 @@ void drawTriangle(bool HasTextures,CtxT1,CtxT2,VertT)
             {
                 return false;
             }
-            const cx = x0 + (x1 - x0) / 2;
-            const cy = y0 + (y1 - y0) / 2;
             if((x1 - x0) <= 4 &&
                (y1 - y0) <= 4)
             {
-                return findStart(cx, cy, startPoint);
+                return findStart(x0, y0, x1, y1, startPoint);
             }
+            const cx = x0 + (x1 - x0) / 2;
+            const cy = y0 + (y1 - y0) / 2;
             auto ptc0 = PointT(pack, cx, y0);
             auto pt0c = PointT(pack, x0, cy);
             auto ptcc = PointT(pack, cx, cy);
