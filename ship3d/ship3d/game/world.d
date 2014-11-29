@@ -166,11 +166,11 @@ public:
             foreach(i;0..verts.length)
             {
                 verts[i].pos = t * verts[i].pos;
-                const w = verts[i].pos.w;
+                /*const w = verts[i].pos.w;
                 verts[i].pos = verts[i].pos / w;
                 verts[i].pos.w = w;
                 verts[i].pos.x = verts[i].pos.x * mSize.w + mSize.w / 2;
-                verts[i].pos.y = verts[i].pos.y * mSize.h+ mSize.h / 2;
+                verts[i].pos.y = verts[i].pos.y * mSize.h+ mSize.h / 2;*/
             }
             static int n = 0;
             static immutable int[3] ind1 = [0,1,2];

@@ -6,15 +6,7 @@ import std.array;
 import std.string;
 import std.functional;
 import std.range;
-
-version(LDC)
-{
-    pragma(LDC_alloca) void* alloca(size_t);
-}
-else
-{
-    import std.c.stdlib: alloca;
-}
+import std.c.stdlib: alloca;
 
 import gamelib.util;
 import gamelib.math;
@@ -46,7 +38,6 @@ struct RasterizerHP6
         const e2ydiff = pverts[0].pos.y - pverts[1].pos.y;
 
         const cxdiff = ((e1xdiff / e1ydiff) * e2ydiff) - e2xdiff;
-        const reverseSpans = (cxdiff < 0);
         const affine = false;//(abs(cxdiff) > AffineLength * 25);
 
         if(affine) drawTriangle!(HasTextures, true)(outputContext,extContext, pverts);
@@ -55,6 +46,7 @@ struct RasterizerHP6
 }
 
 private:
+enum AffineLength = 32;
 struct Line(PosT,bool Affine)
 {
 @nogc:
@@ -66,11 +58,17 @@ struct Line(PosT,bool Affine)
         const x2 = v2.pos.x;
         const y1 = v1.pos.y;
         const y2 = v2.pos.y;
-        const w = Affine ? cast(PosT)1 : cast(PosT)v3.pos.w;
-        dx = (x2 - x1) / w;
-        dy = (y2 - y1) / w;
-        const inc = (dy < 0 || (dy == 0 && dx > 0)) ? cast(PosT)1 / cast(PosT)8 : cast(PosT)0;
-        c = (dy * x1 - dx * y1) + inc;
+        const w1 = v1.pos.w;
+        const w2 = v2.pos.w;
+        //const w = Affine ? cast(PosT)1 : cast(PosT)v3.pos.w;
+        //dx = (x2 - x1) / w;
+        //dy = (y2 - y1) / w;
+        //const inc = (dy < 0 || (dy == 0 && dx > 0)) ? cast(PosT)1 / cast(PosT)8 : cast(PosT)0;
+        //c = (dy * x1 - dx * y1) + inc;
+        dy = (y2 * w1 - y1 * w2) / size.w;
+        dx = (x2 * w1 - x1 * w2) / size.h;
+        const inc = (dy < 0 || (dy == 0 && dx > 0)) ? cast(PosT)1 / cast(PosT)8 : cast(PosT)0;//TODO: fix
+        c  = (x1 * y2 - x2 * y1) - dx * (size.h / 2) + dy * (size.w / 2) - inc * (dy + dx);
     }
 
     auto val(int x, int y) const pure nothrow
@@ -126,17 +124,26 @@ struct LinesPack(PosT,TextT,LineT,bool Affine)
     }
     this(VT,ST)(in VT v1, in VT v2, in VT v3, in ST size) pure nothrow
     {
-        const invDenom = cast(PosT)(1 / ((v2.pos - v1.pos).xy.wedge((v3.pos - v1.pos).xy)));
         lines = [
             LineT(v1, v2, v3, size),
             LineT(v2, v3, v1, size),
             LineT(v3, v1, v2, size)];
 
+        const x1 = (v1.pos.x / v1.pos.w) * size.w + size.w / 2;
+        const x2 = (v2.pos.x / v2.pos.w) * size.w + size.w / 2;
+        const x3 = (v3.pos.x / v3.pos.w) * size.w + size.w / 2;
+        const y1 = (v1.pos.y / v1.pos.w) * size.h + size.h / 2;
+        const y2 = (v2.pos.y / v2.pos.w) * size.h + size.h / 2;
+        const y3 = (v3.pos.y / v3.pos.w) * size.h + size.h / 2;
+        const w1 = v1.pos.w;
+        const w2 = v2.pos.w;
+        const w3 = v3.pos.w;
+
         static if(!Affine)
         {
-            wplane = PlaneT(vec3(cast(PosT)v1.pos.x, cast(PosT)v1.pos.y, cast(PosT)1 / v1.pos.w),
-                            vec3(cast(PosT)v2.pos.x, cast(PosT)v2.pos.y, cast(PosT)1 / v2.pos.w),
-                            vec3(cast(PosT)v3.pos.x, cast(PosT)v3.pos.y, cast(PosT)1 / v3.pos.w));
+            wplane = PlaneT(vec3(cast(PosT)x1, cast(PosT)y1, cast(PosT)1 / w1),
+                            vec3(cast(PosT)x2, cast(PosT)y2, cast(PosT)1 / w2),
+                            vec3(cast(PosT)x3, cast(PosT)y3, cast(PosT)1 / w3));
         }
         static if(HasTexture)
         {
@@ -148,21 +155,21 @@ struct LinesPack(PosT,TextT,LineT,bool Affine)
             const TextT tv3 = v3.tpos.v;
             static if(Affine)
             {
-                uplane = PlaneTtex(vec3tex(cast(TextT)v1.pos.x, cast(TextT)v1.pos.y, tu1),
-                                   vec3tex(cast(TextT)v2.pos.x, cast(TextT)v2.pos.y, tu2),
-                                   vec3tex(cast(TextT)v3.pos.x, cast(TextT)v3.pos.y, tu3));
-                vplane = PlaneTtex(vec3tex(cast(TextT)v1.pos.x, cast(TextT)v1.pos.y, tv1),
-                                   vec3tex(cast(TextT)v2.pos.x, cast(TextT)v2.pos.y, tv2),
-                                   vec3tex(cast(TextT)v3.pos.x, cast(TextT)v3.pos.y, tv3));
+                uplane = PlaneTtex(vec3tex(cast(TextT)x1, cast(TextT)y1, tu1),
+                                   vec3tex(cast(TextT)x2, cast(TextT)y2, tu2),
+                                   vec3tex(cast(TextT)x3, cast(TextT)y3, tu3));
+                vplane = PlaneTtex(vec3tex(cast(TextT)x1, cast(TextT)y1, tv1),
+                                   vec3tex(cast(TextT)x2, cast(TextT)y2, tv2),
+                                   vec3tex(cast(TextT)x3, cast(TextT)y3, tv3));
             }
             else
             {
-                uplane = PlaneTtex(vec3tex(cast(TextT)v1.pos.x, cast(TextT)v1.pos.y, tu1 / cast(TextT)v1.pos.w),
-                                   vec3tex(cast(TextT)v2.pos.x, cast(TextT)v2.pos.y, tu2 / cast(TextT)v2.pos.w),
-                                   vec3tex(cast(TextT)v3.pos.x, cast(TextT)v3.pos.y, tu3 / cast(TextT)v3.pos.w));
-                vplane = PlaneTtex(vec3tex(cast(TextT)v1.pos.x, cast(TextT)v1.pos.y, tv1 / cast(TextT)v1.pos.w),
-                                   vec3tex(cast(TextT)v2.pos.x, cast(TextT)v2.pos.y, tv2 / cast(TextT)v2.pos.w),
-                                   vec3tex(cast(TextT)v3.pos.x, cast(TextT)v3.pos.y, tv3 / cast(TextT)v3.pos.w));
+                uplane = PlaneTtex(vec3tex(cast(TextT)x1, cast(TextT)y1, tu1 / cast(TextT)w1),
+                                   vec3tex(cast(TextT)x2, cast(TextT)y2, tu2 / cast(TextT)w2),
+                                   vec3tex(cast(TextT)x3, cast(TextT)y3, tu3 / cast(TextT)w3));
+                vplane = PlaneTtex(vec3tex(cast(TextT)x1, cast(TextT)y1, tv1 / cast(TextT)w1),
+                                   vec3tex(cast(TextT)x2, cast(TextT)y2, tv2 / cast(TextT)w2),
+                                   vec3tex(cast(TextT)x3, cast(TextT)y3, tv3 / cast(TextT)w3));
             }
         }
     }
@@ -220,19 +227,80 @@ struct Point(PosT,PackT,bool Affine)
     }
 }
 
-struct Context(TextT)
+struct Span(PosT,bool Affine)
 {
-    enum HasTextures = !is(TextT : void);
-    int x = void;
-    int y = void;
-    static if(HasTextures)
+    static if(!Affine)
     {
-        TextT u = void;
-        TextT v = void;
-        TextT dux = void;
-        TextT dvx = void;
-        TextT duy = void;
-        TextT dvy = void;
+        PosT wStart = void, wCurr = void;
+        immutable PosT dwx, dwy;
+    }
+    PosT suStart = void, svStart = void;
+    PosT suCurr  = void, svCurr  = void;
+    immutable PosT dsux, dsuy;
+    immutable PosT dsvx, dsvy;
+    PosT u  = void, v  = void;
+    PosT u1 = void, v1 = void;
+    PosT dux = void, dvx = void;
+pure nothrow:
+    this(PackT)(in ref PackT pack, int x, int y)
+    {
+        suStart =  pack.uplane.get(x, y);
+        suCurr  =  suStart;
+        dsux    = -pack.uplane.ac;
+        dsuy    = -pack.uplane.bc;
+
+        svStart =  pack.vplane.get(x, y);
+        svCurr  =  svStart;
+        dsvx    = -pack.vplane.ac;
+        dsvy    = -pack.vplane.bc;
+        static if(!Affine)
+        {
+            wStart =  pack.wplane.get(x, y);
+            wCurr  =  wStart;
+            dwx    = -pack.wplane.ac;
+            dwy    = -pack.wplane.bc;
+        }
+        else
+        {
+            dux = dsux;
+            dvx = dsvx;
+        }
+    }
+
+    void incX(int dx)
+    {
+        suCurr += dsux * dx;
+        svCurr += dsvx * dx;
+        static if(Affine)
+        {
+            u = u1;
+            v = v1;
+            u1 = suCurr;
+            v1 = svCurr;
+        }
+        else
+        {
+            u = u1;
+            v = v1;
+            wCurr += dwx * dx;
+            u1 = suCurr / wCurr;
+            v1 = svCurr / wCurr;
+            dux = (u1 - u) / dx;
+            dvx = (v1 - v) / dx;
+        }
+    }
+
+    void incY()
+    {
+        static if(!Affine)
+        {
+            wStart += dwy;
+            wCurr  = wStart;
+        }
+        suStart += dsuy;
+        suCurr  = suStart;
+        svStart += dsvy;
+        svCurr  = svStart;
     }
 }
 
@@ -254,26 +322,16 @@ void drawTriangle(bool HasTextures,bool Affine,CtxT1,CtxT2,VertT)
     alias LineT   = Line!(PosT,Affine);
     alias PackT   = LinesPack!(PosT,TextT,LineT,Affine);
     alias PointT  = Point!(PosT,PackT,Affine);
-    alias CtxT    = Context!(TextT);
-
-    int minY = cast(int)min(pverts[0].pos.y, pverts[1].pos.y, pverts[2].pos.y);
-    int maxY = cast(int)max(pverts[0].pos.y, pverts[1].pos.y, pverts[2].pos.y) + 1;
-
-    int minX = cast(int)min(pverts[0].pos.x, pverts[1].pos.x, pverts[2].pos.x);
-    int maxX = cast(int)max(pverts[0].pos.x, pverts[1].pos.x, pverts[2].pos.x) + 1;
+    alias SpanT   = Span!(PosT,Affine);
 
     const clipRect = outContext.clipRect;
-    //const size = outContext.size;
-    /*minX = max(clipRect.x, minX);
-    maxX = min(clipRect.x + clipRect.w, maxX);
-    minY = max(clipRect.y, minY);
-    maxY = min(clipRect.y + clipRect.h, maxY);*/
-    minX = clipRect.x;
-    maxX = clipRect.x + clipRect.w;
-    minY = clipRect.y;
-    maxY = clipRect.y + clipRect.h;
-
     const size = outContext.size;
+
+    const minX = clipRect.x;
+    const maxX = clipRect.x + clipRect.w;
+    const minY = clipRect.y;
+    const maxY = clipRect.y + clipRect.h;
+
     immutable pack = PackT(pverts[0], pverts[1], pverts[2], size);
 
     //find first valid point
@@ -315,10 +373,10 @@ void drawTriangle(bool HasTextures,bool Affine,CtxT1,CtxT2,VertT)
         foreach(const ref v; pverts)
         {
             const w = v.pos.w;
-            //const x = cast(int)((v.pos.x / w) * size.w) + size.w / 2 - W / 2;
-            //const y = cast(int)((v.pos.y / w) * size.h) + size.h / 2 - H / 2;
-            const x = cast(int)v.pos.x;
-            const y = cast(int)v.pos.y;
+            const x = cast(int)((v.pos.x / w) * size.w) + size.w / 2;
+            const y = cast(int)((v.pos.y / w) * size.h) + size.h / 2;
+            //const x = cast(int)v.pos.x;
+            //const y = cast(int)v.pos.y;
             if(findStart(x, y, startPoint))
             {
                 goto found;
@@ -331,7 +389,7 @@ void drawTriangle(bool HasTextures,bool Affine,CtxT1,CtxT2,VertT)
             const x1 = pt11.currx;
             const y0 = pt00.curry;
             const y1 = pt11.curry;
-            auto none(in uint val) pure nothrow
+            bool none(in uint val) pure nothrow
             {
                 return 0x0 == (val & 0b001_001_001_001) ||
                        0x0 == (val & 0b010_010_010_010) ||
@@ -379,12 +437,13 @@ found:
         int x0, x1;
     }
 
-    auto spans = alignPointer!Span(alloca(size.h * Span.sizeof + Span.alignof))[0..size.h];
+    //version(LDC) pragma(LDC_never_inline);
+    //auto spans = alignPointer!Span(alloca(size.h * Span.sizeof + Span.alignof))[0..size.h];
+    Span[4096] spansRaw; //TODO: LDC crahes when used memory from alloca with optimization enabled
+    auto spans = spansRaw[0..size.h];
 
     auto fillLine(in ref PointT pt)
     {
-        //debugOut("fill line");
-        //debugOut(pt.curry);
         enum Step = 64;
         const leftBound  = minX;
         const rightBound = maxX;
@@ -392,11 +451,8 @@ found:
         {
             int findLeft()
             {
-                //debugOut("findLeft");
                 PointT newPt = pt;
-                //assert(newPt.check());
                 const count = (newPt.currx - leftBound) / Step;
-                //debugOut(count);
                 foreach(i;0..count)
                 {
                     newPt.incX(-Step);
@@ -418,9 +474,7 @@ found:
             }
             int findRight()
             {
-                //debugOut("findRight");
                 PointT newPt = pt;
-                //assert(newPt.check());
                 const count = (rightBound - newPt.currx) / Step;
                 foreach(i;0..count)
                 {
@@ -443,13 +497,11 @@ found:
             }
             const x0 = findLeft();
             const x1 = findRight();
-            //outContext.surface[pt.curry][x0..x1] = ColorRed;
             spans[pt.curry].x0 = x0;
             spans[pt.curry].x1 = x1;
             return vec2i(x0, x1);
         }
         assert(false);
-        //return vec2i(0, 0);
     }
 
     bool findPoint(T)(int y, in T bounds, out int x)
@@ -548,19 +600,92 @@ found:
         return y;
     }
 
+    void drawSpan(bool FixedLen,L)(
+        int y,
+        int x1, int x2,
+        in ref SpanT span,
+        auto ref L line)
+    {
+        assert((x2 - x1) <= AffineLength);
+        if(x1 >= x2) return;
+        static if(HasTextures)
+        {
+            alias TexT = Unqual!(typeof(span.u));
+            struct Context
+            {
+                TexT u;
+                TexT v;
+                TexT dux;
+                TexT dvx;
+            }
+            Context ctx = {u: span.u, v: span.v, dux: span.dux, dvx: span.dvx};
+            static if(FixedLen)
+            {
+                extContext.texture.getLine!AffineLength(ctx,line[x1..x2]);
+            }
+            else
+            {
+                foreach(x;x1..x2)
+                {
+                    extContext.texture.getLine!1(ctx,line[x..x+1]);
+                    ctx.u += ctx.dux;
+                    ctx.v += ctx.dvx;
+                }
+            }
+        }
+    }
+
     const sy = startPoint.curry;
-    //debugOut("start");
     const bounds = fillLine(startPoint);
-    //debugOut(bounds);
     const y1 = search!true(bounds, sy);
     const y0 = search!false(bounds, sy) + 1;
-    foreach(y; y0..y1)
+
+    const sx = spans[y0].x0;
+    auto span = SpanT(pack, sx, y0);
+
+    auto line = outContext.surface[y0];
+    foreach(y;y0..y1)
     {
         const x0 = spans[y].x0;
         const x1 = spans[y].x1;
-        outContext.surface[y][x0..x1] = ColorRed;
+        //outContext.surface[y][x0..x1] = ColorRed;
+        span.incX(x0 - sx);
+        static if(Affine)
+        {
+            int x = x0;
+            const xend = (x1 - AffineLength);
+            for(; x < xend; x += AffineLength)
+            {
+                span.incX(AffineLength);
+                drawSpan!true(y, x, x + AffineLength, span, line);
+            }
+            span.incX(1);
+            drawSpan!false(y, x, x1, span, line);
+        }
+        else
+        {
+            int x = x0;
+            while(true)
+            {
+                const nx = (x + AffineLength);
+                if(nx < x1)
+                {
+                    span.incX(AffineLength);
+                    drawSpan!true(y, x, nx, span, line);
+                }
+                else
+                {
+                    const rem = (x1 - x);
+                    span.incX(rem);
+                    drawSpan!false(y, x, x1, span, line);
+                    break;
+                }
+                x = nx;
+            }
+        }
+        span.incY();
+        ++line;
     }
-    //x * (y1*w2 - y2*w1) - y * (x1*w2 - x2*w1) - (x2*y1 - x1*y2) > 0
-    outContext.surface[sy][startPoint.currx] = ColorGreen;
+    //outContext.surface[sy][startPoint.currx] = ColorGreen;
     //end
 }
