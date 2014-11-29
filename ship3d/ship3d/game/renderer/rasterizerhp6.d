@@ -54,15 +54,15 @@ struct Line(PosT)
         //dy = (y2 - y1) / w;
         //const inc = (dy < 0 || (dy == 0 && dx > 0)) ? cast(PosT)1 / cast(PosT)8 : cast(PosT)0;
         //c = (dy * x1 - dx * y1) + inc;
-        dy = (y2 * w1 - y1 * w2) / size.w;
-        dx = (x2 * w1 - x1 * w2) / size.h;
+        dx = (y2 * w1 - y1 * w2) / size.w;
+        dy = (x2 * w1 - x1 * w2) / size.h;
         const inc = (dy < 0 || (almost_equal(dy, 0) && dx > 0)) ? cast(PosT)1 / cast(PosT)8 : cast(PosT)0;//TODO: fix
-        c  = (x1 * y2 - x2 * y1) - dx * (size.h / 2) + dy * (size.w / 2) - inc * (dy + dx);
+        c  = (x1 * y2 - x2 * y1) - dy * (size.h / 2) + dx * (size.w / 2) - inc * (dy + dx);
     }
 
     auto val(int x, int y) const pure nothrow
     {
-        return c + dx * y - dy * x;
+        return c + dy * y - dx * x;
     }
 }
 
@@ -70,9 +70,9 @@ struct Plane(PosT)
 {
 pure nothrow:
 @nogc:
-    immutable PosT ac;
-    immutable PosT bc;
-    immutable PosT dc;
+    immutable PosT dx;
+    immutable PosT dy;
+    immutable PosT c;
     this(V)(in V v1, in V v2, in V v3)
     {
         const v12 = v2 - v1;
@@ -80,21 +80,21 @@ pure nothrow:
 
         const norm = cross(v12,v13);
         //ax + by + cz = d
-        ac = -norm.x / norm.z;
-        bc = -norm.y / norm.z;
-        dc = v1.z - ac * v1.x - bc * v1.y;
+        dx = -norm.x / norm.z;
+        dy = -norm.y / norm.z;
+        c = v1.z - dx * v1.x - dy * v1.y;
     }
-    this(V)(in V vec)
+    this(V,S)(in V vec, in S size)
     {
-        ac = vec.x;
-        bc = vec.y;
-        dc = vec.z;
+        dx = vec.x / size.w;
+        dy = vec.y / size.h;
+        c = vec.z - dx * (size.w / 2) - dy * (size.h / 2);
     }
 
     auto get(int x, int y) const
     {
         //z = d/c - (a/c)x - (b/c)y)
-        return dc + ac * x + bc * y;
+        return c + dx * x + dy * y;
     }
 }
 
@@ -124,37 +124,7 @@ struct LinesPack(PosT,TextT,LineT)
             LineT(v2, v3, v1, size),
             LineT(v3, v1, v2, size)];
 
-        degenerate = false;
-        const x1 = (v1.pos.x / v1.pos.w) * size.w + size.w / 2;
-        const x2 = (v2.pos.x / v2.pos.w) * size.w + size.w / 2;
-        const x3 = (v3.pos.x / v3.pos.w) * size.w + size.w / 2;
-        const y1 = (v1.pos.y / v1.pos.w) * size.h + size.h / 2;
-        const y2 = (v2.pos.y / v2.pos.w) * size.h + size.h / 2;
-        const y3 = (v3.pos.y / v3.pos.w) * size.h + size.h / 2;
-        const w1 = v1.pos.w;
-        const w2 = v2.pos.w;
-        const w3 = v3.pos.w;
-
-        wplane = PlaneT(vec3(cast(PosT)x1, cast(PosT)y1, cast(PosT)1 / w1),
-                        vec3(cast(PosT)x2, cast(PosT)y2, cast(PosT)1 / w2),
-                        vec3(cast(PosT)x3, cast(PosT)y3, cast(PosT)1 / w3));
-        static if(HasTexture)
-        {
-            const TextT tu1 = v1.tpos.u;
-            const TextT tu2 = v2.tpos.u;
-            const TextT tu3 = v3.tpos.u;
-            const TextT tv1 = v1.tpos.v;
-            const TextT tv2 = v2.tpos.v;
-            const TextT tv3 = v3.tpos.v;
-
-            uplane = PlaneTtex(vec3tex(cast(TextT)x1, cast(TextT)y1, tu1 / cast(TextT)w1),
-                               vec3tex(cast(TextT)x2, cast(TextT)y2, tu2 / cast(TextT)w2),
-                               vec3tex(cast(TextT)x3, cast(TextT)y3, tu3 / cast(TextT)w3));
-            vplane = PlaneTtex(vec3tex(cast(TextT)x1, cast(TextT)y1, tv1 / cast(TextT)w1),
-                               vec3tex(cast(TextT)x2, cast(TextT)y2, tv2 / cast(TextT)w2),
-                               vec3tex(cast(TextT)x3, cast(TextT)y3, tv3 / cast(TextT)w3));
-        }
-        /*auto mat = Matrix!(PosT,3,3)(v1.pos.x, v1.pos.y, v1.pos.w,
+        const mat = Matrix!(PosT,3,3)(v1.pos.x, v1.pos.y, v1.pos.w,
                                      v2.pos.x, v2.pos.y, v2.pos.w,
                                      v3.pos.x, v3.pos.y, v3.pos.w);
         const d = mat.det;
@@ -168,7 +138,18 @@ struct LinesPack(PosT,TextT,LineT)
             degenerate = false;
         }
         const invMat = mat.inverse;
-        wplane = PlaneT(invMat * vec3(1,1,1));*/
+        wplane = PlaneT(invMat * vec3(1,1,1), size);
+        static if(HasTexture)
+        {
+            const tu1 = v1.tpos.u;
+            const tu2 = v2.tpos.u;
+            const tu3 = v3.tpos.u;
+            const tv1 = v1.tpos.v;
+            const tv2 = v2.tpos.v;
+            const tv3 = v3.tpos.v;
+            uplane = PlaneT(invMat * vec3(tu1,tu2,tu3), size);
+            vplane = PlaneT(invMat * vec3(tv1,tv2,tv3), size);
+        }
     }
 }
 
@@ -187,8 +168,8 @@ pure nothrow:
         {
             const val = p.lines[i].val(x, y);
             cx[i] = val;
-            dx[i] = -p.lines[i].dy;
-            dy[i] =  p.lines[i].dx;
+            dx[i] = -p.lines[i].dx;
+            dy[i] =  p.lines[i].dy;
         }
         currx = x;
         curry = y;
@@ -247,18 +228,18 @@ pure nothrow:
     {
         suStart = pack.uplane.get(x, y);
         suCurr  = suStart;
-        dsux    = pack.uplane.ac;
-        dsuy    = pack.uplane.bc;
+        dsux    = pack.uplane.dx;
+        dsuy    = pack.uplane.dy;
 
         svStart = pack.vplane.get(x, y);
         svCurr  = svStart;
-        dsvx    = pack.vplane.ac;
-        dsvy    = pack.vplane.bc;
+        dsvx    = pack.vplane.dx;
+        dsvy    = pack.vplane.dy;
 
         wStart = pack.wplane.get(x, y);
         wCurr  = wStart;
-        dwx    = pack.wplane.ac;
-        dwy    = pack.wplane.bc;
+        dwx    = pack.wplane.dx;
+        dwy    = pack.wplane.dy;
     }
 
     void incX(int dx)
