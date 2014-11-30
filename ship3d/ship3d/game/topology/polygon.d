@@ -3,17 +3,19 @@
 import game.units;
 import game.topology.room;
 
+import game.renderer.spanmask;
 import game.renderer.rasterizer2;
 import game.renderer.rasterizerhp6;
 
 struct Polygon
 {
     Room               mRoom = null;
-    const(Polygon)*    mConnection = null;
+    Polygon*           mConnection = null;
+    vec3_t             mConnectionOffset;
+    quat_t             mConnectionDir;
     //const(Polygon)*[4] mAdjasent = null;
     immutable(int)[]   mIndices;
-    vec3_t[]           mNormals;
-    texture_t          mTexture;
+    texture_t          mTexture = null;
 
 //pure nothrow:
     this(in int[] indices)
@@ -26,60 +28,53 @@ struct Polygon
     @property auto indices()  inout { return mIndices[]; }
     @property auto room()     inout { return mRoom; }
 
-    void updateNormals()
+    void connect(Polygon* poly, in vec3_t pos, in quat_t dir)
     {
-        //debugOut("updateNormals");
-        assert(mIndices.length > 0);
-        assert(room !is null);
-        const verts = room.vertices;
-        mNormals.length = 1;
-        foreach(i;0..mIndices.length / 3)
+        assert(poly !is null);
+        mConnection = poly;
+        mConnectionOffset = pos;
+        mConnectionDir    = dir;
+        poly.mConnection = &this;
+        poly.mConnectionOffset = -pos;
+        poly.mConnectionDir = dir.inverse;
+    }
+
+    void draw(RT,AT)(auto ref RT renderer, auto ref AT alloc, in Vertex[] transformedVerts, in vec3_t pos, in quat_t dir, int depth) const
+    {
+        //debugOut("polygon.draw");
+
+
+        if(isPortal)
         {
-            const i0 = mIndices[i * 3 + 0];
-            const i1 = mIndices[i * 3 + 1];
-            const i2 = mIndices[i * 3 + 2];
-            const normal = cross(verts[i1].pos.xyz - verts[i0].pos.xyz, verts[i2].pos.xyz - verts[i0].pos.xyz).normalized;
-            if(0 == i)
+            if(depth > 0)
             {
-                mNormals[0] = normal;
-            }
-            else
-            {
-                const d = max(abs(mNormals[0].x - normal.x),abs(mNormals[0].y - normal.y),abs(mNormals[0].z - normal.z));
-                if(d > 0.01)
+                //debugOut(depth);
+                renderer.pushState();
+                scope(exit) renderer.popState();
+                renderer.getState().dstMask = SpanMask(renderer.getState().size, alloc);
+                //draw mask
+                struct Context1
                 {
-                    mNormals ~= normal;
+                }
+                Context1 ctx;
+                alias RastT = RasterizerHP6!(false,true,true);
+                renderer.drawIndexedTriangle!RastT(ctx, transformedVerts[], mIndices[]);
+                if(!renderer.getState().dstMask.isEmpty)
+                {
+                    renderer.getState().mask = renderer.getState().dstMask;
+                    mConnection.room.draw(renderer, alloc, mConnectionOffset, mConnectionDir, depth - 1);
                 }
             }
         }
-    }
-
-    bool checkNormals(in quat_t dir) const
-    {
-        foreach(const ref n;mNormals[])
-        {
-            if((dir * n).z > 0) return true;
-        }
-        return false;
-    }
-
-    void draw(T)(auto ref T renderer, in Vertex[] transformedVerts, in vec3_t pos, in quat_t dir) const
-    {
-        //debugOut("polygon.draw");
-        struct Context
-        {
-            const(texture_t) texture;
-        }
-        Context ctx = {texture: mTexture};
-        if(isPortal)
-        {
-            assert(false);
-        }
         else
         {
-            renderer.drawIndexedTriangle!RasterizerHP6(ctx, transformedVerts[], mIndices[]);
-            //renderer.drawIndexedTriangle!Rasterizer2(ctx, transformedVerts[], mIndices[]);
+            struct Context2
+            {
+                const(texture_t) texture;
+            }
+            Context2 ctx = {texture: mTexture};
+            alias RastT = RasterizerHP6!(true,false,true);
+            renderer.drawIndexedTriangle!RastT(ctx, transformedVerts[], mIndices[]);
         }
     }
 }
-

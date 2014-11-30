@@ -31,30 +31,26 @@ public:
         foreach(ref p;mPolygons[])
         {
             p.mRoom = this;
-            p.updateNormals();
         }
     }
 
     @property auto vertices() inout { return mVertices[]; }
     @property auto polygons() inout { return mPolygons[]; }
 
-    void draw(T)(auto ref T renderer, in vec3_t pos, in quat_t dir)
+    void draw(RT, AT)(auto ref RT renderer, auto ref AT alloc, in vec3_t pos, in quat_t dir, int depth) const
     {
         //debugOut("Room.draw");
-        auto alloc = mWorld.allocator;
         auto allocState = alloc.state;
         scope(exit) alloc.restoreState(allocState);
 
         const srcMat = renderer.getState().matrix;
-        renderer.getState().matrix = srcMat * mat4_t.translation(pos.x,pos.y,pos.z) * dir.to_matrix!(4,4)();
+        renderer.getState().matrix = srcMat * dir.to_matrix!(4,4)() * mat4_t.translation(pos.x,pos.y,pos.z);
         const mat = renderer.getState().matrix;
 
-        auto transformedVertices = alloc.alloc!(Vertex)(mVertices.length);
+        auto transformedVertices      = alloc.alloc!(Vertex)(mVertices.length);
         auto transformedVerticesFlags = alloc.alloc!(bool)(mVertices.length);
         transformedVerticesFlags[] = false;
-        auto polygonsToProcess = alloc.alloc!(const(Polygon)*)(mPolygons.length);
-        int polygonsToProcessCount = 0;
-        foreach(const ref p; mPolygons)
+        foreach(ref p; mPolygons)
         {
             //if(p.checkNormals(dir))
             {
@@ -66,14 +62,10 @@ public:
                         transformedVerticesFlags[i] = true;
                     }
                 }
-                polygonsToProcess[polygonsToProcessCount++] = &p;
+                p.draw(renderer, alloc, transformedVertices, pos, dir, depth);
             }
         }
 
-        foreach(const ref p; polygonsToProcess[0..polygonsToProcessCount])
-        {
-            p.draw(renderer, transformedVertices, pos, dir);
-        }
         //sort entities
         foreach(ref e; mEntities)
         {
@@ -98,4 +90,3 @@ public:
         e.onAddedToRoom(r);
     }
 }
-

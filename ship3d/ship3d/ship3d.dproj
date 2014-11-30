@@ -189,6 +189,7 @@
     <Compile Include="gamelib\memory\memory.d" />
     <Compile Include="game\renderer\rasterizerhp6.d" />
     <Compile Include="gamelib\memory\utils.d" />
+    <Compile Include="game\renderer\spanmask.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />

@@ -16,6 +16,7 @@ import game.renderer.rasterizerhp5;
 import game.renderer.rasterizerhp6;
 import game.renderer.texture;
 import game.renderer.basetexture;
+import game.renderer.spanmask;
 
 import game.topology.room;
 import game.topology.entityref;
@@ -46,6 +47,18 @@ private:
 
     StackAlloc mAllocator;
     EntityRefAllocator mERefAlloc;
+
+    struct OutContext
+    {
+        Size size;
+        SurfT surface;
+        Rect clipRect;
+        mat4_t matrix;
+        SpanMask mask;
+        SpanMask dstMask;
+    }
+    alias RendererT = Renderer!(OutContext,16);
+    RendererT mRenderer;
 public:
     @property allocator()     inout pure nothrow { return mAllocator; }
     @property erefAllocator() inout pure nothrow { return mERefAlloc; }
@@ -120,28 +133,24 @@ public:
 
     void draw(SurfT surf)
     {
+        auto allocState = mAllocator.state;
+        scope(exit) mAllocator.restoreState(allocState);
+
         surf.fill(ColorBlack);
         surf.lock();
         scope(exit) surf.unlock();
 
-        struct OutContext
-        {
-            Size size;
-            SurfT surface;
-            Rect clipRect;
-            mat4_t matrix;
-        }
         const clipRect = Rect(0, 0, surf.width, surf.height);
         const mat = mProjMat;
-        OutContext octx = {mSize, surf, clipRect, mat};
-        Renderer!OutContext renderer;
-        renderer.viewport = mSize;
-        renderer.getState() = octx;
+        OutContext octx = {mSize, surf, clipRect, mat, SpanMask(mSize, mAllocator)};
+        //renderer.viewport = mSize;
+        mRenderer.getState() = octx;
         auto playerCon  = mPlayer.connections[0];
         auto playerRoom = playerCon.room;
         const playerPos = playerCon.pos;
         const playerDir = playerCon.dir;
-        playerRoom.draw(renderer, playerPos, playerDir);
+        enum MaxDepth = 5;
+        playerRoom.draw(mRenderer, allocator(), playerPos, playerDir, MaxDepth);
 
         /*foreach(j;0..1)
         {
