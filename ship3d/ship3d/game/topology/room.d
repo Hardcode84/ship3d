@@ -50,8 +50,9 @@ public:
         auto transformedVertices      = alloc.alloc!(Vertex)(mVertices.length);
         auto transformedVerticesFlags = alloc.alloc!(bool)(mVertices.length);
         transformedVerticesFlags[] = false;
-        foreach(ref p; mPolygons)
+        foreach(ind,ref p; mPolygons[])
         {
+            //if(1 != ind)
             //if(p.checkNormals(dir))
             {
                 foreach(i; p.indices[])

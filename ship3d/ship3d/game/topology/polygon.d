@@ -48,17 +48,17 @@ struct Polygon
         {
             if(depth > 0)
             {
-                //debugOut(depth);
                 renderer.pushState();
                 scope(exit) renderer.popState();
                 renderer.getState().dstMask = SpanMask(renderer.getState().size, alloc);
+                renderer.getState().dstMask.invalidate;
                 //draw mask
                 struct Context1
                 {
                 }
                 Context1 ctx;
-                alias RastT = RasterizerHP6!(false,true,true);
-                renderer.drawIndexedTriangle!RastT(ctx, transformedVerts[], mIndices[]);
+                alias RastT1 = RasterizerHP6!(false,true,true);
+                renderer.drawIndexedTriangle!RastT1(ctx, transformedVerts[], mIndices[]);
                 if(!renderer.getState().dstMask.isEmpty)
                 {
                     renderer.getState().mask = renderer.getState().dstMask;
@@ -73,8 +73,8 @@ struct Polygon
                 const(texture_t) texture;
             }
             Context2 ctx = {texture: mTexture};
-            alias RastT = RasterizerHP6!(true,false,true);
-            renderer.drawIndexedTriangle!RastT(ctx, transformedVerts[], mIndices[]);
+            alias RastT2 = RasterizerHP6!(true,false,true);
+            renderer.drawIndexedTriangle!RastT2(ctx, transformedVerts[], mIndices[]);
         }
     }
 }

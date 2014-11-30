@@ -6,6 +6,7 @@ import game.renderer.texture;
 struct TextureDesc
 {
     string name;
+    int i;
 }
 
 struct TextureGen

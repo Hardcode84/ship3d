@@ -149,7 +149,8 @@ public:
         auto playerRoom = playerCon.room;
         const playerPos = playerCon.pos;
         const playerDir = playerCon.dir;
-        enum MaxDepth = 5;
+        enum MaxDepth = 15;
+        //debugOut("world.draw");
         playerRoom.draw(mRenderer, allocator(), playerPos, playerDir, MaxDepth);
 
         /*foreach(j;0..1)

@@ -279,6 +279,10 @@ private:
         static if(ReadMask)
         {
             const srcMask = &outContext.mask;
+            if(srcMask.isEmpty)
+            {
+                return;
+            }
         }
         static if(WriteMask)
         {
@@ -291,6 +295,11 @@ private:
             const maxX = min(clipRect.x + clipRect.w, srcMask.x1);
             const minY = max(clipRect.y, srcMask.y0);
             const maxY = min(clipRect.y + clipRect.h, srcMask.y1);
+            /*foreach(y;srcMask.y0..srcMask.y1)
+            {
+                outContext.surface[y][srcMask.spans[y].x0] = ColorGreen;
+                outContext.surface[y][srcMask.spans[y].x1 - 1] = ColorBlue;
+            }*/
         }
         else
         {
@@ -299,14 +308,20 @@ private:
             const minY = clipRect.y;
             const maxY = clipRect.y + clipRect.h;
         }
+        /*outContext.surface[minY][minX] = ColorRed;
+        outContext.surface[maxY - 1][maxX - 1] = ColorRed;
+        outContext.surface[minY][maxX - 1] = ColorRed;
+        outContext.surface[maxY - 1][minX] = ColorRed;*/
         if(minX >= maxX || minY >= maxY)
         {
+            //debugOut("invalid minmax");
             return;
         }
 
         immutable pack = PackT(pverts[0], pverts[1], pverts[2], size);
         if(pack.degenerate)
         {
+            //debugOut("degenerate");
             return;
         }
 
@@ -382,6 +397,12 @@ private:
                 const x1 = pt11.currx;
                 const y0 = pt00.curry;
                 const y1 = pt11.curry;
+                assert(x1 > x0);
+                assert(y1 > y0);
+                assert(x0 >= minX);
+                assert(x1 <= maxX);
+                assert(y0 >= minY);
+                assert(y1 <= maxY);
                 bool none(in uint val) pure nothrow
                 {
                     return 0x0 == (val & 0b001_001_001_001) ||
@@ -393,15 +414,25 @@ private:
                         (pt01.vals() << 6) |
                         (pt11.vals() << 9)))
                 {
+                    /*outContext.surface[y0][x0] = ColorRed;
+                    outContext.surface[y1-1][x0] = ColorRed;
+                    outContext.surface[y0][x1-1] = ColorRed;
+                    outContext.surface[y1-1][x1-1] = ColorRed;*/
                     return false;
                 }
-                if((x1 - x0) <= 4 &&
-                   (y1 - y0) <= 4)
+                /*outContext.surface[y0][x0] = ColorGreen;
+                outContext.surface[y1-1][x0] = ColorGreen;
+                outContext.surface[y0][x1-1] = ColorGreen;
+                outContext.surface[y1-1][x1-1] = ColorGreen;*/
+
+                if((x1 - x0) <= 8 ||
+                   (y1 - y0) <= 8)
                 {
                     return findStart(x0, y0, x1, y1, startPoint);
                 }
                 const cx = x0 + (x1 - x0) / 2;
                 const cy = y0 + (y1 - y0) / 2;
+                //outContext.surface[cy][cx] = ColorRed;
                 auto ptc0 = PointT(pack, cx, y0);
                 auto pt0c = PointT(pack, x0, cy);
                 auto ptcc = PointT(pack, cx, cy);
@@ -413,13 +444,14 @@ private:
                        checkQuad(ptcc, pt1c, ptc1, pt11);
             }
             if(checkQuad(PointT(pack, minX, minY),
-                         PointT(pack, maxX, minY), 
+                         PointT(pack, maxX, minY),
                          PointT(pack, minX, maxY),
                          PointT(pack, maxX, maxY)))
             {
                 goto found;
             }
             //nothing found
+            //debugOut("notfound");
             return;
         }
         while(false);
@@ -677,29 +709,20 @@ private:
         {
             void writeMask(bool Empty)()
             {
-                static if(Empty)
-                {
-                    dstMask.y0 = y0;
-                    dstMask.y1 = y1;
-                }
-                else
-                {
-                    dstMask.y0 = min(y0, dstMask.y0);
-                    dstMask.y1 = max(y1, dstMask.y1);
-                }
-                int mskMinX = minX;
-                int mskMaxX = maxX;
+                static int i = 0;
+                //++i;
+                static immutable colors = [ColorRed,ColorGreen,ColorBlue];
+                int mskMinX = maxX;
+                int mskMaxX = minX;
                 foreach(y;y0..y1)
                 {
                     const x0 = spans[y].x0;
                     const x1 = spans[y].x1;
+                    assert(x0 >= minX);
+                    assert(x1 <= maxX);
+                    assert(x1 >= x0);
 
-                    /*if(x1 > x0)
-                    {
-                        outContext.surface[y][x0..x1] = ColorBlue;
-                    }*/
-
-                    static if(Empty)
+                    if(Empty || y < dstMask.y0 || y >= dstMask.y1)
                     {
                         dstMask.spans[y].x0 = x0;
                         dstMask.spans[y].x1 = x1;
@@ -709,11 +732,24 @@ private:
                         dstMask.spans[y].x0 = min(x0, dstMask.spans[y].x0);
                         dstMask.spans[y].x1 = max(x1, dstMask.spans[y].x1);
                     }
+
+                    /*if(dstMask.spans[y].x1 > dstMask.spans[y].x0)
+                    {
+                        outContext.surface[y][dstMask.spans[y].x0..dstMask.spans[y].x1] = colors[i % 3];
+                    }*/
+
+                    /*if(x1 > x0)
+                    {
+                        outContext.surface[y][x0..x1] = colors[i % 3];
+                    }*/
+
                     mskMinX = min(mskMinX, x0);
                     mskMaxX = max(mskMaxX, x1);
                 }
                 static if(Empty)
                 {
+                    dstMask.y0 = y0;
+                    dstMask.y1 = y1;
                     dstMask.x0 = mskMinX;
                     dstMask.x1 = mskMaxX;
                 }
@@ -721,7 +757,12 @@ private:
                 {
                     dstMask.x0 = min(mskMinX, dstMask.x0);
                     dstMask.x1 = max(mskMaxX, dstMask.x1);
+                    dstMask.y0 = min(y0, dstMask.y0);
+                    dstMask.y1 = max(y1, dstMask.y1);
                 }
+                //debugOut("----");
+                //debugOut(Empty);
+                //debugOut(dstMask.isEmpty);
             }
 
             if(dstMask.isEmpty) writeMask!true();
