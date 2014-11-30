@@ -168,7 +168,6 @@
     <Compile Include="game\renderer\rasterizerhp2.d" />
     <Compile Include="game\renderer\rasterizerhp3.d" />
     <Compile Include="game\renderer\rasterizerhp4.d" />
-    <Compile Include="game\renderer\rasetrizerhbrd.d" />
     <Compile Include="game\renderer\rasterizerhp5.d" />
     <Compile Include="game\renderer\palette.d" />
     <Compile Include="game\renderer\texture.d" />
@@ -190,6 +189,7 @@
     <Compile Include="game\renderer\rasterizerhp6.d" />
     <Compile Include="gamelib\memory\utils.d" />
     <Compile Include="game\renderer\spanmask.d" />
+    <Compile Include="game\renderer\rasterizerhybrid.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />

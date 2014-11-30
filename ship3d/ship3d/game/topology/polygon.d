@@ -4,8 +4,7 @@ import game.units;
 import game.topology.room;
 
 import game.renderer.spanmask;
-import game.renderer.rasterizer2;
-import game.renderer.rasterizerhp6;
+import game.renderer.rasterizerhybrid;
 
 struct Polygon
 {
@@ -57,7 +56,7 @@ struct Polygon
                 {
                 }
                 Context1 ctx;
-                alias RastT1 = RasterizerHP6!(false,true,true);
+                alias RastT1 = RasterizerHybrid!(false,true,true);
                 renderer.drawIndexedTriangle!RastT1(ctx, transformedVerts[], mIndices[]);
                 if(!renderer.getState().dstMask.isEmpty)
                 {
@@ -73,7 +72,7 @@ struct Polygon
                 const(texture_t) texture;
             }
             Context2 ctx = {texture: mTexture};
-            alias RastT2 = RasterizerHP6!(true,false,true);
+            alias RastT2 = RasterizerHybrid!(true,false,true);
             renderer.drawIndexedTriangle!RastT2(ctx, transformedVerts[], mIndices[]);
         }
     }
