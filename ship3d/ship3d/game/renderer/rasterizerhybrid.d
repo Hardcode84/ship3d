@@ -119,7 +119,7 @@ private:
             {
                 degenerate = false;
             }
-            external = almost_equal(w1, 0) || almost_equal(w2, 0) || almost_equal(w3, 0) || (w1 * w2 < 0) || (w1 * w1 < 0);
+            external = almost_equal(w1, 0) || almost_equal(w2, 0) || almost_equal(w3, 0) || (w1 * w2 < 0) || (w1 * w3 < 0);
 
             const invMat = mat.inverse;
             wplane = PlaneT(invMat * vec3(1,1,1), size);
@@ -398,8 +398,8 @@ private:
                     bool none(in uint val) pure nothrow
                     {
                         return 0x0 == (val & 0b001_001_001_001) ||
-                            0x0 == (val & 0b010_010_010_010) ||
-                                0x0 == (val & 0b100_100_100_100);
+                               0x0 == (val & 0b010_010_010_010) ||
+                               0x0 == (val & 0b100_100_100_100);
                     }
                     if(none((pt00.vals() << 0) |
                             (pt10.vals() << 3) |
@@ -620,42 +620,47 @@ private:
         }
         else //external
         {
-            PosT upperY = pverts[0].pos.y / pverts[0].pos.w;
-            int maxElem = 0;
-            foreach(i,const ref v; pverts[1..$])
-            {
-                const y = v.pos.y / v.pos.w;
-                if(y < upperY)
-                {
-                    upperY = y;
-                    maxElem = i + 1;
-                }
-            }
-
             vec2i[3] sortedPos = void;
+            int upperY = 0x7fffffff;
+            int minElem;
             foreach(i,const ref v; pverts[])
             {
                 const pos = (v.pos.xy / v.pos.w);
-                sortedPos[(i - maxElem) % 3] = vec2i(cast(int)(pos.x * size.w) + size.w / 2, 
-                                                     cast(int)(pos.y * size.h) + size.h / 2);
+                sortedPos[i] = vec2i(cast(int)(pos.x * size.w) + size.w / 2, 
+                                     cast(int)(pos.y * size.h) + size.h / 2);
+                if(sortedPos[i].y < upperY)
+                {
+                    upperY = sortedPos[i].y;
+                    minElem = i;
+                }
             }
+            bringToFront(sortedPos[0..minElem], sortedPos[minElem..$]);
+            //debugOut(sortedPos);
             struct Edge
             {
                 alias FP = FixedPoint!(16,16,int);
                 immutable FP dx;
-                immutable int ye;
                 FP currX;
                 int y;
+                int ye;
                 this(P)(in P p1, in P p2)
                 {
+                    y  = p1.y;
                     ye = p2.y;
                     const FP x1 = p1.x;
                     const FP y1 = p1.y;
                     const FP x2 = p2.x;
                     const FP y2 = p2.y;
-                    assert(y2 > y1);
                     currX = x1;
-                    dx = (x2 - x1) / (y2 - y1);
+                    assert(y2 >= y1);
+                    if(y2 != y1)
+                    {
+                        dx = (x2 - x1) / (y2 - y1);
+                    }
+                    else
+                    {
+                        dx = 0;
+                    }
                 }
 
                 void incY(int val)
@@ -666,38 +671,75 @@ private:
 
                 @property auto x() const { return cast(int)currX; }
             }
-            void fillSpans(ref Edge e0, ref Edge e1)
+            int fillSpans(ref Edge e0, ref Edge e1)
             {
-                assert(e1.y == e0.y);
+                //debugOut(e0.y);
+                //debugOut(e1.y);
+                assert(e0.y == e1.y);
                 const y0 = e0.y;
                 const y1 = min(e0.ye, e1.ye);
                 foreach(y;y0..y1)
                 {
                     const x0 = min(e0.x, e1.x);
                     const x1 = max(e0.x, e1.x);
+                    //const x0 = e1.x;
+                    //const x1 = e0.x;
+                    assert(x1 >= x0);
+                    //outContext.surface[y][x0..x1] = ColorBlue;
+                    static if(ReadMask)
+                    {
+                        const xc0 = max(x0, srcMask.spans[y].x0, minX);
+                        const xc1 = min(x1, srcMask.spans[y].x1, maxX);
+                    }
+                    else
+                    {
+                        const xc0 = max(x0, minX);
+                        const xc1 = min(x1, maxX);
+                    }
+                    if(xc0 > xc1)
+                    {
+                        return y;
+                    }
+                    spans[y].x0 = xc0;
+                    spans[y].x1 = xc1;
                     e0.incY(1);
                     e1.incY(1);
                 }
+                return y1;
             }
 
-            Edge e[3] = void;
+            Edge edges[3] = void;
             if(sortedPos[1].y < sortedPos[2].y)
             {
-                e[] = [
+                edges[] = [
                     Edge(sortedPos[0],sortedPos[2]),
                     Edge(sortedPos[0],sortedPos[1]),
                     Edge(sortedPos[1],sortedPos[2])];
             }
             else
             {
-                e[] = [
+                edges[] = [
                     Edge(sortedPos[0],sortedPos[1]),
                     Edge(sortedPos[0],sortedPos[2]),
                     Edge(sortedPos[2],sortedPos[1])];
             }
 
-            fillSpans(e[0], e[1]);
-            fillSpans(e[0], e[2]);
+            foreach(ref e; edges[])
+            {
+                e.ye = min(e.ye, maxY);
+                if(e.y < minY)
+                {
+                    e.incY(minY - e.y);
+                }
+            }
+
+
+            y0 = edges[0].y;
+            y1 = fillSpans(edges[0], edges[1]);
+            if(edges[2].y < maxY)
+            {
+                y1 = fillSpans(edges[0], edges[2]);
+            }
         } //external
 
         static if(HasTextures)

@@ -14,6 +14,7 @@ import game.renderer.rasterizerhp3;
 import game.renderer.rasterizerhp4;
 import game.renderer.rasterizerhp5;
 import game.renderer.rasterizerhp6;
+import game.renderer.rasterizerhybrid;
 import game.renderer.texture;
 import game.renderer.basetexture;
 import game.renderer.spanmask;
@@ -187,7 +188,7 @@ public:
             static immutable int[3] ind1 = [0,1,2];
             static immutable int[3] ind2 = [0,2,3];
             const clipRect = Rect(0, 0, surf.width, surf.height);
-            RasterizerHP6 rast1;
+            RasterizerHybrid!(true,false,false) rast1;
             Rasterizer2 rast2;
             struct OutContext
             {
@@ -218,8 +219,8 @@ public:
                 Context2 ctx = {mTexture};
                 foreach(i;0..1)
                 {
-                    rast1.drawIndexedTriangle!(HasTexture)(octx,ctx, verts, ind1);
-                    rast1.drawIndexedTriangle!(HasTexture)(octx,ctx, verts, ind2);
+                    rast1.drawIndexedTriangle(octx,ctx, verts, ind1);
+                    rast1.drawIndexedTriangle(octx,ctx, verts, ind2);
                 }
             }
         }*/
