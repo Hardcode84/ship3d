@@ -639,6 +639,65 @@ private:
                 sortedPos[(i - maxElem) % 3] = vec2i(cast(int)(pos.x * size.w) + size.w / 2, 
                                                      cast(int)(pos.y * size.h) + size.h / 2);
             }
+            struct Edge
+            {
+                alias FP = FixedPoint!(16,16,int);
+                immutable FP dx;
+                immutable int ye;
+                FP currX;
+                int y;
+                this(P)(in P p1, in P p2)
+                {
+                    ye = p2.y;
+                    const FP x1 = p1.x;
+                    const FP y1 = p1.y;
+                    const FP x2 = p2.x;
+                    const FP y2 = p2.y;
+                    assert(y2 > y1);
+                    currX = x1;
+                    dx = (x2 - x1) / (y2 - y1);
+                }
+
+                void incY(int val)
+                {
+                    y += val;
+                    currX += dx * val;
+                }
+
+                @property auto x() const { return cast(int)currX; }
+            }
+            void fillSpans(ref Edge e0, ref Edge e1)
+            {
+                assert(e1.y == e0.y);
+                const y0 = e0.y;
+                const y1 = min(e0.ye, e1.ye);
+                foreach(y;y0..y1)
+                {
+                    const x0 = min(e0.x, e1.x);
+                    const x1 = max(e0.x, e1.x);
+                    e0.incY(1);
+                    e1.incY(1);
+                }
+            }
+
+            Edge e[3] = void;
+            if(sortedPos[1].y < sortedPos[2].y)
+            {
+                e[] = [
+                    Edge(sortedPos[0],sortedPos[2]),
+                    Edge(sortedPos[0],sortedPos[1]),
+                    Edge(sortedPos[1],sortedPos[2])];
+            }
+            else
+            {
+                e[] = [
+                    Edge(sortedPos[0],sortedPos[1]),
+                    Edge(sortedPos[0],sortedPos[2]),
+                    Edge(sortedPos[2],sortedPos[1])];
+            }
+
+            fillSpans(e[0], e[1]);
+            fillSpans(e[0], e[2]);
         } //external
 
         static if(HasTextures)
