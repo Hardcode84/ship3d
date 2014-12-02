@@ -671,41 +671,58 @@ private:
 
                 @property auto x() const { return cast(int)currX; }
             }
-            int fillSpans(ref Edge e0, ref Edge e1)
+            auto fillSpans(ref Edge e0, ref Edge e1)
             {
                 //debugOut(e0.y);
                 //debugOut(e1.y);
                 assert(e0.y == e1.y);
                 const y0 = e0.y;
                 const y1 = min(e0.ye, e1.ye);
-                foreach(y;y0..y1)
+                int iterate(bool Start)(int y0, int y1)
                 {
-                    const x0 = min(e0.x, e1.x);
-                    const x1 = max(e0.x, e1.x);
-                    //const x0 = e1.x;
-                    //const x1 = e0.x;
-                    assert(x1 >= x0);
-                    //outContext.surface[y][x0..x1] = ColorBlue;
-                    static if(ReadMask)
+                    foreach(y;y0..y1)
                     {
-                        const xc0 = max(x0, srcMask.spans[y].x0, minX);
-                        const xc1 = min(x1, srcMask.spans[y].x1, maxX);
+                        const x0 = min(e0.x, e1.x);
+                        const x1 = max(e0.x, e1.x);
+                        //const x0 = e1.x;
+                        //const x1 = e0.x;
+                        assert(x1 >= x0);
+                        //outContext.surface[y][x0..x1] = ColorBlue;
+                        static if(ReadMask)
+                        {
+                            const xc0 = max(x0, srcMask.spans[y].x0, minX);
+                            const xc1 = min(x1, srcMask.spans[y].x1, maxX);
+                        }
+                        else
+                        {
+                            const xc0 = max(x0, minX);
+                            const xc1 = min(x1, maxX);
+                        }
+
+                        static if(Start)
+                        {
+                            if(xc1 > xc0)
+                            {
+                                return y;
+                            }
+                        }
+                        else
+                        {
+                            if(xc0 > xc1)
+                            {
+                                return y;
+                            }
+                            spans[y].x0 = xc0;
+                        }
+                        spans[y].x1 = xc1;
+                        e0.incY(1);
+                        e1.incY(1);
                     }
-                    else
-                    {
-                        const xc0 = max(x0, minX);
-                        const xc1 = min(x1, maxX);
-                    }
-                    if(xc0 > xc1)
-                    {
-                        return y;
-                    }
-                    spans[y].x0 = xc0;
-                    spans[y].x1 = xc1;
-                    e0.incY(1);
-                    e1.incY(1);
+                    return y1;
                 }
-                return y1;
+                const ys = iterate!true(y0, y1);
+                const ye = iterate!false(ys, y1);
+                return vec2i(ys, ye);
             }
 
             Edge edges[3] = void;
@@ -734,11 +751,30 @@ private:
             }
 
 
-            y0 = edges[0].y;
-            y1 = fillSpans(edges[0], edges[1]);
-            if(edges[2].y < maxY)
+            auto rng1 = fillSpans(edges[0], edges[1]);
+            if(edges[2].y < min(maxY,edges[2].ye))
             {
-                y1 = fillSpans(edges[0], edges[2]);
+                auto rng2 = fillSpans(edges[0], edges[2]);
+                if(rng2.y == rng2.x)
+                {
+                    y0 = rng1.x;
+                    y1 = rng1.y;
+                }
+                else if(rng1.y > rng1.x)
+                {
+                    y0 = rng1.x;
+                    y1 = rng2.y;
+                }
+                else
+                {
+                    y0 = rng2.x;
+                    y1 = rng2.y;
+                }
+            }
+            else
+            {
+                y0 = rng1.x;
+                y1 = rng1.y;
             }
         } //external
 
