@@ -14,7 +14,7 @@ private:
     quat_t      mRefDir = quat_t.identity;
     EntityRef*[] mConnections;
 public:
-pure nothrow:
+//pure nothrow:
 
     this()
     {
@@ -39,6 +39,7 @@ pure nothrow:
         foreach(ref c; mConnections[])
         {
             c.pos += offset;
+            c.room.invalidateEntities();
         }
     }
 

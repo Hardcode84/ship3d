@@ -61,6 +61,7 @@ private:
     alias RendererT = Renderer!(OutContext,16);
     RendererT mRenderer;
 public:
+//pure nothrow:
     @property allocator()     inout pure nothrow { return mAllocator; }
     @property erefAllocator() inout pure nothrow { return mERefAlloc; }
 
@@ -80,19 +81,40 @@ public:
         mRooms[0].addEntity(mPlayer, vec3_t(0,0,0), quat_t.identity);
     }
 
-    auto generateId() pure nothrow { return ++mCurrentId; }
+    auto generateId() { return ++mCurrentId; }
 
-    void handleQuit() pure nothrow
+    void handleQuit()
     {
         mQuitReq = true;
     }
 
     bool update()
     {
-        return !mQuitReq;
+        if(mQuitReq)
+        {
+            return false;
+        }
+        enum MaxUpdates = 20;
+        foreach(i; 0..MaxUpdates)
+        {
+            bool haveUpdates = false;
+            foreach(r; mRooms[])
+            {
+                if(r.needUpdateEntities)
+                {
+                    haveUpdates = true;
+                    r.updateEntities();
+                }
+            }
+            if(!haveUpdates)
+            {
+                break;
+            }
+        }
+        return true;
     }
 
-    void processKey(int key) pure nothrow
+    void processKey(int key)
     {
         const spd = 0.02;
         const asd = 0.02;
@@ -123,12 +145,12 @@ public:
         else if(SDL_SCANCODE_KP_PLUS == key)
         {
             mDist += 0.1f;
-            mPlayer.move(vec3_t(0,0,0.5));
+            mPlayer.move(vec3_t(0,0,1.0));
         }
         else if(SDL_SCANCODE_KP_MINUS == key)
         {
             mDist -= 0.1f;
-            mPlayer.move(vec3_t(0,0,-0.5));
+            mPlayer.move(vec3_t(0,0,-1.0));
         }
     }
 

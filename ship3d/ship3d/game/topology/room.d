@@ -31,10 +31,13 @@ public:
         mPolygons = polygons;
         foreach(ref p;mPolygons[])
         {
-            p.mRoom = this;
+            p.room = this;
+            p.calcPlanes();
         }
     }
 
+    void invalidateEntities() { mNeedUdateEntities = true; }
+    @property bool needUpdateEntities() const { return mNeedUdateEntities; }
     @property auto vertices() inout { return mVertices[]; }
     @property auto polygons() inout { return mPolygons[]; }
 
@@ -89,6 +92,7 @@ public:
 
         mEntities ~= r;
         e.onAddedToRoom(r);
+        mNeedUdateEntities = true;
     }
 
     void updateEntities()
@@ -133,7 +137,7 @@ public:
                     const dist = pl.distance(e.pos) - r;
                     if(dist < 0)
                     {
-                        //dpos -= dist * pl.normal;
+                        p.connection.addEntity(e.ent, e.pos, e.dir);
                     }
                 }
             }

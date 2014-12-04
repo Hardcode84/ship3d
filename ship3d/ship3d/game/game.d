@@ -122,6 +122,7 @@ public:
     }
 
 private:
+//pure nothrow:
     void setup(string[] args)
     {
         import std.getopt;
@@ -175,7 +176,7 @@ private:
         }
     }
 
-    void handleQuit() pure nothrow
+    void handleQuit()
     {
         mWorld.handleQuit();
     }
@@ -200,7 +201,7 @@ private:
         }
     }
 
-    void processKeyEvent(in ref SDL_KeyboardEvent event) pure
+    void processKeyEvent(in ref SDL_KeyboardEvent event)
     {
         /*if(event.repeat != 0)
         {

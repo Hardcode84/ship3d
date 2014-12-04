@@ -4,31 +4,49 @@ import game.units;
 import game.topology.room;
 import game.topology.plane;
 
+import game.entities.entity;
+
 import game.renderer.spanmask;
 import game.renderer.rasterizerhybrid;
 
 struct Polygon
 {
+private:
     Room               mRoom = null;
     Plane[]            mPlanes;
     Polygon*           mConnection = null;
     vec3_t             mConnectionOffset;
     quat_t             mConnectionDir;
-    //const(Polygon)*[4] mAdjasent = null;
     immutable(int)[]   mIndices;
     texture_t          mTexture = null;
-
+public:
 //pure nothrow:
     this(in int[] indices)
     {
+        assert(indices.length > 0);
         assert(indices.length % 3 == 0);
         mIndices = indices.idup;
     }
 
-    @property bool isPortal() const { return mConnection != null; }
-    @property auto indices()  inout { return mIndices[]; }
-    @property auto room()     inout { return mRoom; }
-    @property auto planes()   inout { return mPlanes[]; }
+    void calcPlanes()
+    {
+        assert(mPlanes.length == 0);
+        assert(room !is null);
+    }
+
+    @property void texture(texture_t t) { mTexture = t; }
+    @property bool isPortal()    const { return mConnection != null; }
+    @property auto indices()     inout { return mIndices[]; }
+    @property auto room()        inout { return mRoom; }
+    @property void room(Room r)        { mRoom = r; }
+    @property auto connection()  inout { return mConnection; }
+    @property auto planes()      inout { return mPlanes[]; }
+
+    void addEntity(Entity e, in vec3_t pos, in quat_t dir)
+    {
+        assert(isPortal);
+        room.addEntity(e, pos + mConnectionOffset, dir * mConnectionDir);
+    }
 
     void connect(Polygon* poly, in vec3_t pos, in quat_t dir)
     {
@@ -44,8 +62,6 @@ struct Polygon
     void draw(RT,AT)(auto ref RT renderer, auto ref AT alloc, in Vertex[] transformedVerts, in vec3_t pos, in quat_t dir, int depth) const
     {
         //debugOut("polygon.draw");
-
-
         if(isPortal)
         {
             if(depth > 0)
@@ -74,6 +90,7 @@ struct Polygon
             {
                 const(texture_t) texture;
             }
+            assert(mTexture !is null);
             Context2 ctx = {texture: mTexture};
             alias RastT2 = RasterizerHybrid!(true,false,true);
             renderer.drawIndexedTriangle!RastT2(ctx, transformedVerts[], mIndices[]);
