@@ -2,6 +2,7 @@
 
 import game.units;
 import game.topology.room;
+import game.topology.plane;
 
 import game.renderer.spanmask;
 import game.renderer.rasterizerhybrid;
@@ -9,6 +10,7 @@ import game.renderer.rasterizerhybrid;
 struct Polygon
 {
     Room               mRoom = null;
+    Plane[]            mPlanes;
     Polygon*           mConnection = null;
     vec3_t             mConnectionOffset;
     quat_t             mConnectionDir;
@@ -26,6 +28,7 @@ struct Polygon
     @property bool isPortal() const { return mConnection != null; }
     @property auto indices()  inout { return mIndices[]; }
     @property auto room()     inout { return mRoom; }
+    @property auto planes()   inout { return mPlanes[]; }
 
     void connect(Polygon* poly, in vec3_t pos, in quat_t dir)
     {

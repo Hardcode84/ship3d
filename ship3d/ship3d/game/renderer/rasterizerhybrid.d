@@ -45,7 +45,7 @@ private:
             const w2 = v2.pos.w;
             dx = (y2 * w1 - y1 * w2) / size.w;
             dy = (x2 * w1 - x1 * w2) / size.h;
-            const inc = (dy < 0 || (almost_equal(dy, 0) && dx > 0)) ? cast(PosT)1 / cast(PosT)8 : cast(PosT)0;//TODO: fix
+            const inc = (dy < 0 || (almost_equal(dy, 0) && dx > 0)) ? cast(PosT)1 / cast(PosT)2 : cast(PosT)0;//TODO: fix
             c  = (x1 * y2 - x2 * y1) - dy * (size.h / 2) + dx * (size.w / 2) - inc * (dy + dx);
         }
 
@@ -109,7 +109,7 @@ private:
                                           v2.pos.x, v2.pos.y, v2.pos.w,
                                           v3.pos.x, v3.pos.y, v3.pos.w);
             const d = mat.det;
-            if(d <= 0)
+            if(d <= 0 || (w1 < 0 && w2 < 0 && w3 < 0))
             {
                 degenerate = true;
                 external   = false;
@@ -119,7 +119,8 @@ private:
             {
                 degenerate = false;
             }
-            external = almost_equal(w1, 0) || almost_equal(w2, 0) || almost_equal(w3, 0) || (w1 * w2 < 0) || (w1 * w3 < 0);
+            const dw = 0.0001;
+            external = almost_equal(w1, 0, dw) || almost_equal(w2, 0, dw) || almost_equal(w3, 0, dw) || (w1 * w2 < 0) || (w1 * w3 < 0);
 
             const invMat = mat.inverse;
             wplane = PlaneT(invMat * vec3(1,1,1), size);
@@ -353,7 +354,7 @@ private:
                     {
                         if(pt.check())
                         {
-                            if(++count > 2)
+                            if(++count > 1)
                             {
                                 start = pt;
                                 return true;
@@ -526,8 +527,8 @@ private:
                 auto none(in uint val) pure nothrow
                 {
                     return 0x0 == (val & 0b001_001) ||
-                        0x0 == (val & 0b010_010) ||
-                            0x0 == (val & 0b100_100);
+                           0x0 == (val & 0b010_010) ||
+                           0x0 == (val & 0b100_100);
                 }
                 const pt0 = PointT(pack, x0, y);
                 const pt1 = PointT(pack, x1, y);
@@ -638,7 +639,7 @@ private:
             //debugOut(sortedPos);
             struct Edge
             {
-                alias FP = FixedPoint!(16,16,int);
+                alias FP = float;//FixedPoint!(16,16,int);
                 immutable FP dx;
                 FP currX;
                 int y;
@@ -671,59 +672,6 @@ private:
 
                 @property auto x() const { return cast(int)currX; }
             }
-            auto fillSpans(ref Edge e0, ref Edge e1)
-            {
-                //debugOut(e0.y);
-                //debugOut(e1.y);
-                assert(e0.y == e1.y);
-                const y0 = e0.y;
-                const y1 = min(e0.ye, e1.ye);
-                int iterate(bool Start)(int y0, int y1)
-                {
-                    foreach(y;y0..y1)
-                    {
-                        const x0 = min(e0.x, e1.x);
-                        const x1 = max(e0.x, e1.x);
-                        //const x0 = e1.x;
-                        //const x1 = e0.x;
-                        assert(x1 >= x0);
-                        //outContext.surface[y][x0..x1] = ColorBlue;
-                        static if(ReadMask)
-                        {
-                            const xc0 = max(x0, srcMask.spans[y].x0, minX);
-                            const xc1 = min(x1, srcMask.spans[y].x1, maxX);
-                        }
-                        else
-                        {
-                            const xc0 = max(x0, minX);
-                            const xc1 = min(x1, maxX);
-                        }
-
-                        static if(Start)
-                        {
-                            if(xc1 > xc0)
-                            {
-                                return y;
-                            }
-                        }
-                        else
-                        {
-                            if(xc0 > xc1)
-                            {
-                                return y;
-                            }
-                            spans[y].x0 = xc0;
-                        }
-                        spans[y].x1 = xc1;
-                        e0.incY(1);
-                        e1.incY(1);
-                    }
-                    return y1;
-                }
-                const ys = iterate!true(y0, y1);
-                const ye = iterate!false(ys, y1);
-                return vec2i(ys, ye);
-            }
 
             Edge edges[3] = void;
             if(sortedPos[1].y < sortedPos[2].y)
@@ -741,42 +689,83 @@ private:
                     Edge(sortedPos[2],sortedPos[1])];
             }
 
-            foreach(ref e; edges[])
+            void fillSpans()
             {
-                e.ye = min(e.ye, maxY);
-                if(e.y < minY)
+                int y = edges[0].y;
+                bool iterate(bool Fill)()
                 {
-                    e.incY(minY - e.y);
-                }
-            }
+                    auto e0 = &edges[0];
+                    foreach(i;TupleRange!(0,2))
+                    {
+                        static if(0 == i)
+                        {
+                            auto e1 = &edges[1];
+                        }
+                        else
+                        {
+                            auto e1 = &edges[2];
+                        }
+                        const ye = e1.ye;
+                        while(y < ye)
+                        {
+                            if(y >= maxY)
+                            {
+                                return false;
+                            }
+                            else if(y >= minY)
+                            {
+                                const x0 = min(e0.x, e1.x);
+                                const x1 = max(e0.x, e1.x);
+                                //const x0 = e0.x;
+                                //const x1 = e1.x;
+                                assert(x1 >= x0);
+                                //outContext.surface[y][x0..x1] = ColorBlue;
+                                //debugOut(y);
+                                static if(ReadMask)
+                                {
+                                    const xc0 = max(x0, srcMask.spans[y].x0, minX);
+                                    const xc1 = min(x1, srcMask.spans[y].x1, maxX);
+                                }
+                                else
+                                {
+                                    const xc0 = max(x0, minX);
+                                    const xc1 = min(x1, maxX);
+                                }
 
-
-            auto rng1 = fillSpans(edges[0], edges[1]);
-            if(edges[2].y < min(maxY,edges[2].ye))
-            {
-                auto rng2 = fillSpans(edges[0], edges[2]);
-                if(rng2.y == rng2.x)
+                                static if(!Fill)
+                                {
+                                    if(xc1 > xc0)
+                                    {
+                                        return true;
+                                    }
+                                }
+                                else
+                                {
+                                    if(xc0 >= xc1)
+                                    {
+                                        return false;
+                                    }
+                                    spans[y].x0 = xc0;
+                                }
+                                spans[y].x1 = xc1;
+                            }
+                            ++y;
+                            e0.incY(1);
+                            e1.incY(1);
+                        }
+                    }
+                    return false;
+                } //iterate
+                if(iterate!false())
                 {
-                    y0 = rng1.x;
-                    y1 = rng1.y;
+                    y0 = y;
+                    iterate!true();
+                    y1 = y;
                 }
-                else if(rng1.y > rng1.x)
-                {
-                    y0 = rng1.x;
-                    y1 = rng2.y;
-                }
-                else
-                {
-                    y0 = rng2.x;
-                    y1 = rng2.y;
-                }
-            }
-            else
-            {
-                y0 = rng1.x;
-                y1 = rng1.y;
-            }
+            } //fillspans
+            fillSpans();
         } //external
+        if(y0 >= y1) return;
 
         static if(HasTextures)
         {
@@ -842,6 +831,14 @@ private:
                     }
                     x = nx;
                 }
+                /*if(pack.external)
+                {
+                    line[x0..x1] = ColorRed;
+                }
+                else
+                {
+                    line[x0..x1] = ColorBlue;
+                }*/
                 span.incY();
                 ++line;
             }
@@ -874,6 +871,7 @@ private:
                         dstMask.spans[y].x0 = min(x0, dstMask.spans[y].x0);
                         dstMask.spans[y].x1 = max(x1, dstMask.spans[y].x1);
                     }
+                    //outContext.surface[y][dstMask.spans[y].x0..dstMask.spans[y].x1] = ColorBlue;
 
                     mskMinX = min(mskMinX, x0);
                     mskMaxX = max(mskMaxX, x1);
@@ -897,7 +895,6 @@ private:
             if(dstMask.isEmpty) writeMask!true();
             else                writeMask!false();
         }
-        //outContext.surface[sy][startPoint.currx] = ColorGreen;
         //end
     }
 

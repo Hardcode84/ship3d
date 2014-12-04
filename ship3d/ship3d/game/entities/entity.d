@@ -9,6 +9,7 @@ import game.topology.entityref;
 class Entity
 {
 private:
+    pos_t       mRadius = 1;
     vec3_t      mRefPos = vec3_t(0,0,0);
     quat_t      mRefDir = quat_t.identity;
     EntityRef*[] mConnections;
@@ -19,6 +20,8 @@ pure nothrow:
     {
         // Constructor code
     }
+
+    final @property radius() const { return mRadius; }
 
     final @property connections() inout
     {

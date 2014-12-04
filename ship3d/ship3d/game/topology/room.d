@@ -19,6 +19,7 @@ private:
 
     //Array!EntityRef mEntities;
     EntityRef*[]     mEntities;
+    bool             mNeedUdateEntities;
 public:
 //pure nothrow:
     @property world() inout { return mWorld; }
@@ -80,7 +81,6 @@ public:
     {
         assert(e !is null);
         const id = world.generateId();
-        //EntityRef* r = {id: id, room: this, pos: epos, dir: edir, ent: e};
         auto r = world.erefAllocator.allocate();
         r.room = this;
         r.ent = e;
@@ -89,5 +89,60 @@ public:
 
         mEntities ~= r;
         e.onAddedToRoom(r);
+    }
+
+    void updateEntities()
+    {
+        scope(exit) mNeedUdateEntities = false;
+        if(mEntities.empty) return;
+        for(int i = cast(int)mEntities.length - 1; i >= 0; --i)
+        {
+            auto e = mEntities[i];
+            bool remove = false;
+
+            const r = e.ent.radius();
+
+            //update position
+            auto dpos = vec3_t(0,0,0);
+            bool moved = false;
+            foreach(ref p; mPolygons[])
+            {
+                if(!p.isPortal)
+                {
+                    foreach(const ref pl; p.planes())
+                    {
+                        const dist = pl.distance(e.pos) - r;
+                        if(dist < 0)
+                        {
+                            dpos -= dist * pl.normal;
+                        }
+                    }
+                }
+            }
+            if(moved)
+            {
+                e.ent.move(dpos);
+            }
+
+            foreach(ref p; mPolygons[])
+            {
+                if(p.isPortal)
+                {
+                    assert(1 == p.planes().length);
+                    const pl = p.planes()[0];
+                    const dist = pl.distance(e.pos) - r;
+                    if(dist < 0)
+                    {
+                        //dpos -= dist * pl.normal;
+                    }
+                }
+            }
+
+            if(remove)
+            {
+                mEntities[i] = mEntities[$ - 1];
+                --mEntities.length;
+            }
+        }
     }
 }
