@@ -12,6 +12,7 @@ pure nothrow:
     this(V)(in V v0, in V v1, in V v2)
     {
         mNormal = cross((v1.xyz - v0.xyz),(v2.xyz - v0.xyz)).normalized;
+        //mD      = -();
     }
 
     pos_t distance(in vec3_t pos) const

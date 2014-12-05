@@ -94,7 +94,7 @@ public:
         {
             return false;
         }
-        enum MaxUpdates = 20;
+        /*enum MaxUpdates = 20;
         foreach(i; 0..MaxUpdates)
         {
             bool haveUpdates = false;
@@ -110,7 +110,7 @@ public:
             {
                 break;
             }
-        }
+        }*/
         return true;
     }
 
