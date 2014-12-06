@@ -32,17 +32,31 @@ public:
     {
         assert(mPlanes.length == 0);
         assert(room !is null);
+        assert(indices.length % 3 == 0);
+        const verts = vertices;
+        foreach(i;0..indices.length / 3)
+        {
+            const i0 = indices[i * 3 + 0];
+            const i1 = indices[i * 3 + 1];
+            const i2 = indices[i * 3 + 2];
+            const p = Plane(verts[i0].pos, verts[i1].pos, verts[i2].pos);
+            if(0 == mPlanes.length || p != mPlanes[$ - 1])
+            {
+                mPlanes ~= p;
+            }
+        }
     }
 
     @property void texture(texture_t t) { mTexture = t; }
     @property bool isPortal()    const { return mConnection != null; }
     @property auto indices()     inout { return mIndices[]; }
+    @property auto vertices()    inout { return room.vertices; }
     @property auto room()        inout { return mRoom; }
     @property void room(Room r)        { mRoom = r; }
     @property auto connection()  inout { return mConnection; }
     @property auto planes()      inout { return mPlanes[]; }
 
-    void addEntity(Entity e, in vec3_t pos, in quat_t dir)
+    package void addEntity(Entity e, in vec3_t pos, in quat_t dir, in Room src)
     {
         assert(isPortal);
         room.addEntity(e, pos + mConnectionOffset, dir * mConnectionDir);
@@ -80,7 +94,7 @@ public:
                 if(!renderer.getState().dstMask.isEmpty)
                 {
                     renderer.getState().mask = renderer.getState().dstMask;
-                    mConnection.room.draw(renderer, alloc, mConnectionOffset, mConnectionDir, depth - 1);
+                    mConnection.room.draw(renderer, alloc, -mConnectionOffset, mConnectionDir.inverse, depth - 1);
                 }
             }
         }

@@ -23,3 +23,8 @@ struct Vertex
     vec2_t tpos;
     //ColorT color;
 }
+
+/*quat_t reverse(in quat_t q) pure nothrow
+{
+    return quat_t(0,1,0,0) * q;
+}*/

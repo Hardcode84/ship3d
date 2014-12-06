@@ -15,6 +15,14 @@ struct EntityRef
     Entity ent;
     vec3_t pos;
     quat_t dir;
+    bool remove = false;
+
+    void updatePos(in vec3_t dpos) /*pure nothrow*/
+    {
+        assert(room !is null);
+        //assert(!remove);
+        room.updateEntityPos(&this, dpos);
+    }
 }
 
 final class EntityRefAllocator
@@ -45,6 +53,7 @@ public:
         }
         auto temp = mLast;
         mLast = temp.prev;
+        *temp = EntityRef.init;
         return temp;
     }
 

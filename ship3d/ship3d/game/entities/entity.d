@@ -38,7 +38,7 @@ public:
         mRefPos += offset;
         foreach(ref c; mConnections[])
         {
-            c.pos += offset;
+            c.updatePos(offset);
             c.room.invalidateEntities();
         }
     }
@@ -54,12 +54,14 @@ public:
 
     final void onAddedToRoom(EntityRef* eref)
     {
+        debugOut("added");
         assert(!canFind(mConnections[], eref));
         mConnections ~= eref;
     }
 
     final void onRemovedFromRoom(EntityRef* eref)
     {
+        debugOut("removed");
         foreach(i,c; mConnections[])
         {
             if(eref is c)

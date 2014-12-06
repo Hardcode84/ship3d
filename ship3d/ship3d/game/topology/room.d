@@ -48,7 +48,7 @@ public:
         scope(exit) alloc.restoreState(allocState);
 
         const srcMat = renderer.getState().matrix;
-        renderer.getState().matrix = srcMat * dir.to_matrix!(4,4)() * mat4_t.translation(pos.x,pos.y,pos.z);
+        renderer.getState().matrix = srcMat * dir.inverse.to_matrix!(4,4)() * mat4_t.translation(-pos.x,-pos.y,-pos.z);
         const mat = renderer.getState().matrix;
 
         auto transformedVertices      = alloc.alloc!(Vertex)(mVertices.length);
@@ -56,7 +56,7 @@ public:
         transformedVerticesFlags[] = false;
         foreach(ind,ref p; mPolygons[])
         {
-            //if(1 != ind)
+            //if(0 != ind)
             //if(p.checkNormals(dir))
             {
                 foreach(i; p.indices[])
@@ -82,8 +82,13 @@ public:
 
     void addEntity(Entity e, in vec3_t epos, in quat_t edir)
     {
+        addEntity(e, epos, edir, null);
+    }
+
+    package void addEntity(Entity e, in vec3_t epos, in quat_t edir, in Room src)
+    {
         assert(e !is null);
-        const id = world.generateId();
+        //const id = world.generateId();
         auto r = world.erefAllocator.allocate();
         r.room = this;
         r.ent = e;
@@ -97,17 +102,17 @@ public:
 
     void updateEntities()
     {
+        //debugOut("updateEntities");
         scope(exit) mNeedUdateEntities = false;
         if(mEntities.empty) return;
         for(int i = cast(int)mEntities.length - 1; i >= 0; --i)
         {
             auto e = mEntities[i];
-            bool remove = false;
 
             const r = e.ent.radius();
 
             //update position
-            auto dpos = vec3_t(0,0,0);
+            /*auto dpos = vec3_t(0,0,0);
             bool moved = false;
             foreach(ref p; mPolygons[])
             {
@@ -126,27 +131,54 @@ public:
             if(moved)
             {
                 e.ent.move(dpos);
-            }
+            }*/
 
-            foreach(ref p; mPolygons[])
-            {
-                if(p.isPortal)
-                {
-                    assert(1 == p.planes().length);
-                    const pl = p.planes()[0];
-                    const dist = pl.distance(e.pos) - r;
-                    if(dist < 0)
-                    {
-                        p.connection.addEntity(e.ent, e.pos, e.dir);
-                    }
-                }
-            }
+            //bool remove = !updateEntity(e);
 
-            if(remove)
+            if(e.remove)
             {
+                e.ent.onRemovedFromRoom(e);
+                world.erefAllocator.free(e);
                 mEntities[i] = mEntities[$ - 1];
                 --mEntities.length;
             }
         }
+    }
+
+    package void updateEntityPos(EntityRef* e, in vec3_t dpos)
+    {
+        //debugOut("updateEntityPos");
+        const r = e.ent.radius();
+        const oldPos = e.pos;
+        const newPos = oldPos + dpos;
+        foreach(j,ref p; mPolygons[])
+        {
+            //if(j != 1) 
+            if(p.isPortal)
+            {
+                assert(1 == p.planes().length, debugConv(p.planes().length));
+                const pl = p.planes()[0];
+
+                const dist = pl.distance(newPos);
+                //debugOut(dist);
+                if(dist < r)
+                {
+                    const oldDist = pl.distance(oldPos);
+                    //debugOut("old");
+                    //debugOut(oldDist);
+                    if(oldDist >= r)
+                    {
+                        p.connection.addEntity(e.ent, newPos, e.dir, this);
+                    }
+
+                    if(dist < -r)
+                    {
+                        e.remove = true;
+                    }
+                }
+
+            } //isPortal
+        } //foreach
+        e.pos = newPos;
     }
 }
