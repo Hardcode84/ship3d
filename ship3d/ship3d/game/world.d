@@ -136,7 +136,7 @@ public:
         else if(SDL_SCANCODE_DOWN == key)
         {
             mYpos += asd;
-            mPlayer.rotate(quat_t.xrotation(-0.03));
+            mPlayer.rotate(quat_t.xrotation(-0.03 /** 37*/));
         }
         else if(SDL_SCANCODE_SPACE == key)
         {

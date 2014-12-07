@@ -9,7 +9,6 @@ import std.range;
 import std.c.stdlib: alloca;
 
 import gamelib.util;
-import gamelib.math;
 import gamelib.graphics.graph;
 import gamelib.memory.utils;
 
@@ -105,22 +104,27 @@ private:
             const w1 = v1.pos.w;
             const w2 = v2.pos.w;
             const w3 = v3.pos.w;
-            const mat = Matrix!(PosT,3,3)(v1.pos.x, v1.pos.y, v1.pos.w,
-                                          v2.pos.x, v2.pos.y, v2.pos.w,
-                                          v3.pos.x, v3.pos.y, v3.pos.w);
+            const x1 = v1.pos.x;
+            const x2 = v2.pos.x;
+            const x3 = v3.pos.x;
+            const y1 = v1.pos.y;
+            const y2 = v2.pos.y;
+            const y3 = v3.pos.y;
+            const mat = Matrix!(PosT,3,3)(x1, y1, w1,
+                                          x2, y2, w2,
+                                          x3, y3, w3);
             const d = mat.det;
             if(d <= 0 || (w1 < 0 && w2 < 0 && w3 < 0))
             {
                 degenerate = true;
-                external   = false;
                 return;
             }
-            else
-            {
-                degenerate = false;
-            }
+            degenerate = false;
             const dw = 0.0001;
-            external = almost_equal(w1, 0, dw) || almost_equal(w2, 0, dw) || almost_equal(w3, 0, dw) || (w1 * w2 < 0) || (w1 * w3 < 0);
+            const sizeLim = 10000;
+            const bool big = max(max(abs(x1 / w1), abs(x2 / w2), abs(x3 / w3)) * size.w,
+                                 max(abs(y1 / w1), abs(y2 / w2), abs(y3 / w3)) * size.h) > sizeLim;
+            external = big || almost_equal(w1, 0, dw) || almost_equal(w2, 0, dw) || almost_equal(w3, 0, dw) || (w1 * w2 < 0) || (w1 * w3 < 0);
 
             const invMat = mat.inverse;
             wplane = PlaneT(invMat * vec3(1,1,1), size);
@@ -325,7 +329,30 @@ private:
 
         int y0;
         int y1;
-        if(pack.external)
+        if(PointT(pack, minX, minY).check() &&
+           PointT(pack, maxX, minY).check() &&
+           PointT(pack, minX, maxY).check() &&
+           PointT(pack, maxX, maxY).check())
+        {
+            y0 = minY;
+            y1 = maxY;
+            foreach(y;y0..y1)
+            {
+                static if(ReadMask)
+                {
+                    const xc0 = max(srcMask.spans[y].x0, minX);
+                    const xc1 = min(srcMask.spans[y].x1, maxX);
+                }
+                else
+                {
+                    const xc0 = minX;
+                    const xc1 = maxX;
+                }
+                spans[y].x0 = xc0;
+                spans[y].x1 = xc1;
+            }
+        }
+        else if(pack.external)
         {
             //find first valid point
             bool findStart(int x0, int y0, int x1, int y1, ref PointT start)
@@ -672,6 +699,7 @@ private:
 
                 @property auto x() const { return cast(int)currX; }
             }
+            //debugOut(sortedPos);
 
             Edge edges[3] = void;
             if(sortedPos[1].y < sortedPos[2].y)
@@ -748,6 +776,7 @@ private:
                                     spans[y].x0 = xc0;
                                 }
                                 spans[y].x1 = xc1;
+                                //outContext.surface[y][xc0..xc1] = ColorBlue;
                             }
                             ++y;
                             e0.incY(1);
