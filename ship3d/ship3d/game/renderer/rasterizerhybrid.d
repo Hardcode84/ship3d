@@ -42,10 +42,9 @@ private:
             const y2 = v2.pos.y;
             const w1 = v1.pos.w;
             const w2 = v2.pos.w;
-            dx = (y2 * w1 - y1 * w2) / size.w;
-            dy = (x2 * w1 - x1 * w2) / size.h;
-            const inc = (dy < 0 || (almost_equal(dy, 0) && dx > 0)) ? cast(PosT)1 / cast(PosT)2 : cast(PosT)0;//TODO: fix
-            c  = (x1 * y2 - x2 * y1) - dy * (size.h / 2) + dx * (size.w / 2) - inc * (dy + dx);
+            dx = (y1 * w2 - y2 * w1) / (size.w);
+            dy = (x1 * w2 - x2 * w1) / (size.h);
+            c  = (x2 * y1 - x1 * y2) - dy * (size.h / 2) + dx * (size.w / 2);
         }
 
         auto val(int x, int y) const pure nothrow
@@ -114,7 +113,7 @@ private:
                                           x2, y2, w2,
                                           x3, y3, w3);
             const d = mat.det;
-            if(d <= 0 || (w1 < 0 && w2 < 0 && w3 < 0))
+            if(d <= 0 || (w1 > 0 && w2 > 0 && w3 > 0))
             {
                 degenerate = true;
                 return;
@@ -653,7 +652,7 @@ private:
             foreach(i,const ref v; pverts[])
             {
                 const pos = (v.pos.xy / v.pos.w);
-                sortedPos[i] = vec2i(cast(int)(pos.x * size.w) + size.w / 2, 
+                sortedPos[i] = vec2i(cast(int)(pos.x * size.w) + size.w / 2,
                                      cast(int)(pos.y * size.h) + size.h / 2);
                 if(sortedPos[i].y < upperY)
                 {
@@ -698,7 +697,6 @@ private:
 
                 @property auto x() const { return cast(int)currX; }
             }
-            //debugOut(sortedPos);
 
             Edge edges[3] = void;
             if(sortedPos[1].y < sortedPos[2].y)
