@@ -146,13 +146,13 @@ public:
         {
             mDist += 0.1f;
             //mPlayer.move(vec3_t(0,0,1.0));
-            mPlayer.move(mPlayer.dir * vec3_t(0,0,1.0));
+            mPlayer.move(mPlayer.dir * vec3_t(0,0,1.0)*60);
         }
         else if(SDL_SCANCODE_KP_MINUS == key)
         {
             mDist -= 0.1f;
             //mPlayer.move(vec3_t(0,0,-1.0));
-            mPlayer.move(mPlayer.dir * vec3_t(0,0,-1.0));
+            mPlayer.move(mPlayer.dir * vec3_t(0,0,-1.0)*60);
         }
     }
 
@@ -173,6 +173,7 @@ public:
         auto playerCon  = mPlayer.connections[0];
         auto playerRoom = playerCon.room;
         const playerPos = playerCon.pos;
+        //debugOut(playerPos);
         const playerDir = playerCon.dir;
         enum MaxDepth = 15;
         //debugOut("world.draw");

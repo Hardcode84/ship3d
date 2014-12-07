@@ -82,18 +82,41 @@ public:
             {
                 renderer.pushState();
                 scope(exit) renderer.popState();
-                renderer.getState().dstMask = SpanMask(renderer.getState().size, alloc);
-                renderer.getState().dstMask.invalidate;
-                //draw mask
-                struct Context1
+                bool drawPortal = false;
+
+                assert(1 == planes.length);
+                const pl = planes[0];
+                const minDist = 0.1f;
+                //debugOut(pl.distance(pos));
+                /*if((dir * pl.normal).z >= 0)
                 {
+                    return;
+                }*/
+
+                if(pl.distance(pos) < minDist)
+                {
+                    drawPortal = true;
                 }
-                Context1 ctx;
-                alias RastT1 = RasterizerHybrid!(false,true,true);
-                renderer.drawIndexedTriangle!RastT1(ctx, transformedVerts[], mIndices[]);
-                if(!renderer.getState().dstMask.isEmpty)
+                else
                 {
-                    renderer.getState().mask = renderer.getState().dstMask;
+                    renderer.getState().dstMask = SpanMask(renderer.getState().size, alloc);
+                    renderer.getState().dstMask.invalidate;
+                    //draw mask
+                    struct Context1
+                    {
+                    }
+                    Context1 ctx;
+                    alias RastT1 = RasterizerHybrid!(false,true,true);
+                    renderer.drawIndexedTriangle!RastT1(ctx, transformedVerts[], mIndices[]);
+                    if(!renderer.getState().dstMask.isEmpty)
+                    {
+                        renderer.getState().mask = renderer.getState().dstMask;
+                        drawPortal = true;
+                    }
+                }
+
+                if(drawPortal)
+                {
                     mConnection.room.draw(renderer, alloc, -mConnectionOffset, mConnectionDir.inverse, depth - 1);
                 }
             }

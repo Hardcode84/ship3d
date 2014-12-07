@@ -44,7 +44,7 @@ private:
             const w2 = v2.pos.w;
             dx = (y1 * w2 - y2 * w1) / (size.w);
             dy = (x1 * w2 - x2 * w1) / (size.h);
-            c  = (x2 * y1 - x1 * y2) - dy * (size.h / 2) + dx * (size.w / 2);
+            c  = (x2 * y1 - x1 * y2) - dy * (size.h / 2) + dx * (size.w / 2) /*+ (dy - dx) / 2*/;
         }
 
         auto val(int x, int y) const pure nothrow
