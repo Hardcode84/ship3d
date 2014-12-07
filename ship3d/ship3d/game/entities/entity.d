@@ -22,6 +22,8 @@ public:
     }
 
     final @property radius() const { return mRadius; }
+    final @property pos()    const { return mRefPos; }
+    final @property dir()    const { return mRefDir; }
 
     final @property connections() inout
     {

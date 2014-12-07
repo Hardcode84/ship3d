@@ -125,7 +125,6 @@ private:
             const bool big = max(max(abs(x1 / w1), abs(x2 / w2), abs(x3 / w3)) * size.w,
                                  max(abs(y1 / w1), abs(y2 / w2), abs(y3 / w3)) * size.h) > sizeLim;
             external = big || almost_equal(w1, 0, dw) || almost_equal(w2, 0, dw) || almost_equal(w3, 0, dw) || (w1 * w2 < 0) || (w1 * w3 < 0);
-
             const invMat = mat.inverse;
             wplane = PlaneT(invMat * vec3(1,1,1), size);
             static if(HasTexture)

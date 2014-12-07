@@ -57,7 +57,6 @@ public:
         foreach(ind,ref p; mPolygons[])
         {
             //if(0 != ind)
-            //if(p.checkNormals(dir))
             {
                 foreach(i; p.indices[])
                 {
