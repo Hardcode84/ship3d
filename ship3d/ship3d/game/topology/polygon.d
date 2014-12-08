@@ -93,7 +93,7 @@ public:
                     return;
                 }*/
 
-                if(pl.distance(pos) < minDist)
+                if(pl.distance(pos).abs < minDist)
                 {
                     drawPortal = true;
                 }
@@ -102,9 +102,7 @@ public:
                     renderer.getState().dstMask = SpanMask(renderer.getState().size, alloc);
                     renderer.getState().dstMask.invalidate;
                     //draw mask
-                    struct Context1
-                    {
-                    }
+                    struct Context1 {}
                     Context1 ctx;
                     alias RastT1 = RasterizerHybrid!(false,true,true);
                     renderer.drawIndexedTriangle!RastT1(ctx, transformedVerts[], mIndices[]);
@@ -115,8 +113,10 @@ public:
                     }
                 }
 
+                //debugOut(drawPortal);
                 if(drawPortal)
                 {
+                    //debugOut("draw port");
                     mConnection.room.draw(renderer, alloc, -mConnectionOffset, mConnectionDir.inverse, depth - 1);
                 }
             }
