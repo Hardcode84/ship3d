@@ -86,7 +86,7 @@ public:
 
                 assert(1 == planes.length);
                 const pl = planes[0];
-                const minDist = 0.1f;
+                const minDist = 0.01f;
                 //debugOut(pl.distance(pos));
                 /*if((dir * pl.normal).z >= 0)
                 {

@@ -146,13 +146,13 @@ public:
         {
             mDist += 0.1f;
             //mPlayer.move(vec3_t(0,0,1.0));
-            mPlayer.move(mPlayer.dir * vec3_t(0,0,1.0)*60);
+            mPlayer.move(mPlayer.dir * vec3_t(0,0,1.0)*3);
         }
         else if(SDL_SCANCODE_KP_MINUS == key)
         {
             mDist -= 0.1f;
             //mPlayer.move(vec3_t(0,0,-1.0));
-            mPlayer.move(mPlayer.dir * vec3_t(0,0,-1.0)*60);
+            mPlayer.move(mPlayer.dir * vec3_t(0,0,-1.0)*3);
         }
     }
 

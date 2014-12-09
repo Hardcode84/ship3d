@@ -33,15 +33,15 @@ Room generateRoom(R)(auto ref R random, World world)
         }
     }*/
     const u = unitLength;
-    vertices.put(Vertex(vec4_t(-u,-u,-u*2,1),vec2_t(0,0)));//0
-    vertices.put(Vertex(vec4_t( u,-u,-u*2,1),vec2_t(1,0)));//1
-    vertices.put(Vertex(vec4_t( u, u,-u*2,1),vec2_t(1,1)));//2
-    vertices.put(Vertex(vec4_t(-u, u,-u*2,1),vec2_t(0,1)));//3
+    vertices.put(Vertex(vec4_t(-u,-u,-u,1),vec2_t(0,0)));//0
+    vertices.put(Vertex(vec4_t( u,-u,-u,1),vec2_t(1,0)));//1
+    vertices.put(Vertex(vec4_t( u, u,-u,1),vec2_t(1,1)));//2
+    vertices.put(Vertex(vec4_t(-u, u,-u,1),vec2_t(0,1)));//3
 
-    vertices.put(Vertex(vec4_t(-u,-u, u*2,1),vec2_t(1,1)));//4
-    vertices.put(Vertex(vec4_t( u,-u, u*2,1),vec2_t(0,1)));//5
-    vertices.put(Vertex(vec4_t( u, u, u*2,1),vec2_t(0,0)));//6
-    vertices.put(Vertex(vec4_t(-u, u, u*2,1),vec2_t(1,0)));//7
+    vertices.put(Vertex(vec4_t(-u,-u, u,1),vec2_t(1,1)));//4
+    vertices.put(Vertex(vec4_t( u,-u, u,1),vec2_t(0,1)));//5
+    vertices.put(Vertex(vec4_t( u, u, u,1),vec2_t(0,0)));//6
+    vertices.put(Vertex(vec4_t(-u, u, u,1),vec2_t(1,0)));//7
 
     //    4---5
     //   /|  /|

@@ -766,7 +766,7 @@ private:
                                 }
                                 else
                                 {
-                                    if(xc0 >= xc1)
+                                    if(xc0 > xc1)
                                     {
                                         return false;
                                     }
