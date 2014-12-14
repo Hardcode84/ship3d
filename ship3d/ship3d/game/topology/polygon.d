@@ -28,7 +28,7 @@ public:
         mIndices = indices.idup;
     }
 
-    void calcPlanes()
+    package void calcPlanes()
     {
         assert(mPlanes.length == 0);
         assert(room !is null);
@@ -48,29 +48,29 @@ public:
     }
 
     @property void texture(texture_t t) { mTexture = t; }
-    @property bool isPortal()    const { return mConnection != null; }
-    @property auto indices()     inout { return mIndices[]; }
-    @property auto vertices()    inout { return room.vertices; }
-    @property auto room()        inout { return mRoom; }
-    @property void room(Room r)        { mRoom = r; }
-    @property auto connection()  inout { return mConnection; }
-    @property auto planes()      inout { return mPlanes[]; }
+    @property bool isPortal()     const { return mConnection != null; }
+    @property auto indices()      inout { return mIndices[]; }
+    @property auto vertices()     inout { return room.vertices; }
+    @property auto room()         inout { return mRoom; }
+    @property void room(Room r)         { mRoom = r; }
+    @property auto connection()   inout { return mConnection; }
+    @property auto planes()       inout { return mPlanes[]; }
 
     package void addEntity(Entity e, in vec3_t pos, in quat_t dir, in Room src)
     {
         assert(isPortal);
-        room.addEntity(e, pos + mConnectionOffset, dir * mConnectionDir);
+        room.addEntity(e, (pos + mConnectionOffset) * mConnectionDir, mConnectionDir * dir);
     }
 
     void connect(Polygon* poly, in vec3_t pos, in quat_t dir)
     {
         assert(poly !is null);
-        mConnection = poly;
-        mConnectionOffset = pos;
-        mConnectionDir    = dir;
-        poly.mConnection = &this;
-        poly.mConnectionOffset = -pos;
-        poly.mConnectionDir = dir.inverse;
+        mConnection            = poly;
+        mConnectionOffset      = pos;
+        mConnectionDir         = dir;
+        poly.mConnection       = &this;
+        poly.mConnectionOffset = (-pos) * dir;
+        poly.mConnectionDir    = dir.inverse;
     }
 
     void draw(RT,AT)(auto ref RT renderer, auto ref AT alloc, in Vertex[] transformedVerts, in vec3_t pos, in quat_t dir, int depth) const

@@ -11,7 +11,7 @@ enum Actions
     ROLL_RIGHT
 }
 
-class Controls
+final class Controls
 {
 private:
     immutable Actions[int] mActionsMap;
@@ -24,7 +24,8 @@ public:
     }
 @nogc:
 pure nothrow:
-    Actions map(int key)
+
+    private Actions map(int key) const
     {
         auto p = (key in mActionsMap);
         if(p !is null)
@@ -34,5 +35,7 @@ pure nothrow:
         return Actions.NONE;
         //return mActionsMap.get(key, Actions.NONE);
     }
+
+    //bool getActi
 }
 

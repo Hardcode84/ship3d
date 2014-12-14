@@ -41,8 +41,9 @@ private:
     //alias TiledTextureT = TextureTiled!(BaseTextureRGB!ColorT);
     //TiledTextureT mTiledTexture;
 
-    Room[] mRooms;
-    Player mPlayer;
+    Room[]   mRooms;
+    Entity[] mEntities;
+    Player   mPlayer;
 
     int mCurrentId = 0;
 
@@ -77,11 +78,17 @@ public:
         //mTiledTexture = loadTextureFromFile!TiledTextureT("12022011060.bmp");
         //fillChess(mTexture);
         mRooms = generateWorld(this, 1);
-        mPlayer = new Player;
+        mPlayer = new Player(this);
+        addEntity(mPlayer);
         mRooms[0].addEntity(mPlayer, vec3_t(0,0,0), quat_t.identity);
     }
 
     auto generateId() { return ++mCurrentId; }
+
+    void addEntity(Entity e)
+    {
+        mEntities ~= e;
+    }
 
     void handleQuit()
     {
@@ -94,6 +101,21 @@ public:
         {
             return false;
         }
+        foreach(e; mEntities[])
+        {
+            e.update();
+        }
+        auto newLen = mEntities.length;
+        foreach_reverse(i,e; mEntities[])
+        {
+            if(!e.isAlive)
+            {
+                mEntities[i] = mEntities[newLen - 1];
+                --newLen;
+            }
+        }
+        mEntities.length = newLen;
+
         enum MaxUpdates = 20;
         foreach(i; 0..MaxUpdates)
         {
@@ -170,10 +192,9 @@ public:
         OutContext octx = {mSize, surf, clipRect, mat, SpanMask(mSize, mAllocator)};
         //renderer.viewport = mSize;
         mRenderer.getState() = octx;
-        auto playerCon  = mPlayer.connections[0];
-        auto playerRoom = playerCon.room;
+        const playerCon  = mPlayer.connections[0];
+        const playerRoom = playerCon.room;
         const playerPos = playerCon.pos;
-        //debugOut(playerPos);
         const playerDir = playerCon.dir;
         enum MaxDepth = 15;
         //debugOut("world.draw");

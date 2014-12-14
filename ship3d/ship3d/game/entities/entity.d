@@ -6,24 +6,30 @@ import game.units;
 import game.topology.room;
 import game.topology.entityref;
 
+import game.world;
+
 class Entity
 {
 private:
-    pos_t       mRadius = 1;
-    vec3_t      mRefPos = vec3_t(0,0,0);
-    quat_t      mRefDir = quat_t.identity;
+    World        mWorld;
+    bool         mIsAlive = true;
+    pos_t        mRadius = 1;
+    vec3_t       mRefPos = vec3_t(0,0,0);
+    quat_t       mRefDir = quat_t.identity;
     EntityRef*[] mConnections;
 public:
 //pure nothrow:
 
-    this()
+    this(World w)
     {
-        // Constructor code
+        mWorld = w;
     }
 
-    final @property radius() const { return mRadius; }
-    final @property pos()    const { return mRefPos; }
-    final @property dir()    const { return mRefDir; }
+    final @property world()   inout { return mWorld; }
+    final @property radius()  const { return mRadius; }
+    final @property pos()     const { return mRefPos; }
+    final @property dir()     const { return mRefDir; }
+    final @property isAlive() const { return mIsAlive; }
 
     final @property connections() inout
     {
@@ -35,12 +41,14 @@ public:
     {
     }
 
+    abstract void update();
+
     final void move(in vec3_t offset)
     {
         mRefPos += offset;
         foreach(ref c; mConnections[])
         {
-            c.updatePos(offset);
+            c.updatePos(offset * mRefDir.inverse * c.dir);
             c.room.invalidateEntities();
         }
     }
@@ -56,20 +64,22 @@ public:
 
     final void onAddedToRoom(EntityRef* eref)
     {
-        debugOut("added");
+        //debugOut("added");
         assert(!canFind(mConnections[], eref));
         mConnections ~= eref;
+        //debugOut(mConnections.length);
     }
 
     final void onRemovedFromRoom(EntityRef* eref)
     {
-        debugOut("removed");
+        //debugOut("removed");
         foreach(i,c; mConnections[])
         {
             if(eref is c)
             {
                 mConnections[i] = mConnections[$ - 1];
                 mConnections.length--;
+                //debugOut(mConnections.length);
                 return;
             }
         }

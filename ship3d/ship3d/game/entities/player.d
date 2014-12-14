@@ -1,12 +1,19 @@
 ﻿module game.entities.player;
 
-import game.entities.entity;
+public import game.entities.entity;
+
+import game.world;
 
 class Player : Entity
 {
-    this()
+public:
+    this(World w)
     {
-        // Constructor code
+        super(w);
+    }
+
+    override void update()
+    {
     }
 }
 

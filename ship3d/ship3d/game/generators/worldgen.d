@@ -19,9 +19,10 @@ Room[] generateWorld(World world, uint seed) /*pure nothrow*/
     auto r1 = generateRoom(rnd, world);
     //r.polygons[0].connect(&r.polygons[1], vec3_t(0,0,-60), quat_t.identity);
     //r.polygons[1].connect(&r.polygons[2], vec3_t(0,0,60), quat_t.yrotation(-PI / 2));
-    r0.polygons[1].connect(&r1.polygons[0], vec3_t(0,0,60), quat_t.identity);
-    r1.polygons[1].connect(&r0.polygons[0], vec3_t(0,0,60), quat_t.identity);
-    //r1.polygons[2].connect(&r0.polygons[0], vec3_t(-60,0,0), quat_t.yrotation(-PI / 2));
+    r0.polygons[1].connect(&r1.polygons[0], vec3_t(0,0,60), quat_t.zrotation(0*PI / 2));
+    //r0.polygons[0].connect(&r1.polygons[1], vec3_t(0,0,-60), quat_t.zrotation(PI / 2));
+    r0.polygons[0].connect(&r1.polygons[2], vec3_t(60,0,0), quat_t.yrotation(PI / 2) * quat_t.xrotation(-PI / 2));
+    //r0.polygons[0].connect(&r1.polygons[1], vec3_t(0,0,-60), quat_t.yrotation(0.05f));
 
     ret.put(r0);
     ret.put(r1);

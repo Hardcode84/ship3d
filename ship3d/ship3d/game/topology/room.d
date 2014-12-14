@@ -56,7 +56,7 @@ public:
         transformedVerticesFlags[] = false;
         foreach(ind,ref p; mPolygons[])
         {
-            //if(0 != ind)
+            //if(1 != ind)
             {
                 foreach(i; p.indices[])
                 {
