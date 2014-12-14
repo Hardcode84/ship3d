@@ -11,6 +11,8 @@ import gamelib.graphics.surface;
 
 import derelict.sdl2.sdl;
 
+import game.controls;
+
 import game.units;
 import game.world;
 
@@ -27,17 +29,6 @@ private:
     World mWorld;
 
     uint mLastTicks;
-    /*static immutable Actions[int] KeyMap;
-    static this()
-    {
-        KeyMap = [SDL_SCANCODE_UP:     Actions.UP,
-                  SDL_SCANCODE_DOWN:   Actions.DOWN,
-                  SDL_SCANCODE_LEFT:   Actions.LEFT,
-                  SDL_SCANCODE_RIGHT:  Actions.RIGHT,
-                  SDL_SCANCODE_ESCAPE: Actions.ESC,
-                  SDL_SCANCODE_Z:      Actions.ATTACK,
-                  SDL_SCANCODE_LSHIFT: Actions.BOOST];
-    }*/
     int mWidth = 0;
     int mHeight = 0;
 
@@ -49,6 +40,7 @@ private:
 
     bool mShowOverlay = false;
 
+    Controls mControls;
 public:
 
     this(string[] args)
@@ -72,6 +64,7 @@ public:
         {
             while(SDL_PollEvent(&e))
             {
+                mControls.onSdlEvent(e);
                 switch(e.type)
                 {
                     case SDL_WINDOWEVENT:
@@ -125,6 +118,13 @@ private:
 //pure nothrow:
     void setup(string[] args)
     {
+        ControlSettings cSettings = {keymap: [SDL_SCANCODE_W:KeyActions.FORWARD,
+                                              SDL_SCANCODE_S:KeyActions.BACKWARD,
+                                              SDL_SCANCODE_A:KeyActions.STRAFE_LEFT,
+                                              SDL_SCANCODE_D:KeyActions.STRAFE_RIGHT,
+                                              SDL_SCANCODE_Q:KeyActions.ROLL_LEFT,
+                                              SDL_SCANCODE_E:KeyActions.ROLL_RIGHT]};
+
         import std.getopt;
         bool fullscreen = false;
         bool fullscreenDesktop = false;
@@ -150,6 +150,7 @@ private:
         initWindowSurface();
 
         mWorld = new World(Size(mWidth,mHeight));
+        mControls = new Controls(cSettings, &mWorld.onInputEvent);
     }
 
     void initWindowSurface()
@@ -215,12 +216,6 @@ private:
             {
                 mShowOverlay = !mShowOverlay;
             }
-        }
-
-        auto ac = KeyMap.get(event.keysym.scancode, Actions.INVALID);
-        if(Actions.INVALID != ac)
-        {
-            mWorld.processAction(ac, event.type == SDL_KEYDOWN);
         }
         */
         if(event.type == SDL_KEYDOWN)

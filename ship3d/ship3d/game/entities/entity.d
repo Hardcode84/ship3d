@@ -25,6 +25,8 @@ public:
         mWorld = w;
     }
 
+    void dispose() {}
+
     final @property world()   inout { return mWorld; }
     final @property radius()  const { return mRadius; }
     final @property pos()     const { return mRefPos; }

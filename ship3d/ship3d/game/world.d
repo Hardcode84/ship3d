@@ -4,6 +4,8 @@ import gamelib.graphics.surface;
 import gamelib.graphics.graph;
 import gamelib.graphics.memsurface;
 
+import game.controls;
+
 import game.units;
 import game.renderer.renderer;
 import game.renderer.rasterizer;
@@ -61,6 +63,9 @@ private:
     }
     alias RendererT = Renderer!(OutContext,16);
     RendererT mRenderer;
+
+    alias InputListenerT = void delegate(in ref InputEvent);
+    InputListenerT[] mInputListeners;
 public:
 //pure nothrow:
     @property allocator()     inout pure nothrow { return mAllocator; }
@@ -88,6 +93,25 @@ public:
     void addEntity(Entity e)
     {
         mEntities ~= e;
+    }
+
+    void addInputListener(in InputListenerT listener)
+    {
+        mInputListeners ~= listener;
+    }
+
+    void removeInputListener(in InputListenerT listener)
+    {
+        foreach(i, l; mInputListeners[])
+        {
+            if(l == listener)
+            {
+                mInputListeners[i] = mInputListeners[$ - 1];
+                --mInputListeners.length;
+                return;
+            }
+        }
+        assert(false, "removeInputListener error");
     }
 
     void handleQuit()
@@ -175,6 +199,14 @@ public:
             mDist -= 0.1f;
             //mPlayer.move(vec3_t(0,0,-1.0));
             mPlayer.move(mPlayer.dir * vec3_t(0,0,-1.0)*3);
+        }
+    }
+
+    void onInputEvent(in InputEvent evt)
+    {
+        foreach(l; mInputListeners[])
+        {
+            l(evt);
         }
     }
 

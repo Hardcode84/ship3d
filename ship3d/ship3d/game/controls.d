@@ -1,8 +1,12 @@
 ﻿module game.controls;
 
-enum Actions
+import derelict.sdl2.sdl;
+
+import gamelib.variant;
+public import gamelib.variant: visit, tryVisit;
+
+enum KeyActions
 {
-    NONE = 0,
     FORWARD,
     BACKWARD,
     STRAFE_LEFT,
@@ -11,31 +15,76 @@ enum Actions
     ROLL_RIGHT
 }
 
+struct KeyEvent
+{
+    KeyActions action;
+    bool pressed;
+}
+
+struct CursorEvent
+{
+    float x;
+    float y;
+    float dx;
+    float dy;
+}
+
+alias InputEvent = Algebraic!(KeyEvent,CursorEvent);
+
+struct ControlSettings
+{
+    KeyActions[int] keymap;
+    float cursorSensX = 1.0f;
+    float cursorSensY = 1.0f;
+
+    this(this)
+    {
+        keymap = keymap.dup;
+    }
+}
+
 final class Controls
 {
 private:
-    immutable Actions[int] mActionsMap;
+    immutable ControlSettings mSettings;
+
+    alias ListenerT = void delegate(in InputEvent);
+    ListenerT mListener;
+
 public:
-    this(in Actions[int] m)
+    this(in ControlSettings settings, ListenerT listener)
     {
-        import std.exception: assumeUnique;
-        auto temp = m.dup;
-        mActionsMap = assumeUnique(temp);
+        assert(listener !is null);
+        mSettings = cast(immutable(ControlSettings))settings;
+        mListener = listener;
     }
-@nogc:
-pure nothrow:
 
-    private Actions map(int key) const
+    void onSdlEvent(in ref SDL_Event e)
     {
-        auto p = (key in mActionsMap);
-        if(p !is null)
+        switch(e.type)
         {
-            return *p;
-        }
-        return Actions.NONE;
-        //return mActionsMap.get(key, Actions.NONE);
-    }
+            case SDL_KEYDOWN:
+            case SDL_KEYUP:
+            {
+                auto pAction = (e.key.keysym.scancode in mSettings.keymap);
+                if(pAction !is null)
+                {
+                    mListener(InputEvent(KeyEvent(*pAction, SDL_KEYDOWN == e.type)));
+                }
+            }
+            break;
+            case SDL_MOUSEMOTION:
+            {
 
-    //bool getActi
+                CursorEvent event = {x:  e.motion.x * mSettings.cursorSensX,
+                                           y:  e.motion.y * mSettings.cursorSensY,
+                                           dx: e.motion.xrel * mSettings.cursorSensX,
+                                           dy: e.motion.yrel * mSettings.cursorSensY};
+                mListener(InputEvent(event));
+            }
+            break;
+            default:
+        }
+    }
 }
 

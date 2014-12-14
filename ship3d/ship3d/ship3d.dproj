@@ -192,6 +192,7 @@
     <Compile Include="game\renderer\rasterizerhybrid.d" />
     <Compile Include="game\topology\plane.d" />
     <Compile Include="game\controls.d" />
+    <Compile Include="gamelib\variant.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />
