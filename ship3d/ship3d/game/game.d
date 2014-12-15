@@ -153,6 +153,7 @@ private:
 
         mWorld = new World(Size(mWidth,mHeight));
         mControls = new Controls(cSettings, &mWorld.onInputEvent);
+        mixin SDL_CHECK!(`SDL_SetRelativeMouseMode(true)`);
     }
 
     void initWindowSurface()
