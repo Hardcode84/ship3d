@@ -36,10 +36,10 @@ public:
         }
     }
 
-    void invalidateEntities() { mNeedUdateEntities = true; }
+    void invalidateEntities()                 { mNeedUdateEntities = true; }
     @property bool needUpdateEntities() const { return mNeedUdateEntities; }
-    @property auto vertices() inout { return mVertices[]; }
-    @property auto polygons() inout { return mPolygons[]; }
+    @property auto vertices()           inout { return mVertices[]; }
+    @property auto polygons()           inout { return mPolygons[]; }
 
     void draw(RT, AT)(auto ref RT renderer, auto ref AT alloc, in vec3_t pos, in quat_t dir, int depth) const
     {
@@ -54,9 +54,10 @@ public:
         auto transformedVertices      = alloc.alloc!(Vertex)(mVertices.length);
         auto transformedVerticesFlags = alloc.alloc!(bool)(mVertices.length);
         transformedVerticesFlags[] = false;
-        foreach(ind,ref p; mPolygons[])
+        foreach(const ref p; mPolygons[])
         {
-            //if(1 != ind)
+            const ignore = false;//p.isPortal && canFind(mInputListeners[], listener);
+            if(!ignore)
             {
                 foreach(i; p.indices[])
                 {
@@ -71,7 +72,7 @@ public:
         }
 
         //sort entities
-        foreach(ref e; mEntities)
+        foreach(const ref e; mEntities)
         {
             auto entity = e.ent;
             renderer.getState().matrix = mat * mat4_t.translation(e.pos.x,e.pos.y,e.pos.z) * e.dir.to_matrix!(4,4)();

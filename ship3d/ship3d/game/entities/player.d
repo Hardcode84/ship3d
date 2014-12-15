@@ -1,26 +1,35 @@
 ﻿module game.entities.player;
 
-public import game.entities.entity;
+public import game.entities.inertialentity;
 
 import game.units;
 import game.controls;
 
 import game.world;
 
-class Player : Entity
+class Player : InertialEntity
 {
+    static assert(KeyActions.min >= 0);
+    static assert(KeyActions.max < 0xff);
+    bool mActState[KeyActions.max + 1] = false;
     void onKeyEvent(in ref KeyEvent e)
     {
-        debugOut(e.action);
-        if(KeyActions.FORWARD == e.action)
+        /*debugOut(e.action);
+        if(e.pressed)
         {
-            move(dir * vec3_t(0,0,1.0f)*3);
-        }
-        else if(KeyActions.BACKWARD == e.action)
-        {
-            move(dir * vec3_t(0,0,-1.0f)*3);
-        }
+            if(KeyActions.FORWARD == e.action)
+            {
+                move(dir * vec3_t(0,0,1.0f)*10);
+            }
+            else if(KeyActions.BACKWARD == e.action)
+            {
+                move(dir * vec3_t(0,0,-1.0f)*10);
+            }
+        }*/
+        mActState[e.action] = e.pressed;
     }
+
+    @property actState(in KeyActions a) const pure nothrow { return mActState[a]; }
 
     void onCursorEvent(in ref CursorEvent e)
     {
@@ -49,6 +58,25 @@ public:
 
     override void update()
     {
+        super.update();
+        if(actState(KeyActions.FORWARD))
+        {
+            accelerate(dir * vec3_t(0,0,1.0f)*0.3f);
+        }
+        else if(actState(KeyActions.BACKWARD))
+        {
+            accelerate(dir * vec3_t(0,0,-1.0f)*0.3f);
+        }
+
+        enum strafeDir = quat_t.yrotation(PI / 2);
+        if(actState(KeyActions.STRAFE_LEFT))
+        {
+            accelerate(dir * strafeDir * vec3_t(0,0,1.0f)*0.3f);
+        }
+        else if(actState(KeyActions.STRAFE_RIGHT))
+        {
+            accelerate(dir * strafeDir * vec3_t(0,0,-1.0f)*0.3f);
+        }
     }
 }
 

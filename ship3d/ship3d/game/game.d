@@ -71,8 +71,10 @@ public:
                         processWindowEvent(e.window);
                         break;
                     case SDL_KEYDOWN:
-                    case SDL_KEYUP:
-                        processKeyEvent(e.key);
+                        if(SDL_SCANCODE_ESCAPE == e.key.keysym.scancode)
+                        {
+                            handleQuit();
+                        }
                         break;
                     case SDL_QUIT:
                         handleQuit();
@@ -199,28 +201,6 @@ private:
                     break;
                 default: break;
             }
-        }
-    }
-
-    void processKeyEvent(in ref SDL_KeyboardEvent event)
-    {
-        /*if(event.repeat != 0)
-        {
-            return;
-        }*/
-        /*
-
-        //debug
-        {
-            if(event.keysym.scancode == SDL_SCANCODE_F12 && event.type == SDL_KEYDOWN)
-            {
-                mShowOverlay = !mShowOverlay;
-            }
-        }
-        */
-        if(event.type == SDL_KEYDOWN)
-        {
-            mWorld.processKey(event.keysym.scancode);
         }
     }
 

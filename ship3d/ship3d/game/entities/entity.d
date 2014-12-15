@@ -8,7 +8,7 @@ import game.topology.entityref;
 
 import game.world;
 
-class Entity
+abstract class Entity
 {
 private:
     World        mWorld;
@@ -43,7 +43,7 @@ public:
     {
     }
 
-    abstract void update();
+    void update() {}
 
     final void move(in vec3_t offset)
     {

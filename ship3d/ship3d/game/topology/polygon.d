@@ -85,19 +85,8 @@ public:
                 bool drawPortal = false;
 
                 assert(1 == planes.length);
-                const pl = planes[0];
-                const minDist = 0.01f;
-                //debugOut(pl.distance(pos));
-                /*if((dir * pl.normal).z >= 0)
-                {
-                    return;
-                }*/
 
-                if(pl.distance(pos).abs < minDist)
-                {
-                    drawPortal = true;
-                }
-                else
+
                 {
                     renderer.getState().dstMask = SpanMask(renderer.getState().size, alloc);
                     renderer.getState().dstMask.invalidate;
