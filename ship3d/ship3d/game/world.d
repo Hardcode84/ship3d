@@ -177,15 +177,17 @@ public:
         const clipRect = Rect(0, 0, surf.width, surf.height);
         const mat = mProjMat;
         OutContext octx = {mSize, surf, clipRect, mat, SpanMask(mSize, mAllocator)};
-        //renderer.viewport = mSize;
         mRenderer.getState() = octx;
-        const playerCon  = mPlayer.connections[0];
-        const playerRoom = playerCon.room;
-        const playerPos = playerCon.pos;
-        const playerDir = playerCon.dir;
-        enum MaxDepth = 15;
+        //const playerCon  = mPlayer.connections[0];
         //debugOut("world.draw");
-        playerRoom.draw(mRenderer, allocator(), playerPos, playerDir, MaxDepth);
+        foreach(const ref playerCon; mPlayer.connections[])
+        {
+            const playerRoom = playerCon.room;
+            const playerPos  = playerCon.pos;
+            const playerDir  = playerCon.dir;
+            enum MaxDepth = 15;
+            playerRoom.draw(mRenderer, allocator(), playerPos, playerDir, mPlayer, MaxDepth);
+        }
     }
 }
 

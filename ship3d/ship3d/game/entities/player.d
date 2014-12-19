@@ -14,8 +14,8 @@ class Player : InertialEntity
     bool mActState[KeyActions.max + 1] = false;
     void onKeyEvent(in ref KeyEvent e)
     {
-        /*debugOut(e.action);
-        if(e.pressed)
+        //debugOut(e.action);
+        /*if(e.pressed)
         {
             if(KeyActions.FORWARD == e.action)
             {

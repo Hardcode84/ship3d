@@ -19,7 +19,7 @@ public:
     {
         super.update();
         move(mSpeed);
-        mSpeed *= 0.80f;
+        mSpeed *= 0.90f;
     }
 
 final:

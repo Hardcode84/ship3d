@@ -13,7 +13,7 @@ abstract class Entity
 private:
     World        mWorld;
     bool         mIsAlive = true;
-    pos_t        mRadius = 1;
+    pos_t        mRadius = 5;
     vec3_t       mRefPos = vec3_t(0,0,0);
     quat_t       mRefDir = quat_t.identity;
     EntityRef*[] mConnections;

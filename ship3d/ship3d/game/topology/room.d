@@ -41,7 +41,7 @@ public:
     @property auto vertices()           inout { return mVertices[]; }
     @property auto polygons()           inout { return mPolygons[]; }
 
-    void draw(RT, AT)(auto ref RT renderer, auto ref AT alloc, in vec3_t pos, in quat_t dir, int depth) const
+    void draw(RT, AT)(auto ref RT renderer, auto ref AT alloc, in vec3_t pos, in quat_t dir, in Entity srce, int depth) const
     {
         //debugOut("Room.draw");
         auto allocState = alloc.state;
@@ -51,8 +51,8 @@ public:
         renderer.getState().matrix = srcMat * dir.inverse.to_matrix!(4,4)() * mat4_t.translation(-pos.x,-pos.y,-pos.z);
         const mat = renderer.getState().matrix;
 
-        auto transformedVertices      = alloc.alloc!(Vertex)(mVertices.length);
-        auto transformedVerticesFlags = alloc.alloc!(bool)(mVertices.length);
+        auto transformedVertices      = alloc.alloc!Vertex(mVertices.length);
+        auto transformedVerticesFlags = alloc.alloc!bool(mVertices.length);
         transformedVerticesFlags[] = false;
         foreach(const ref p; mPolygons[])
         {
@@ -67,7 +67,7 @@ public:
                         transformedVerticesFlags[i] = true;
                     }
                 }
-                p.draw(renderer, alloc, transformedVertices, pos, dir, depth);
+                p.draw(renderer, alloc, transformedVertices, pos, dir, srce, depth);
             }
         }
 
@@ -108,30 +108,31 @@ public:
         for(int i = cast(int)mEntities.length - 1; i >= 0; --i)
         {
             auto e = mEntities[i];
-
-            const r = e.ent.radius();
+            auto entity = e.ent;
+            const r = entity.radius();
 
             //update position
-            /*auto dpos = vec3_t(0,0,0);
+            auto dpos = vec3_t(0,0,0);
             bool moved = false;
-            foreach(ref p; mPolygons[])
+            foreach(const ref p; polygons)
             {
                 if(!p.isPortal)
                 {
-                    foreach(const ref pl; p.planes())
+                    foreach(const ref pl; p.planes)
                     {
-                        const dist = pl.distance(e.pos) - r;
-                        if(dist < 0)
+                        if(pl.checkCollision(e.pos,r))
                         {
+                            const dist = pl.distance(e.pos) - r;
                             dpos -= dist * pl.normal;
+                            moved = true;
                         }
                     }
                 }
             }
             if(moved)
             {
-                e.ent.move(dpos);
-            }*/
+                entity.move(dpos);
+            }
 
             //bool remove = !updateEntity(e);
 

@@ -27,8 +27,8 @@ struct EntityRef
 
 final class EntityRefAllocator
 {
-private:
 pure nothrow:
+private:
     EntityRef* mLast = null;
 public:
     this(size_t initialSize)

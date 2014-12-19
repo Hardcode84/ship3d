@@ -33,18 +33,7 @@ public:
         assert(mPlanes.length == 0);
         assert(room !is null);
         assert(indices.length % 3 == 0);
-        const verts = vertices;
-        foreach(i;0..indices.length / 3)
-        {
-            const i0 = indices[i * 3 + 0];
-            const i1 = indices[i * 3 + 1];
-            const i2 = indices[i * 3 + 2];
-            const p = Plane(verts[i0].pos, verts[i1].pos, verts[i2].pos);
-            if(0 == mPlanes.length || p != mPlanes[$ - 1])
-            {
-                mPlanes ~= p;
-            }
-        }
+        mPlanes = createPlanes(vertices, indices);
     }
 
     @property void texture(texture_t t) { mTexture = t; }
@@ -73,7 +62,7 @@ public:
         poly.mConnectionDir    = dir.inverse;
     }
 
-    void draw(RT,AT)(auto ref RT renderer, auto ref AT alloc, in Vertex[] transformedVerts, in vec3_t pos, in quat_t dir, int depth) const
+    void draw(RT,AT)(auto ref RT renderer, auto ref AT alloc, in Vertex[] transformedVerts, in vec3_t pos, in quat_t dir, in Entity srce, int depth) const
     {
         //debugOut("polygon.draw");
         if(isPortal)
@@ -85,8 +74,16 @@ public:
                 bool drawPortal = false;
 
                 assert(1 == planes.length);
+                const pl = planes[0];
 
-
+                /*if(pl.distance(pos).abs < 1f)
+                {
+                    debugOut(depth);
+                    debugOut(pl.distance(pos));
+                    drawPortal = true;
+                }
+                else*/
+                if(pl.distance(pos) > (srce.radius + 0.01f)) //TODO
                 {
                     renderer.getState().dstMask = SpanMask(renderer.getState().size, alloc);
                     renderer.getState().dstMask.invalidate;
@@ -106,7 +103,7 @@ public:
                 if(drawPortal)
                 {
                     //debugOut("draw port");
-                    mConnection.room.draw(renderer, alloc, -mConnectionOffset, mConnectionDir.inverse, depth - 1);
+                    mConnection.room.draw(renderer, alloc, -mConnectionOffset, mConnectionDir.inverse, srce, depth - 1);
                 }
             }
         }
