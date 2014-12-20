@@ -7,7 +7,7 @@ import game.world;
 
 class InertialEntity : Entity
 {
-private:
+protected:
     vec3_t mSpeed = vec3_t(0,0,0);
 public:
     this(World w)
@@ -17,9 +17,10 @@ public:
 
     override void update()
     {
-        super.update();
         move(mSpeed);
+        super.update();
         mSpeed *= 0.90f;
+        assert(mSpeed.magnitude_squared <= radius^^2);
     }
 
 final:

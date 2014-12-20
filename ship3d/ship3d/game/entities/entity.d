@@ -48,9 +48,10 @@ public:
     final void move(in vec3_t offset)
     {
         mRefPos += offset;
+        const inv = mRefDir.inverse;
         foreach(ref c; mConnections[])
         {
-            c.updatePos(offset * mRefDir.inverse * c.dir);
+            c.updatePos(offset * (c.dir * inv));
             c.room.invalidateEntities();
         }
     }

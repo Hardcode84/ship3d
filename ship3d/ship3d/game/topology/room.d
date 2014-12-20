@@ -131,7 +131,7 @@ public:
             }
             if(moved)
             {
-                entity.move(dpos);
+                entity.move(dpos * (entity.dir * e.dir.inverse));
             }
 
             //bool remove = !updateEntity(e);

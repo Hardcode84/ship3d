@@ -58,7 +58,6 @@ public:
 
     override void update()
     {
-        super.update();
         if(actState(KeyActions.FORWARD))
         {
             accelerate(dir * vec3_t(0,0,1.0f)*0.3f);
@@ -67,6 +66,10 @@ public:
         {
             accelerate(dir * vec3_t(0,0,-1.0f)*0.3f);
         }
+        /*if(actState(KeyActions.FORWARD))
+        {
+            mSpeed = dir*vec3_t(0,0,1.0f)*2.0f;
+        }*/
 
         enum strafeDir = quat_t.yrotation(PI / 2);
         if(actState(KeyActions.STRAFE_LEFT))
@@ -77,6 +80,7 @@ public:
         {
             accelerate(dir * strafeDir * vec3_t(0,0,-1.0f)*0.3f);
         }
+        super.update();
     }
 }
 
