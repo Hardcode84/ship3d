@@ -1,6 +1,7 @@
 ﻿module game.generators.roomgen;
 
 import std.array;
+import std.range;
 
 import gamelib.util;
 
@@ -9,54 +10,65 @@ import game.world;
 import game.topology.room;
 import game.topology.polygon;
 
-Room generateRoom(R)(auto ref R random, World world)
+Room generateRoom(R)(auto ref R random, World world, in vec3i size)
 {
+    assert(size.x > 0);
+    assert(size.y > 0);
+    assert(size.z > 0);
     const pos_t unitLength = 30;
-    /*const w = 1;
-    const h = 1;
-    const d = 1;
-    const maxX = (w * unitLength) / 2;
-    const maxY = (h * unitLength) / 2;
-    const maxZ = (d * unitLength) / 2;
-    const minX = -maxX;
-    const minY = -maxY;
-    const minZ = -maxZ;*/
 
     auto vertices = appender!(Vertex[])();
     auto polygons = appender!(Polygon[])();
-    /*foreach(i;TupleRange!(0,6))
-    {
-        static if(0 == i)
-        {
-            const maxJ = w;
-            const maxK = h;
-        }
-    }*/
     const u = unitLength;
-    vertices.put(Vertex(vec4_t(-u,-u,-u,1),vec2_t(0,0)));//0
-    vertices.put(Vertex(vec4_t( u,-u,-u,1),vec2_t(1,0)));//1
-    vertices.put(Vertex(vec4_t( u, u,-u,1),vec2_t(1,1)));//2
-    vertices.put(Vertex(vec4_t(-u, u,-u,1),vec2_t(0,1)));//3
 
-    vertices.put(Vertex(vec4_t(-u,-u, u,1),vec2_t(1,1)));//4
-    vertices.put(Vertex(vec4_t( u,-u, u,1),vec2_t(0,1)));//5
-    vertices.put(Vertex(vec4_t( u, u, u,1),vec2_t(0,0)));//6
-    vertices.put(Vertex(vec4_t(-u, u, u,1),vec2_t(1,0)));//7
+    const xoffset = -(u * size.x) / 2;
+    const yoffset = -(u * size.y) / 2;
+    const zoffset = -(u * size.z) / 2;
+    //front, back, right, left, down, up
+    int currInd = 0;
+    foreach(k;TupleRange!(0,6))
+    {
+        const sizex = [size.x,size.x,size.z,size.z,size.z,size.z][k];
+        const sizey = [size.y,size.y,size.y,size.y,size.x,size.x][k];
 
+        foreach(i;0..sizey + 1)
+        {
+            foreach(j;0..sizex + 1)
+            {
+                const iu = i * u;
+                const ju = j * u;
+                const x = [xoffset + ju, -xoffset - ju,   xoffset     , -xoffset,       xoffset + ju, -xoffset - ju][k];
+                const y = [yoffset + iu,  yoffset + iu,   yoffset + iu,  yoffset + iu,  yoffset     , -yoffset][k];
+                const z = [zoffset     , -zoffset,       -zoffset - ju,  zoffset + ju, -zoffset - iu, -zoffset - iu][k];
+                vertices.put(Vertex(vec4_t(x, y, z, 1),vec2_t(i % 2,j % 2)));
+            }
+        }
+        scope(exit) currInd += (sizex + 1) * (sizey + 1);
+
+        auto indices = appender!(int[])();
+        foreach(i;0..sizey)
+        {
+            foreach(j;0..sizex)
+            {
+                indices.put(currInd + (i + 0) * (sizex + 1) + j + 0);
+                indices.put(currInd + (i + 0) * (sizex + 1) + j + 1);
+                indices.put(currInd + (i + 1) * (sizex + 1) + j + 1);
+                indices.put(currInd + (i + 0) * (sizex + 1) + j + 0);
+                indices.put(currInd + (i + 1) * (sizex + 1) + j + 1);
+                indices.put(currInd + (i + 1) * (sizex + 1) + j + 0);
+            }
+        }
+        polygons.put(Polygon(indices.data));
+    }
+
+    //
     //    4---5
-    //   /|  /|
+    //  y/|  /|
     //  0---1 |
     //  | | | |
     //  | 7-|-6
     //  |/  |/
-    //  3---2
-
-    polygons.put(Polygon([0,1,2,0,2,3]));//front
-    polygons.put(Polygon([4,6,5,4,7,6]));//back
-    polygons.put(Polygon([0,7,4,0,3,7]));//left
-    polygons.put(Polygon([1,5,6,1,6,2]));//right
-    polygons.put(Polygon([4,5,1,4,1,0]));//up
-    polygons.put(Polygon([7,2,6,7,3,2]));//down
-
+    //  3---2 x
+    // z
     return new Room(world, vertices.data, polygons.data);
 }

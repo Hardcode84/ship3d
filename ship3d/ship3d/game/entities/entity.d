@@ -67,22 +67,22 @@ public:
 
     final void onAddedToRoom(EntityRef* eref)
     {
-        //debugOut("added");
+        debugOut("added ", cast(const(void)*)eref.room);
         assert(!canFind(mConnections[], eref));
         mConnections ~= eref;
-        //debugOut(mConnections.length);
+        debugOut(mConnections.length);
     }
 
     final void onRemovedFromRoom(EntityRef* eref)
     {
-        //debugOut("removed");
+        debugOut("removed");
         foreach(i,c; mConnections[])
         {
             if(eref is c)
             {
                 mConnections[i] = mConnections[$ - 1];
                 mConnections.length--;
-                //debugOut(mConnections.length);
+                debugOut(mConnections.length);
                 return;
             }
         }

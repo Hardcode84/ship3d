@@ -131,7 +131,7 @@ public:
             }
             if(moved)
             {
-                entity.move(dpos * (entity.dir * e.dir.inverse));
+                //entity.move(dpos * (entity.dir * e.dir.inverse));
             }
 
             //bool remove = !updateEntity(e);
@@ -149,7 +149,7 @@ public:
     package void updateEntityPos(EntityRef* e, in vec3_t dpos)
     {
         //debugOut("updateEntityPos");
-        const r = e.ent.radius();
+        const r = e.ent.radius;
         const oldPos = e.pos;
         const newPos = oldPos + dpos;
         foreach(j,ref p; mPolygons[])

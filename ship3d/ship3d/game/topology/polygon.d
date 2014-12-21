@@ -12,6 +12,8 @@ import game.renderer.rasterizerhybrid;
 struct Polygon
 {
 private:
+    immutable vec3_t   mCenterOffset;
+    immutable quat_t   mCenterDir;
     Room               mRoom = null;
     Plane[]            mPlanes;
     Polygon*           mConnection = null;
