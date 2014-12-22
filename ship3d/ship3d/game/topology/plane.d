@@ -25,7 +25,7 @@ private:
             dy = v1.y - v0.y;
             c  = (dy * v0.x - dx * v0.y);
         }
-        
+
         auto val(pos_t x, pos_t y) const
         {
             return c + dx * y - dy * x;
@@ -59,7 +59,7 @@ public:
     {
         mNormal = cross((v1.xyz - v0.xyz),(v2.xyz - v0.xyz)).normalized;
         mVec0   = (v1.xyz - v0.xyz).normalized;
-        mVec1   = cross(mNormal, mVec0).normalized;
+        mVec1   = cross(mNormal, mVec0);
         mD      = -dot(v0.xyz, mNormal);
         mEdges  = [
             Edge(project(v0.xyz), project(v1.xyz)),
@@ -67,7 +67,7 @@ public:
             Edge(project(v2.xyz), project(v0.xyz))];
     }
 
-    auto edges() inout { return mEdges[]; }
+    @property edges() inout { return mEdges[]; }
 
     pos_t distance(in vec3_t pos) const
     {
@@ -129,12 +129,12 @@ public:
             newEdges ~= e0;
         }
         mEdges = newEdges.data;
-        //assert(!edges.empty);
+        assert(!edges.empty);
     }
 
     bool checkCollision(in vec3_t pos, in pos_t size) const
     {
-        //assert(!edges.empty);
+        assert(!edges.empty);
         if(distance(pos) > size) return false;
         foreach(const ref e; edges)
         {
@@ -154,10 +154,6 @@ outer: foreach(i;0..indices.length/3)
         const i0 = indices[i * 3 + 0];
         const i1 = indices[i * 3 + 1];
         const i2 = indices[i * 3 + 2];
-        /*debugOut(i0);
-        debugOut(i1);
-        debugOut(i2);
-        debugOut(vertices.length);*/
         auto pl = Plane(vertices[i0].pos,vertices[i1].pos,vertices[i2].pos);
         foreach(ref p;ret[])
         {

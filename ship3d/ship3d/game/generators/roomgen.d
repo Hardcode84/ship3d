@@ -45,20 +45,21 @@ Room generateRoom(R)(auto ref R random, World world, in vec3i size)
         }
         scope(exit) currInd += (sizex + 1) * (sizey + 1);
 
-        auto indices = appender!(int[])();
         foreach(i;0..sizey)
         {
             foreach(j;0..sizex)
             {
-                indices.put(currInd + (i + 0) * (sizex + 1) + j + 0);
-                indices.put(currInd + (i + 0) * (sizex + 1) + j + 1);
-                indices.put(currInd + (i + 1) * (sizex + 1) + j + 1);
-                indices.put(currInd + (i + 0) * (sizex + 1) + j + 0);
-                indices.put(currInd + (i + 1) * (sizex + 1) + j + 1);
-                indices.put(currInd + (i + 1) * (sizex + 1) + j + 0);
+                int[6] indices;
+                indices[0] = (currInd + (i + 0) * (sizex + 1) + j + 0);
+                indices[1] = (currInd + (i + 0) * (sizex + 1) + j + 1);
+                indices[2] = (currInd + (i + 1) * (sizex + 1) + j + 1);
+                indices[3] = (currInd + (i + 0) * (sizex + 1) + j + 0);
+                indices[4] = (currInd + (i + 1) * (sizex + 1) + j + 1);
+                indices[5] = (currInd + (i + 1) * (sizex + 1) + j + 0);
+                polygons.put(Polygon(indices));
             }
         }
-        polygons.put(Polygon(indices.data));
+
     }
 
     //
