@@ -13,7 +13,6 @@ struct Polygon
 {
 private:
     immutable vec3_t   mCenterOffset;
-    immutable quat_t   mCenterDir;
     Room               mRoom = null;
     Plane[]            mPlanes;
     Polygon*           mConnection = null;
@@ -23,10 +22,11 @@ private:
     texture_t          mTexture = null;
 public:
 //pure nothrow:
-    this(in int[] indices)
+    this(in int[] indices, in vec3_t centerOffset)
     {
         assert(indices.length > 0);
         assert(indices.length % 3 == 0);
+        mCenterOffset = centerOffset;
         mIndices = indices.idup;
     }
 
@@ -53,7 +53,18 @@ public:
         room.addEntity(e, (pos + mConnectionOffset) * mConnectionDir, mConnectionDir * dir);
     }
 
-    void connect(Polygon* poly, in vec3_t pos, in quat_t dir)
+    void connect(Polygon* poly)
+    {
+        assert(poly !is null);
+        const offset = mCenterOffset - poly.mCenterOffset;
+        assert(planes.length == 1);
+        assert(poly.planes.length == 1);
+        const dir0 = quat_t.from_unit_vectors(planes[0].normal,vec3_t(0,0,-1));
+        const dir1 = quat_t.from_unit_vectors(poly.planes[0].normal,vec3_t(0,0,-1));
+        connect(poly, offset, dir1.inverse * dir0);
+    }
+
+    private void connect(Polygon* poly, in vec3_t pos, in quat_t dir)
     {
         assert(poly !is null);
         mConnection            = poly;

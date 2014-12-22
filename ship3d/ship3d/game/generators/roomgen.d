@@ -20,6 +20,7 @@ Room generateRoom(R)(auto ref R random, World world, in vec3i size)
     auto vertices = appender!(Vertex[])();
     auto polygons = appender!(Polygon[])();
     const u = unitLength;
+    const u2 = u / 2;
 
     const xoffset = -(u * size.x) / 2;
     const yoffset = -(u * size.y) / 2;
@@ -56,7 +57,19 @@ Room generateRoom(R)(auto ref R random, World world, in vec3i size)
                 indices[3] = (currInd + (i + 0) * (sizex + 1) + j + 0);
                 indices[4] = (currInd + (i + 1) * (sizex + 1) + j + 1);
                 indices[5] = (currInd + (i + 1) * (sizex + 1) + j + 0);
-                polygons.put(Polygon(indices));
+
+                const iu = i * u;
+                const ju = j * u;
+                const x = [xoffset + ju + u2, -xoffset - ju - u2,
+                           xoffset          , -xoffset,
+                           xoffset + ju     , -xoffset - ju][k];
+                const y = [yoffset + iu + u2,  yoffset + iu + u2,
+                           yoffset + iu + u2,  yoffset + iu + u2,
+                           yoffset          , -yoffset][k];
+                const z = [zoffset          , -zoffset,
+                          -zoffset - ju - u2,  zoffset + ju + u2,
+                          -zoffset - iu - u2, -zoffset - iu - u2][k];
+                polygons.put(Polygon(indices, vec3_t(x,y,z)));
             }
         }
 
