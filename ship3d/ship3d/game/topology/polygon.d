@@ -53,21 +53,18 @@ public:
         room.addEntity(e, (pos + mConnectionOffset) * mConnectionDir, mConnectionDir * dir);
     }
 
-    void connect(Polygon* poly)
+    void connect(Polygon* poly, in pos_t rot = 0)
     {
         assert(!isPortal);
         assert(!poly.isPortal);
         assert(poly !is null);
-        const offset = mCenterOffset - poly.mCenterOffset;
         assert(planes.length == 1);
         assert(poly.planes.length == 1);
         const dir0 = quat_t.from_unit_vectors(-planes[0].normal,vec3_t(0,0,1));
-        const dir1 = quat_t.from_unit_vectors(-poly.planes[0].normal,vec3_t(0,0,1));
-        debugOut(planes[0].normal);
-        debugOut(poly.planes[0].normal);
-        debugOut(dir0);
-        debugOut(dir1);
-        connect(poly, offset, /*(dir0 * dir1)*/dir0.inverse);
+        const dir1 = quat_t.from_unit_vectors(poly.planes[0].normal,vec3_t(0,0,1));
+        const dir3 = quat_t.axis_rotation(rot,poly.planes[0].normal);
+        const offset = (mCenterOffset * dir0 - poly.mCenterOffset * dir1) * dir1.inverse;
+        connect(poly, offset, (dir0.inverse * dir1 * dir3));
     }
 
     private void connect(Polygon* poly, in vec3_t pos, in quat_t dir)

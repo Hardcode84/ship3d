@@ -25,7 +25,7 @@ Room generateRoom(R)(auto ref R random, World world, in vec3i size)
     const xoffset = -(u * size.x) / 2;
     const yoffset = -(u * size.y) / 2;
     const zoffset = -(u * size.z) / 2;
-    //front, back, right, left, down, up
+    //back, front, right, left, down, up
     int currInd = 0;
     foreach(k;TupleRange!(0,6))
     {
@@ -62,7 +62,7 @@ Room generateRoom(R)(auto ref R random, World world, in vec3i size)
                 const ju = j * u;
                 const x = [xoffset + ju + u2, -xoffset - ju - u2,
                            xoffset          , -xoffset,
-                           xoffset + ju     , -xoffset - ju][k];
+                           xoffset + ju + u2, -xoffset - ju - u2][k];
                 const y = [yoffset + iu + u2,  yoffset + iu + u2,
                            yoffset + iu + u2,  yoffset + iu + u2,
                            yoffset          , -yoffset][k];
