@@ -142,6 +142,17 @@ public:
         }
         return true;
     }
+
+    bool checkPortal(in vec3_t pos, in pos_t size) const
+    {
+        assert(!edges.empty);
+        if(distance(pos) > size) return false;
+        foreach(const ref e; edges)
+        {
+            if(e.val(project(pos)) < size) return false;
+        }
+        return true;
+    }
 }
 
 Plane[] createPlanes(V,I)(in V[] vertices, in I[] indices) pure nothrow if(isIntegral!I)

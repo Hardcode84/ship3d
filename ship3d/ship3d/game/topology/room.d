@@ -165,7 +165,7 @@ public:
                     const oldDist = pl.distance(oldPos);
                     //debugOut("old");
                     //debugOut(oldDist);
-                    if(oldDist >= r)
+                    if(oldDist > r && pl.checkPortal(newPos,r))
                     {
                         p.connection.addEntity(e.ent, newPos, e.dir, this);
                     }
