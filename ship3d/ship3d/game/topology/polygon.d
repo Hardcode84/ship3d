@@ -55,13 +55,19 @@ public:
 
     void connect(Polygon* poly)
     {
+        assert(!isPortal);
+        assert(!poly.isPortal);
         assert(poly !is null);
         const offset = mCenterOffset - poly.mCenterOffset;
         assert(planes.length == 1);
         assert(poly.planes.length == 1);
-        const dir0 = quat_t.from_unit_vectors(planes[0].normal,vec3_t(0,0,-1));
-        const dir1 = quat_t.from_unit_vectors(poly.planes[0].normal,vec3_t(0,0,-1));
-        connect(poly, offset, dir1.inverse * dir0);
+        const dir0 = quat_t.from_unit_vectors(-planes[0].normal,vec3_t(0,0,1));
+        const dir1 = quat_t.from_unit_vectors(-poly.planes[0].normal,vec3_t(0,0,1));
+        debugOut(planes[0].normal);
+        debugOut(poly.planes[0].normal);
+        debugOut(dir0);
+        debugOut(dir1);
+        connect(poly, offset, /*(dir0 * dir1)*/dir0.inverse);
     }
 
     private void connect(Polygon* poly, in vec3_t pos, in quat_t dir)
