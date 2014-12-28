@@ -15,6 +15,8 @@ struct EntityRef
     Entity ent;
     vec3_t pos;
     quat_t dir;
+    bool inside = true;
+    vec3_t correction; //TODO
     bool remove = false;
 
     void updatePos(in vec3_t dpos) /*pure nothrow*/

@@ -180,14 +180,24 @@ public:
         mRenderer.getState() = octx;
         //const playerCon  = mPlayer.connections[0];
         //debugOut("world.draw");
+        drawPlayer(surf);
+    }
+
+    private void drawPlayer(SurfT surf)
+    {
         foreach(const ref playerCon; mPlayer.connections[])
         {
-            const playerRoom = playerCon.room;
-            const playerPos  = playerCon.pos;
-            const playerDir  = playerCon.dir;
-            enum MaxDepth = 15;
-            playerRoom.draw(mRenderer, allocator(), playerPos, playerDir, mPlayer, MaxDepth);
+            if(playerCon.inside)
+            {
+                const playerRoom = playerCon.room;
+                const playerPos  = playerCon.pos + playerCon.correction;
+                const playerDir  = playerCon.dir;
+                enum MaxDepth = 15;
+                playerRoom.draw(mRenderer, allocator(), playerPos, playerDir, mPlayer, MaxDepth);
+                return;
+            }
         }
+        assert(false, "No valid connections");
     }
 }
 

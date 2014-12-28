@@ -79,7 +79,7 @@ public:
 
     private void connect(Polygon* poly, in vec3_t pos, in quat_t dir)
     {
-        assert(!canFind(adjacent, poly));
+        //assert(!canFind(adjacent, poly));
         assert(poly !is null);
         assert(poly !is &this);
         mConnection            = poly;
@@ -104,14 +104,6 @@ public:
                 assert(1 == planes.length);
                 const pl = planes[0];
 
-                /*if(pl.distance(pos).abs < 1f)
-                {
-                    debugOut(depth);
-                    debugOut(pl.distance(pos));
-                    drawPortal = true;
-                }
-                else*/
-                if(pl.distance(pos) > (srce.radius + 0.01f)) //TODO
                 {
                     renderer.getState().dstMask = SpanMask(renderer.getState().size, alloc);
                     renderer.getState().dstMask.invalidate;

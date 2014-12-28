@@ -149,6 +149,8 @@ public:
     package void updateEntityPos(EntityRef* e, in vec3_t dpos)
     {
         //debugOut("updateEntityPos");
+        e.inside = true;
+        e.correction = vec3_t(0,0,0);
         const r = e.ent.radius;
         const oldPos = e.pos;
         const newPos = oldPos + dpos;
@@ -158,17 +160,21 @@ public:
             {
                 assert(1 == p.planes().length, debugConv(p.planes().length));
                 const pl = p.planes()[0];
-
                 const dist = pl.distance(newPos);
-                //debugOut(dist);
                 if(dist < r)
                 {
-                    const oldDist = pl.distance(oldPos);
-                    //debugOut("old");
-                    //debugOut(oldDist);
-                    if(oldDist > r && pl.checkPortal(newPos,r))
+                    if(!pl.checkPortal(oldPos,r) && pl.checkPortal(newPos,r))
                     {
                         p.connection.addEntity(e.ent, newPos, e.dir, this);
+                    }
+                    enum portalCorrection = 0.001f;
+                    if(dist < -portalCorrection)
+                    {
+                        e.inside = false;
+                    }
+                    else if(almost_equal(dist, 0, portalCorrection))
+                    {
+                        e.correction += pl.normal * (2 * portalCorrection);
                     }
 
                     if(dist < -r)
@@ -176,7 +182,6 @@ public:
                         e.remove = true;
                     }
                 }
-
             } //isPortal
         } //foreach
         e.pos = newPos;
@@ -198,7 +203,8 @@ public:
                         const v1 = vertices[i1];
                         if(almost_equal(v0.pos, v1.pos))
                         {
-                            if(2 == ++same)
+                            ++same;
+                            if(2 == same)
                             {
                                 p0.addAdjacent(&p1);
                                 continue loop1;

@@ -109,7 +109,7 @@ public:
                     auto str = format("%s %s %s", mFPS, totalSeconds, mUpdateCounter);
                     mWindow.title = str;
                     import std.stdio;
-                    //writeln(str);
+                    writeln(str);
                 }
                 present();
             }
