@@ -1,5 +1,7 @@
 ﻿module game.topology.polygon;
 
+import std.algorithm;
+
 import game.units;
 import game.topology.room;
 import game.topology.plane;
@@ -20,6 +22,7 @@ private:
     quat_t             mConnectionDir;
     immutable(int)[]   mIndices;
     texture_t          mTexture = null;
+    Polygon*[]         mAdjacent;
 public:
 //pure nothrow:
     this(in int[] indices, in vec3_t centerOffset)
@@ -38,14 +41,21 @@ public:
         mPlanes = createPlanes(vertices, indices);
     }
 
-    @property void texture(texture_t t) { mTexture = t; }
-    @property bool isPortal()     const { return mConnection != null; }
-    @property auto indices()      inout { return mIndices[]; }
-    @property auto vertices()     inout { return room.vertices; }
-    @property auto room()         inout { return mRoom; }
-    @property void room(Room r)         { mRoom = r; }
-    @property auto connection()   inout { return mConnection; }
-    @property auto planes()       inout { return mPlanes[]; }
+    @property texture(texture_t t) { mTexture = t; }
+    @property isPortal()     const { return mConnection != null; }
+    @property indices()      inout { return mIndices[]; }
+    @property vertices()     inout { return room.vertices; }
+    @property room()         inout { return mRoom; }
+    @property room(Room r)         { mRoom = r; }
+    @property connection()   inout { return mConnection; }
+    @property planes()       inout { return mPlanes[]; }
+    @property adjacent()     inout { return mAdjacent[]; }
+
+    void addAdjacent(Polygon* poly)
+    {
+        assert(!canFind(adjacent, poly));
+        mAdjacent ~= poly;
+    }
 
     package void addEntity(Entity e, in vec3_t pos, in quat_t dir, in Room src)
     {
@@ -69,7 +79,9 @@ public:
 
     private void connect(Polygon* poly, in vec3_t pos, in quat_t dir)
     {
+        assert(!canFind(adjacent, poly));
         assert(poly !is null);
+        assert(poly !is &this);
         mConnection            = poly;
         mConnectionOffset      = pos;
         mConnectionDir         = dir;

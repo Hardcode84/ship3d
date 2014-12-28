@@ -2,6 +2,7 @@
 
 import std.container;
 import std.range;
+import std.algorithm;
 
 import game.units;
 import game.world;
@@ -34,6 +35,7 @@ public:
             p.room = this;
             p.calcPlanes();
         }
+        calcAdjacent();
     }
 
     void invalidateEntities()                 { mNeedUdateEntities = true; }
@@ -150,9 +152,8 @@ public:
         const r = e.ent.radius;
         const oldPos = e.pos;
         const newPos = oldPos + dpos;
-        foreach(j,ref p; mPolygons[])
+        foreach(ref p; mPolygons[])
         {
-            //if(j != 1) 
             if(p.isPortal)
             {
                 assert(1 == p.planes().length, debugConv(p.planes().length));
@@ -179,5 +180,33 @@ public:
             } //isPortal
         } //foreach
         e.pos = newPos;
+    }
+
+    private void calcAdjacent()
+    {
+        foreach(i,ref p0; mPolygons[])
+        {
+        loop1: foreach(j,ref p1; mPolygons[])
+            {
+                if(i == j) continue;
+                int same = 0;
+                foreach(const ref i0;p0.indices)
+                {
+                    const v0 = vertices[i0];
+                    foreach(const ref i1;p1.indices)
+                    {
+                        const v1 = vertices[i1];
+                        if(almost_equal(v0.pos, v1.pos))
+                        {
+                            if(2 == ++same)
+                            {
+                                p0.addAdjacent(&p1);
+                                continue loop1;
+                            }
+                        }
+                    }
+                }
+            }
+        }
     }
 }
