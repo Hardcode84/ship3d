@@ -60,11 +60,11 @@ public:
     {
         if(actState(KeyActions.FORWARD))
         {
-            accelerate(dir * vec3_t(0,0,1.0f)*0.3f);
+            accelerate(dir * vec3_t(0,0,1.0f)*0.1f);
         }
         else if(actState(KeyActions.BACKWARD))
         {
-            accelerate(dir * vec3_t(0,0,-1.0f)*0.3f);
+            accelerate(dir * vec3_t(0,0,-1.0f)*0.1f);
         }
         /*if(actState(KeyActions.FORWARD))
         {
@@ -74,11 +74,11 @@ public:
         enum strafeDir = quat_t.yrotation(PI / 2);
         if(actState(KeyActions.STRAFE_LEFT))
         {
-            accelerate(dir * strafeDir * vec3_t(0,0,1.0f)*0.3f);
+            accelerate(dir * strafeDir * vec3_t(0,0,1.0f)*0.1f);
         }
         else if(actState(KeyActions.STRAFE_RIGHT))
         {
-            accelerate(dir * strafeDir * vec3_t(0,0,-1.0f)*0.3f);
+            accelerate(dir * strafeDir * vec3_t(0,0,-1.0f)*0.1f);
         }
         super.update();
     }

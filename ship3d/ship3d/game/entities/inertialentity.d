@@ -19,7 +19,7 @@ public:
     {
         move(mSpeed);
         super.update();
-        mSpeed *= 0.90f;
+        mSpeed *= 0.95f;
         assert(mSpeed.magnitude_squared <= radius^^2);
     }
 

@@ -75,7 +75,7 @@ public:
         mSize = sz;
         mProjMat = mat4_t.perspective(sz.w,sz.h,90,0.1,1000);
         //mTexture = new TextureT(256,256);
-        mTexture      = loadTextureFromFile!TextureT("12022011060.bmp");
+        //mTexture      = loadTextureFromFile!TextureT("12022011060.bmp");
         //mTiledTexture = loadTextureFromFile!TiledTextureT("12022011060.bmp");
         //fillChess(mTexture);
         mRooms = generateWorld(this, 1);

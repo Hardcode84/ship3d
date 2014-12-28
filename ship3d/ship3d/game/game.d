@@ -19,7 +19,7 @@ import game.world;
 scope final class Game
 {
 private:
-    enum UpdateInterval = 50;
+    enum UpdateInterval = 15;
     enum MaxUpdates = 100;
 
     @auto_dispose Core mCore;
@@ -109,7 +109,7 @@ public:
                     auto str = format("%s %s %s", mFPS, totalSeconds, mUpdateCounter);
                     mWindow.title = str;
                     import std.stdio;
-                    writeln(str);
+                    //writeln(str);
                 }
                 present();
             }
