@@ -8,9 +8,7 @@ import game.units;
 import game.world;
 import game.entities.entity;
 import game.topology.polygon;
-
 import game.topology.entityref;
-
 final class Room
 {
 private:
@@ -61,12 +59,12 @@ public:
             const ignore = false;//p.isPortal && canFind(mInputListeners[], listener);
             if(!ignore)
             {
-                foreach(i; p.indices[])
+                foreach(ind; p.indices[])
                 {
-                    if(!transformedVerticesFlags[i])
+                    if(!transformedVerticesFlags[ind])
                     {
-                        transformedVertices[i] = renderer.transformVertex(mVertices[i]);
-                        transformedVerticesFlags[i] = true;
+                        transformedVertices[ind] = renderer.transformVertex(mVertices[ind]);
+                        transformedVerticesFlags[ind] = true;
                     }
                 }
                 p.draw(renderer, alloc, transformedVertices, pos, dir, srce, depth);
@@ -177,7 +175,7 @@ public:
                         e.correction += pl.normal * (2 * portalCorrection);
                     }
 
-                    if(dist < -r)
+                    if(dist < -r + portalCorrection)
                     {
                         e.remove = true;
                     }
@@ -191,14 +189,16 @@ public:
     {
         foreach(i,ref p0; mPolygons[])
         {
+            const ind0 = p0.indices.dup.sort;
         loop1: foreach(j,ref p1; mPolygons[])
             {
                 if(i == j) continue;
                 int same = 0;
-                foreach(const ref i0;p0.indices)
+                const ind1 = p1.indices.dup.sort;
+                foreach(i0;ind0.uniq)
                 {
                     const v0 = vertices[i0];
-                    foreach(const ref i1;p1.indices)
+                    foreach(i1;ind1.uniq)
                     {
                         const v1 = vertices[i1];
                         if(almost_equal(v0.pos, v1.pos))

@@ -149,7 +149,7 @@ public:
         if(distance(pos) > size) return false;
         foreach(const ref e; edges)
         {
-            if(e.val(project(pos)) < size) return false;
+            if(e.val(project(pos)) < -size) return false;
         }
         return true;
     }

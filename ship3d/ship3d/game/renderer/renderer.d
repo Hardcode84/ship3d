@@ -15,11 +15,6 @@ private:
     int             mCurrentState = 0;
 
 public:
-    /*this(auto ref BitmapT surf) pure nothrow
-    {
-        // Constructor code
-        mBitmap = surf;
-    }*/
 //pure nothrow:
 
     void pushState()

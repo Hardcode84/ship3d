@@ -35,7 +35,7 @@ public:
 
     final @property connections() inout
     {
-        assert(mConnections.length > 0);
+        assert(mConnections.length > 0, "Connection list is empty");
         return mConnections[];
     }
 

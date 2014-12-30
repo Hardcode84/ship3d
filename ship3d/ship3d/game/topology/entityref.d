@@ -13,10 +13,10 @@ struct EntityRef
         package EntityRef* prev; //for allocator
     }
     Entity ent;
-    vec3_t pos;
-    quat_t dir;
+    vec3_t pos = vec3_t(0,0,0);
+    quat_t dir = quat_t.identity;
     bool inside = true;
-    vec3_t correction; //TODO
+    vec3_t correction = vec3_t(0,0,0); //TODO
     bool remove = false;
 
     void updatePos(in vec3_t dpos) /*pure nothrow*/

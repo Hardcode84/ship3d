@@ -36,8 +36,6 @@ private:
     bool mQuitReq = false;
     immutable mat4_t mProjMat;
     immutable Size mSize;
-    alias TextureT = Texture!(BaseTextureRGB!ColorT);
-    TextureT mTexture;
 
     Room[]   mRooms;
     Entity[] mEntities;
@@ -57,7 +55,7 @@ private:
         SpanMask mask;
         SpanMask dstMask;
     }
-    alias RendererT = Renderer!(OutContext,16);
+    alias RendererT = Renderer!(OutContext,17);
     RendererT mRenderer;
 
     alias InputListenerT = void delegate(in ref InputEvent);
@@ -74,10 +72,6 @@ public:
         mERefAlloc = new EntityRefAllocator(0xFF);
         mSize = sz;
         mProjMat = mat4_t.perspective(sz.w,sz.h,90,0.1,1000);
-        //mTexture = new TextureT(256,256);
-        //mTexture      = loadTextureFromFile!TextureT("12022011060.bmp");
-        //mTiledTexture = loadTextureFromFile!TiledTextureT("12022011060.bmp");
-        //fillChess(mTexture);
         mRooms = generateWorld(this, 1);
         mPlayer = new Player(this);
         addEntity(mPlayer);
@@ -178,7 +172,6 @@ public:
         const mat = mProjMat;
         OutContext octx = {mSize, surf, clipRect, mat, SpanMask(mSize, mAllocator)};
         mRenderer.getState() = octx;
-        //const playerCon  = mPlayer.connections[0];
         //debugOut("world.draw");
         drawPlayer(surf);
     }
@@ -192,7 +185,7 @@ public:
                 const playerRoom = playerCon.room;
                 const playerPos  = playerCon.pos + playerCon.correction;
                 const playerDir  = playerCon.dir;
-                enum MaxDepth = 15;
+                enum MaxDepth = 16;
                 playerRoom.draw(mRenderer, allocator(), playerPos, playerDir, mPlayer, MaxDepth);
                 return;
             }
