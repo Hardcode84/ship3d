@@ -131,6 +131,7 @@ public:
             }
             if(moved)
             {
+                //debugOut("moved ",dpos);
                 entity.move(dpos * (entity.dir * e.dir.inverse));
             }
 
@@ -161,6 +162,7 @@ public:
                 const dist = pl.distance(newPos);
                 if(dist < r)
                 {
+                    //debugOut(dist);
                     if(!pl.checkPortal(oldPos,r) && pl.checkPortal(newPos,r))
                     {
                         p.connection.addEntity(e.ent, newPos, e.dir, this);
@@ -175,7 +177,7 @@ public:
                         e.correction += pl.normal * (2 * portalCorrection);
                     }
 
-                    if(dist < -r + portalCorrection)
+                    if(dist < (-r - portalCorrection))
                     {
                         e.remove = true;
                     }
