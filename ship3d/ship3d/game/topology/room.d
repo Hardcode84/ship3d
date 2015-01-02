@@ -109,7 +109,7 @@ public:
         {
             auto e = mEntities[i];
             auto entity = e.ent;
-            const r = entity.radius();
+            const r = entity.radius() + 0.01f;
 
             //update position
             auto dpos = vec3_t(0,0,0);
@@ -159,15 +159,17 @@ public:
             {
                 assert(1 == p.planes().length, debugConv(p.planes().length));
                 const pl = p.planes()[0];
+
                 const dist = pl.distance(newPos);
-                if(dist < r)
+                enum portalCorrection = 0.001f;
+                if(pl.checkPortal(newPos,r))
                 {
                     //debugOut(dist);
-                    if(!pl.checkPortal(oldPos,r) && pl.checkPortal(newPos,r))
+                    if(!pl.checkPortal(oldPos,r))
                     {
                         p.connection.addEntity(e.ent, newPos, e.dir, this);
                     }
-                    enum portalCorrection = 0.001f;
+
                     if(dist < -portalCorrection)
                     {
                         e.inside = false;
@@ -206,7 +208,7 @@ public:
                         if(almost_equal(v0.pos, v1.pos))
                         {
                             ++same;
-                            if(2 == same)
+                            if(same >= 2)
                             {
                                 p0.addAdjacent(&p1);
                                 continue loop1;
