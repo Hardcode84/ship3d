@@ -148,6 +148,10 @@ public:
                 break;
             }
         }
+        foreach(e; mEntities[])
+        {
+            e.updatePos();
+        }
         return true;
     }
 

@@ -109,7 +109,9 @@ public:
         {
             auto e = mEntities[i];
             auto entity = e.ent;
-            const r = entity.radius() + 0.01f;
+            const r = entity.radius() + 0.001f;
+            const oldPos = e.pos;
+            const newPos = oldPos + entity.posDelta * (entity.dir * e.dir.inverse);
 
             //update position
             auto dpos = vec3_t(0,0,0);
@@ -120,10 +122,10 @@ public:
                 {
                     foreach(const ref pl; p.planes)
                     {
-                        if(pl.checkCollision(e.pos,r))
+                        vec3_t norm = void;
+                        if(pl.checkCollision(oldPos, newPos, r, norm))
                         {
-                            const dist = pl.distance(e.pos) - r;
-                            dpos -= dist * pl.normal;
+                            dpos += norm * 1.001f;
                             moved = true;
                         }
                     }
@@ -131,7 +133,6 @@ public:
             }
             if(moved)
             {
-                //debugOut("moved ",dpos);
                 entity.move(dpos * (entity.dir * e.dir.inverse));
             }
 

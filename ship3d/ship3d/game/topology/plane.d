@@ -13,17 +13,21 @@ private:
     {
         pure nothrow:
         immutable pos_t dx, dy, c;
-        this(pos_t dx1, pos_t dy1, pos_t c1)
+        immutable vec3_t normal;
+        this(pos_t dx1, pos_t dy1, pos_t c1, in vec3_t norm)
         {
             dx = dx1;
             dy = dy1;
             c  = c1;
+            normal = norm;
         }
-        this(V)(in V v0, in V v1)
+        this(V,N)(in V v0, in V v1, in N norm)
         {
-            dx = v1.x - v0.x;
-            dy = v1.y - v0.y;
+            const v = (v1.xy - v0.xy).normalized;
+            dx = v.x;
+            dy = v.y;
             c  = (dy * v0.x - dx * v0.y);
+            normal = norm.normalized;
         }
 
         auto val(pos_t x, pos_t y) const
@@ -46,7 +50,7 @@ private:
 
         auto opUnary(string op : "-")() const
         {
-            return Edge(-dx, -dy, -c);
+            return Edge(-dx, -dy, -c, -normal);
         }
     }
     immutable vec3_t mNormal;
@@ -62,9 +66,9 @@ public:
         mVec1   = cross(mNormal, mVec0);
         mD      = -dot(v0.xyz, mNormal);
         mEdges  = [
-            Edge(project(v0.xyz), project(v1.xyz)),
-            Edge(project(v1.xyz), project(v2.xyz)),
-            Edge(project(v2.xyz), project(v0.xyz))];
+            Edge(project(v0.xyz), project(v1.xyz),cross(mNormal,(v1.xyz - v0.xyz))),
+            Edge(project(v1.xyz), project(v2.xyz),cross(mNormal,(v2.xyz - v1.xyz))),
+            Edge(project(v2.xyz), project(v0.xyz),cross(mNormal,(v0.xyz - v2.xyz)))];
     }
 
     @property edges() inout { return mEdges[]; }
@@ -96,9 +100,9 @@ public:
     package void merge(V)(in V v0, in V v1, in V v2)
     {
         Edge[3] edges1 = [
-            Edge(project(v0.xyz), project(v1.xyz)),
-            Edge(project(v1.xyz), project(v2.xyz)),
-            Edge(project(v2.xyz), project(v0.xyz))];
+            Edge(project(v0.xyz), project(v1.xyz),cross(mNormal,(v1.xyz - v0.xyz))),
+            Edge(project(v1.xyz), project(v2.xyz),cross(mNormal,(v2.xyz - v1.xyz))),
+            Edge(project(v2.xyz), project(v0.xyz),cross(mNormal,(v0.xyz - v2.xyz)))];
 
         auto newEdges = appender!(Edge[]);
     outer0: foreach(const ref e0; edges1[])
@@ -132,14 +136,31 @@ public:
         assert(!edges.empty);
     }
 
-    bool checkCollision(in vec3_t pos, in pos_t size) const
+    bool checkCollision(in vec3_t oldPos, in vec3_t newPos, in pos_t size, out vec3_t norm) const
     {
         assert(!edges.empty);
-        if(distance(pos) > size) return false;
+        const newDist = distance(newPos);
+        if(newDist > size) return false;
         foreach(const ref e; edges)
         {
-            if(e.val(project(pos)) < -size) return false;
+            if(e.val(project(newPos)) < -size) return false;
         }
+
+        const oldDist = distance(oldPos);
+        if(oldDist <= size)
+        {
+            foreach(const ref e; edges)
+            {
+                const edist = e.val(project(oldPos));
+                if(edist < -size)
+                {
+                    const neweDist = e.val(project(newPos));
+                    norm = -e.normal * (size + neweDist);
+                    return true;
+                }
+            }
+        }
+        norm = normal * (size - newDist);
         return true;
     }
 

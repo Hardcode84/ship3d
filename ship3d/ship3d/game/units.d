@@ -14,6 +14,8 @@ alias vec4_t = Vector!(pos_t,4);
 alias vec3_t = Vector!(pos_t,3);
 alias vec2_t = Vector!(pos_t,2);
 alias mat4_t = Matrix!(pos_t,4,4);
+alias mat3_t = Matrix!(pos_t,3,3);
+alias mat2_t = Matrix!(pos_t,2,2);
 
 alias texture_t = Texture!(BaseTextureRGB!ColorT);
 

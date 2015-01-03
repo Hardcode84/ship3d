@@ -15,6 +15,7 @@ private:
     bool         mIsAlive = true;
     pos_t        mRadius = 5;
     vec3_t       mRefPos = vec3_t(0,0,0);
+    vec3_t       mPosDelta = vec3_t(0,0,0);
     quat_t       mRefDir = quat_t.identity;
     EntityRef*[] mConnections;
 public:
@@ -30,6 +31,7 @@ public:
     final @property world()   inout { return mWorld; }
     final @property radius()  const { return mRadius; }
     final @property pos()     const { return mRefPos; }
+    final @property posDelta()const { return mPosDelta; }
     final @property dir()     const { return mRefDir; }
     final @property isAlive() const { return mIsAlive; }
 
@@ -47,13 +49,19 @@ public:
 
     final void move(in vec3_t offset)
     {
-        mRefPos += offset;
+        mPosDelta += offset;
+    }
+
+    void updatePos()
+    {
+        mRefPos += mPosDelta;
         const inv = mRefDir.inverse;
         foreach(ref c; mConnections[])
         {
-            c.updatePos(offset * (c.dir * inv));
+            c.updatePos(mPosDelta * (c.dir * inv));
             c.room.invalidateEntities();
         }
+        mPosDelta = vec3_t(0,0,0);
     }
 
     final void rotate(in quat_t rot)
