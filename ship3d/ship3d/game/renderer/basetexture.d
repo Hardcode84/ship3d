@@ -73,10 +73,10 @@ public:
     }
 }
 
-abstract class BaseTexturePaletted(ColT) : BaseTexture!ColT
+abstract class BaseTexturePaletted(ColT) : BaseTexture!ubyte
 {
 private:
-    alias PalT = const(Palette!ColT);
+    alias PalT = Palette!ColT;
     PalT mPalette;
 protected:
     alias ColorType = ColT;
@@ -93,5 +93,5 @@ public:
     }
 
     @property auto palette() const pure nothrow { return mPalette; }
-    @property void palette(in PalT p) pure nothrow { mPalette = p; }
+    @property void palette(PalT p) pure nothrow { mPalette = p; }
 }

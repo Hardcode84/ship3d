@@ -17,7 +17,6 @@ Room[] generateWorld(World world, uint seed) /*pure nothrow*/
     auto ret = appender!(Room[])();
     auto r0 = generateRoom(rnd, world, vec3i(3,3,3));
     auto r1 = generateRoom(rnd, world, vec3i(1,1,1));
-    //r0.polygons[1].connect(&r1.polygons[5]);
     r0.polygons[5].connect(&r0.polygons[7]);
     r0.polygons[1].connect(&r0.polygons[3]);
 
@@ -27,7 +26,7 @@ Room[] generateWorld(World world, uint seed) /*pure nothrow*/
     {
         foreach(ref p; r.polygons)
         {
-            p.texture = texgen.getTexture(TextureDesc("foo"));
+            p.texture = texgen.getTexture(TextureDesc(0));
         }
     }
     return ret.data;

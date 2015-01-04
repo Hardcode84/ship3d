@@ -11,7 +11,7 @@ private:
 public:
     this(T)(in T[] ent) pure nothrow
     {
-        mEntries[] = ent;
+        mEntries[] = ent[];
     }
 
     auto opIndex(int i) const pure nothrow
@@ -22,7 +22,7 @@ public:
     }
     body
     {
-        return mEntries;
+        return mEntries[i];
     }
 }
 
