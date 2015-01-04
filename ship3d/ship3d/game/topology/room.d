@@ -21,7 +21,6 @@ private:
     bool             mNeedUdateEntities;
 public:
 //pure nothrow:
-    @property world() inout { return mWorld; }
     this(World w, Vertex[] vertices, Polygon[] polygons)
     {
         assert(w !is null);
@@ -40,6 +39,7 @@ public:
     @property bool needUpdateEntities() const { return mNeedUdateEntities; }
     @property auto vertices()           inout { return mVertices[]; }
     @property auto polygons()           inout { return mPolygons[]; }
+    @property world()                   inout { return mWorld; }
 
     void draw(RT, AT)(auto ref RT renderer, auto ref AT alloc, in vec3_t pos, in quat_t dir, in Entity srce, int depth) const
     {

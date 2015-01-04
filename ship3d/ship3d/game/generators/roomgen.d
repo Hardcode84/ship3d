@@ -29,8 +29,8 @@ Room generateRoom(R)(auto ref R random, World world, in vec3i size)
     int currInd = 0;
     foreach(k;TupleRange!(0,6))
     {
-        const sizex = [size.x,size.x,size.z,size.z,size.z,size.z][k];
-        const sizey = [size.y,size.y,size.y,size.y,size.x,size.x][k];
+        const sizex = [size.x,size.x,size.z,size.z,size.x,size.x][k];
+        const sizey = [size.y,size.y,size.y,size.y,size.z,size.z][k];
 
         foreach(i;0..sizey + 1)
         {

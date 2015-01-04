@@ -1,5 +1,6 @@
 module game.game;
 
+import std.random;
 import std.algorithm;
 import std.conv;
 
@@ -128,11 +129,15 @@ private:
                                               SDL_SCANCODE_E:KeyActions.ROLL_RIGHT]};
 
         import std.getopt;
+        uint seed = unpredictableSeed;
+        import std.stdio;
+        scope(exit) writeln("seed=",seed);
         bool fullscreen = false;
         bool fullscreenDesktop = false;
         mWidth  = 800;
         mHeight = 600;
         getopt(args,
+               "seed",                 &seed,
                "fullscreen|f",         &fullscreen,
                "fullscreenDesktop|fd", &fullscreenDesktop,
                "width|w",              &mWidth,
@@ -153,7 +158,7 @@ private:
         mWindow = new Window("game",mWidth,mHeight, windowFlags);
         initWindowSurface();
 
-        mWorld = new World(Size(mWidth,mHeight));
+        mWorld = new World(Size(mWidth,mHeight),seed);
         mControls = new Controls(cSettings, &mWorld.onInputEvent);
         mixin SDL_CHECK!(`SDL_SetRelativeMouseMode(true)`);
     }

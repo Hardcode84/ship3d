@@ -16,6 +16,7 @@ private:
     palette_t mPalette;
     texture_t[TextureDesc] mTextures;
 
+    enum GradNum = 8;
     void createPalette()
     {
         const ColorT[] colors = [
@@ -26,7 +27,6 @@ private:
             ColorGreen,
             ColorMagenta,
             ColorWhite];
-        enum GradNum = 8;
         ColorT[256] data = ColorBlack;
         foreach(i,c; colors[])
         {
@@ -42,7 +42,7 @@ private:
     {
         auto ret = new texture_t(256, 256);
         ret.palette = mPalette;
-        fillChess(ret, cast(ubyte)255, cast(ubyte)desc.i);
+        fillChess(ret, cast(ubyte)255, cast(ubyte)(desc.i * GradNum));
         return ret;
     }
 public:

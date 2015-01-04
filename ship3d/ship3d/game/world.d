@@ -66,13 +66,13 @@ public:
     @property erefAllocator() inout pure nothrow { return mERefAlloc; }
 
     alias SurfT  = FFSurface!ColorT;
-    this(in Size sz)
+    this(in Size sz, uint seed)
     {
         mAllocator = new StackAlloc(0xFFFFFF);
         mERefAlloc = new EntityRefAllocator(0xFF);
         mSize = sz;
         mProjMat = mat4_t.perspective(sz.w,sz.h,90,0.1,1000);
-        mRooms = generateWorld(this, 1);
+        mRooms = generateWorld(this, seed);
         mPlayer = new Player(this);
         addEntity(mPlayer);
         mRooms[0].addEntity(mPlayer, vec3_t(0,0,0), quat_t.identity);
