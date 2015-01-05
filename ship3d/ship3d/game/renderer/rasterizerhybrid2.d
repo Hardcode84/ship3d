@@ -26,14 +26,14 @@ struct RasterizerHybrid2(bool HasTextures, bool WriteMask, bool ReadMask)
         foreach(i,ind; indices) pverts[i] = verts.ptr + ind;
         drawTriangle(outputContext, extContext, pverts);
     }
-    
+
 private:
     enum AffineLength = 32;
     struct Line(PosT)
     {
     @nogc:
         immutable PosT dx, dy, c;
-        
+
         this(VT,ST)(in VT v1, in VT v2, in VT v3, in ST size) pure nothrow
         {
             const x1 = v1.pos.x;
@@ -46,13 +46,13 @@ private:
             dy = (x1 * w2 - x2 * w1) / (size.h);
             c  = (x2 * y1 - x1 * y2) - dy * (size.h / 2) + dx * (size.w / 2) /*+ (dy - dx) / 2*/;
         }
-        
+
         auto val(int x, int y) const pure nothrow
         {
             return c + dy * y - dx * x;
         }
     }
-    
+
     struct Plane(PosT)
     {
     pure nothrow:
@@ -66,13 +66,13 @@ private:
             dy = vec.y / size.h;
             c = vec.z - dx * (size.w / 2) - dy * (size.h / 2);
         }
-        
+
         auto get(int x, int y) const
         {
             return c + dx * x + dy * y;
         }
     }
-    
+
     struct LinesPack(PosT,TextT,LineT)
     {
     @nogc:
@@ -83,9 +83,9 @@ private:
         alias PlaneT = Plane!(PosT);
         enum NumLines = 3;
         immutable LineT[NumLines] lines;
-        
+
         immutable PlaneT wplane;
-        
+
         static if(HasTexture)
         {
             alias vec3tex = Vector!(TextT,3);
@@ -99,7 +99,7 @@ private:
                 LineT(v1, v2, v3, size),
                 LineT(v2, v3, v1, size),
                 LineT(v3, v1, v2, size)];
-            
+
             const w1 = v1.pos.w;
             const w2 = v2.pos.w;
             const w3 = v3.pos.w;
@@ -139,7 +139,7 @@ private:
             }
         }
     }
-    
+
     struct Point(PosT)
     {
     pure nothrow:
@@ -161,7 +161,7 @@ private:
             currx = x;
             curry = y;
         }
-        
+
         void incX(int val)
         {
             foreach(i;TupleRange!(0,NumLines))
@@ -170,7 +170,7 @@ private:
             }
             currx += val;
         }
-        
+
         void incY(int val)
         {
             foreach(i;TupleRange!(0,NumLines))
@@ -179,30 +179,30 @@ private:
             }
             curry += val;
         }
-        
+
         bool check() const
         {
             return cx[0] > 0 && cx[1] > 0 && cx[2] > 0;
         }
-        
+
         uint vals() const
         {
             return (cast(uint)(cx[0] > 0) << 0) |
                    (cast(uint)(cx[1] > 0) << 1) |
                    (cast(uint)(cx[2] > 0) << 2);
         }
-        
+
         auto val(int i) const
         {
             return cx[i];
         }
     }
-    
+
     struct Span(PosT)
     {
         PosT wStart = void, wCurr = void;
         immutable PosT dwx, dwy;
-        
+
         PosT suStart = void, svStart = void;
         PosT suCurr  = void, svCurr  = void;
         immutable PosT dsux, dsuy;
@@ -217,18 +217,18 @@ private:
             suCurr  = suStart;
             dsux    = pack.uplane.dx;
             dsuy    = pack.uplane.dy;
-            
+
             svStart = pack.vplane.get(x, y);
             svCurr  = svStart;
             dsvx    = pack.vplane.dx;
             dsvy    = pack.vplane.dy;
-            
+
             wStart = pack.wplane.get(x, y);
             wCurr  = wStart;
             dwx    = pack.wplane.dx;
             dwy    = pack.wplane.dy;
         }
-        
+
         void incX(int dx)
         {
             suCurr += dsux * dx;
@@ -241,26 +241,26 @@ private:
             dux = (u1 - u) / dx;
             dvx = (v1 - v) / dx;
         }
-        
+
         void incY()
         {
             wStart += dwy;
             wCurr  = wStart;
-            
+
             suStart += dsuy;
             suCurr  = suStart;
             svStart += dsvy;
             svCurr  = svStart;
         }
     }
-    
+
     static void drawTriangle(CtxT1,CtxT2,VertT)
         (auto ref CtxT1 outContext, auto ref CtxT2 extContext, in VertT[] pverts)
     {
         assert(pverts.length == 3);
         //alias PosT = FixedPoint!(16,16,int);
         alias PosT = Unqual!(typeof(VertT.pos.x));
-        
+
         static if(HasTextures)
         {
             alias TextT = PosT;
@@ -273,10 +273,10 @@ private:
         alias PackT   = LinesPack!(PosT,TextT,LineT);
         alias PointT  = Point!(PosT);
         alias SpanT   = Span!(PosT);
-        
+
         const clipRect = outContext.clipRect;
         const size = outContext.size;
-        
+
         static if(ReadMask)
         {
             const srcMask = &outContext.mask;
@@ -289,7 +289,7 @@ private:
         {
             auto  dstMask = &outContext.dstMask;
         }
-        
+
         static if(ReadMask)
         {
             const minX = max(clipRect.x, srcMask.x0);
@@ -304,18 +304,18 @@ private:
             const minY = clipRect.y;
             const maxY = clipRect.y + clipRect.h;
         }
-        
+
         if(minX >= maxX || minY >= maxY)
         {
             return;
         }
-        
+
         immutable pack = PackT(pverts[0], pverts[1], pverts[2], size);
         if(pack.degenerate)
         {
             return;
         }
-        
+
         struct Span
         {
             int x0, x1;
@@ -324,7 +324,7 @@ private:
         //auto spans = alignPointer!Span(alloca(size.h * Span.sizeof + Span.alignof))[0..size.h];
         Span[4096] spansRaw; //TODO: LDC crahes when used memory from alloca with optimization enabled
         auto spans = spansRaw[0..size.h];
-        
+
         int y0;
         int y1;
         if(PointT(pack, minX, minY).check() &&
@@ -390,7 +390,7 @@ private:
                 }
                 return false;
             }
-            
+
             PointT startPoint = void;
             do
             {
@@ -399,8 +399,8 @@ private:
                     const w = v.pos.w;
                     const x = cast(int)((v.pos.x / w) * size.w) + size.w / 2;
                     const y = cast(int)((v.pos.y / w) * size.h) + size.h / 2;
-                    
-                    
+
+
                     if(x >= minX && x < maxX &&
                        y >= minY && y < maxY &&
                        findStart(max(x - 2, minX), max(y - 2, minY), min(x + 3, maxX), min(y + 3, maxY), startPoint))
@@ -408,7 +408,7 @@ private:
                         goto found;
                     }
                 }
-                
+
                 bool checkQuad(in PointT pt00, in PointT pt10, in PointT pt01, in PointT pt11)
                 {
                     const x0 = pt00.currx;
@@ -434,7 +434,7 @@ private:
                     {
                         return false;
                     }
-                    
+
                     if((x1 - x0) <= 8 ||
                        (y1 - y0) <= 8)
                     {
@@ -465,7 +465,7 @@ private:
             }
             while(false);
         found:
-            
+
             auto fillLine(in ref PointT pt)
             {
                 enum Step = 16;
@@ -535,7 +535,7 @@ private:
                 }
                 assert(false);
             }
-            
+
             bool findPoint(T)(int y, in T bounds, out int x)
             {
                 //debugOut("find point");
@@ -684,19 +684,21 @@ private:
                     dx = (x2 - x1) / (y2 - y1);
                     incY(y.ceil - y);
                 }
-                
+
                 void incY(PosT val)
                 {
                     y += val;
                     currX += dx * val;
                 }
-                
+
                 @property x() const { return cast(int)(currX+1); }
             }
-            
+
             Edge edges[3] = void;
+            bool revX = void;
             if(sortedPos[1].y < sortedPos[2].y)
             {
+                revX = true;
                 edges[] = [
                     Edge(sortedPos[0],sortedPos[2]),
                     Edge(sortedPos[0],sortedPos[1]),
@@ -704,13 +706,14 @@ private:
             }
             else
             {
+                revX = false;
                 edges[] = [
                     Edge(sortedPos[0],sortedPos[1]),
                     Edge(sortedPos[0],sortedPos[2]),
                     Edge(sortedPos[2],sortedPos[1])];
             }
-            
-            void fillSpans()
+
+            void fillSpans(bool ReverseX)()
             {
                 int y = cast(int)edges[0].y;
                 bool iterate(bool Fill)()
@@ -735,10 +738,18 @@ private:
                             }
                             else if(y >= minY)
                             {
-                                const x0 = min(e0.x, e1.x);
-                                const x1 = max(e0.x, e1.x);
-                                //const x0 = e0.x;
-                                //const x1 = e1.x;
+                                //const x0 = min(e0.x, e1.x);
+                                //const x1 = max(e0.x, e1.x);
+                                static if(ReverseX)
+                                {
+                                    const x0 = e1.x;
+                                    const x1 = e0.x;
+                                }
+                                else
+                                {
+                                    const x0 = e0.x;
+                                    const x1 = e1.x;
+                                }
                                 assert(x1 >= x0);
                                 //outContext.surface[y][x0..x1] = ColorBlue;
                                 //debugOut(y);
@@ -752,7 +763,7 @@ private:
                                     const xc0 = max(x0, minX);
                                     const xc1 = min(x1, maxX);
                                 }
-                                
+
                                 static if(!Fill)
                                 {
                                     if(xc1 > xc0)
@@ -785,10 +796,17 @@ private:
                     y1 = y;
                 }
             } //fillspans
-            fillSpans();
+            if(revX)
+            {
+                fillSpans!true();
+            }
+            else
+            {
+                fillSpans!false();
+            }
         } //external
         if(y0 >= y1) return;
-        
+
         static if(HasTextures)
         {
             void drawSpan(bool FixedLen,L)(
@@ -825,10 +843,10 @@ private:
                     }
                 }
             }
-            
+
             const sx = spans[y0].x0;
             auto span = SpanT(pack, sx, y0);
-            
+
             auto line = outContext.surface[y0];
             foreach(y;y0..y1)
             {
@@ -865,7 +883,7 @@ private:
                 ++line;
             }
         }
-        
+
         static if(WriteMask)
         {
             void writeMask(bool Empty)()
@@ -882,7 +900,7 @@ private:
                     assert(x0 >= minX);
                     assert(x1 <= maxX);
                     assert(x1 >= x0);
-                    
+
                     if(Empty || y < dstMask.y0 || y >= dstMask.y1)
                     {
                         dstMask.spans[y].x0 = x0;
@@ -894,7 +912,7 @@ private:
                         dstMask.spans[y].x1 = max(x1, dstMask.spans[y].x1);
                     }
                     //outContext.surface[y][dstMask.spans[y].x0..dstMask.spans[y].x1] = ColorBlue;
-                    
+
                     mskMinX = min(mskMinX, x0);
                     mskMaxX = max(mskMaxX, x1);
                 }
@@ -913,11 +931,11 @@ private:
                     dstMask.y1 = max(y1, dstMask.y1);
                 }
             }
-            
+
             if(dstMask.isEmpty) writeMask!true();
             else                writeMask!false();
         }
         //end
     }
-    
+
 }

@@ -27,9 +27,9 @@ Room[] generateWorld(World world, uint seed) /*pure nothrow*/
         foreach(r;0..numRooms)
         {
             const size = vec3i(
-                uniform(2,5,rnd),
-                uniform(2,5,rnd),
-                uniform(2,5,rnd));
+                uniform(1,5,rnd),
+                uniform(1,5,rnd),
+                uniform(1,5,rnd));
             auto room = generateRoom(rnd, world, size);
             foreach(ref p; room.polygons)
             {
@@ -43,26 +43,10 @@ Room[] generateWorld(World world, uint seed) /*pure nothrow*/
                 assert(!polys1.empty);
                 assert(!polys2.empty);
                 polys1[uniform(0,polys1.length,rnd)].connect(polys2[uniform(0,polys2.length,rnd)]);
-                //polys1[0].connect(polys2[1]);
             }
             ret.put(room);
         }
     }
-
-    /*auto r0 = generateRoom(rnd, world, vec3i(3,3,3));
-    auto r1 = generateRoom(rnd, world, vec3i(1,1,1));
-    r0.polygons[5].connect(&r0.polygons[7]);
-    r0.polygons[1].connect(&r0.polygons[3]);
-
-    ret.put(r0);
-    ret.put(r1);
-    foreach(ref r; ret.data[])
-    {
-        foreach(ref p; r.polygons)
-        {
-            p.texture = texgen.getTexture(TextureDesc(0));
-        }
-    }*/
     return ret.data;
 }
 
