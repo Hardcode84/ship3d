@@ -38,8 +38,8 @@ Room[] generateWorld(World world, uint seed) /*pure nothrow*/
             rooms[g].put(room);
             if(!ret.data.empty)
             {
-                auto polys1 = polygonsForPortals(ret.data[$ - 1]);
-                auto polys2 = polygonsForPortals(room);
+                auto polys1 = polygonsForPortals(ret.data[$ - 1]).array;
+                auto polys2 = polygonsForPortals(room).array;
                 assert(!polys1.empty);
                 assert(!polys2.empty);
                 polys1[uniform(0,polys1.length,rnd)].connect(polys2[uniform(0,polys2.length,rnd)]);
@@ -53,7 +53,5 @@ Room[] generateWorld(World world, uint seed) /*pure nothrow*/
 private:
 auto polygonsForPortals(Room room)
 {
-    auto ret = appender!(Polygon*[])();
-    ret.put(room.polygons.map!((ref a) => &a).filter!(a => (!a.isPortal && a.adjacent.all!(a => !a.isPortal))));
-    return ret.data;
+    return room.polygons.map!((ref a) => &a).filter!(a => (!a.isPortal && a.adjacent.all!(a => !a.isPortal)));
 }

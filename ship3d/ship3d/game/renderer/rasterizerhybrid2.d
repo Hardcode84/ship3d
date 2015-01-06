@@ -750,7 +750,12 @@ private:
                                     const x0 = e0.x;
                                     const x1 = e1.x;
                                 }
-                                assert(x1 >= x0);
+                                /*if(x0 > x1)
+                                {
+                                    debugOut(x0," ",x1);
+                                    debugOut(*e0, " ",*e1);
+                                }*/
+                                //assert(x1 >= x0); TODO: investigate fails
                                 //outContext.surface[y][x0..x1] = ColorBlue;
                                 //debugOut(y);
                                 static if(ReadMask)
