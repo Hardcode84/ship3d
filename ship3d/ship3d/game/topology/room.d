@@ -51,7 +51,7 @@ public:
         renderer.getState().matrix = srcMat * dir.inverse.to_matrix!(4,4)() * mat4_t.translation(-pos.x,-pos.y,-pos.z);
         const mat = renderer.getState().matrix;
 
-        auto transformedVertices      = alloc.alloc!Vertex(mVertices.length);
+        auto transformedVertices      = alloc.alloc!TransformedVertex(mVertices.length);
         auto transformedVerticesFlags = alloc.alloc!bool(mVertices.length);
         transformedVerticesFlags[] = false;
         foreach(const ref p; mPolygons[])
@@ -63,7 +63,7 @@ public:
                 {
                     if(!transformedVerticesFlags[ind])
                     {
-                        transformedVertices[ind] = renderer.transformVertex(mVertices[ind]);
+                        transformedVertices[ind] = transformVertex(mVertices[ind], mat);
                         transformedVerticesFlags[ind] = true;
                     }
                 }

@@ -41,7 +41,7 @@ Room generateRoom(R)(auto ref R random, World world, in vec3i size)
                 const x = [xoffset + ju, -xoffset - ju,   xoffset     , -xoffset,       xoffset + ju, -xoffset - ju][k];
                 const y = [yoffset + iu,  yoffset + iu,   yoffset + iu,  yoffset + iu,  yoffset     , -yoffset][k];
                 const z = [zoffset     , -zoffset,       -zoffset - ju,  zoffset + ju, -zoffset - iu, -zoffset - iu][k];
-                vertices.put(Vertex(vec4_t(x, y, z, 1),vec2_t(i % 2,j % 2)));
+                vertices.put(Vertex(vec3_t(x, y, z),vec2_t(i % 2,j % 2)));
             }
         }
         scope(exit) currInd += (sizex + 1) * (sizey + 1);

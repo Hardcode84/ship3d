@@ -37,13 +37,6 @@ public:
         return mStateStack[mCurrentState];
     }
 
-    auto transformVertex(T)(in ref T src) const
-    {
-        T ret = src;
-        ret.pos = getState().matrix * src.pos;
-        return ret;
-    }
-
     void drawIndexedTriangle(RasterizerT,CtxT,VertexT,IndexT)(in auto ref CtxT context, in VertexT[] verts, in IndexT[] indices)
     {
         //debugOut("Renderer.drawIndexedTriangle");

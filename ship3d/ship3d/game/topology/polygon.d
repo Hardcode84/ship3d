@@ -91,7 +91,7 @@ public:
         poly.mConnectionDir    = dir.inverse;
     }
 
-    void draw(RT,AT)(auto ref RT renderer, auto ref AT alloc, in Vertex[] transformedVerts, in vec3_t pos, in quat_t dir, in Entity srce, int depth) const
+    void draw(RT,AT,VT)(auto ref RT renderer, auto ref AT alloc, in VT[] transformedVerts, in vec3_t pos, in quat_t dir, in Entity srce, int depth) const
     {
         //debugOut("polygon.draw");
         if(isPortal)

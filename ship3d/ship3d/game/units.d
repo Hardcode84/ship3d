@@ -24,7 +24,22 @@ alias palette_t = Palette!ColorT;
 
 struct Vertex
 {
+    vec3_t pos;
+    vec2_t tpos;
+}
+
+struct TransformedVertex
+{
+    vec3_t refPos;
     vec4_t pos;
     vec2_t tpos;
-    //ColorT color;
+}
+
+@nogc TransformedVertex transformVertex(in Vertex v, in mat4_t mat) pure nothrow
+{
+    TransformedVertex ret = void;
+    ret.refPos = v.pos;
+    ret.pos = mat * vec4_t(v.pos, 1);
+    ret.tpos = v.tpos;
+    return ret;
 }
