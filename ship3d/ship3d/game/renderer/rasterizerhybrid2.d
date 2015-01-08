@@ -16,7 +16,7 @@ import game.units;
 
 @nogc:
 
-struct RasterizerHybrid2(bool HasTextures, bool WriteMask, bool ReadMask)
+struct RasterizerHybrid2(bool HasTextures, bool WriteMask, bool ReadMask, bool HasLight = false)
 {
     static void drawIndexedTriangle(CtxT1,CtxT2,VertT,IndT)
         (auto ref CtxT1 outputContext, auto ref CtxT2 extContext, in VertT[] verts, in IndT[] indices) if(isIntegral!IndT)
@@ -79,6 +79,7 @@ private:
         immutable bool degenerate;
         immutable bool external;
         enum HasTexture = !is(TextT : void);
+        alias vec2 = Vector!(PosT,2);
         alias vec3 = Vector!(PosT,3);
         alias PlaneT = Plane!(PosT);
         enum NumLines = 3;
@@ -92,6 +93,11 @@ private:
             alias PlaneTtex = Plane!(TextT);
             immutable PlaneTtex uplane;
             immutable PlaneTtex vplane;
+        }
+        static if(HasLight)
+        {
+            alias PlaneTRefPos = Plane!vec3;
+            PlaneTRefPos refPosPlane;
         }
         this(VT,ST)(in VT v1, in VT v2, in VT v3, in ST size) pure nothrow
         {
@@ -134,8 +140,15 @@ private:
                 const tv1 = v1.tpos.v;
                 const tv2 = v2.tpos.v;
                 const tv3 = v3.tpos.v;
-                uplane = PlaneT(invMat * vec3(tu1,tu2,tu3), size);
-                vplane = PlaneT(invMat * vec3(tv1,tv2,tv3), size);
+                uplane = PlaneTtex(invMat * vec3tex(tu1,tu2,tu3), size);
+                vplane = PlaneTtex(invMat * vec3tex(tv1,tv2,tv3), size);
+            }
+            static if(HasLight)
+            {
+                const rpos1 = v1.refPos;
+                const rpos2 = v2.refPos;
+                const rpos3 = v3.refPos;
+                refPosPlane = PlaneTRefPos(invMat * Vector!(vec3,3)(rpos1,rpos2,rpos3));
             }
         }
     }
@@ -859,6 +872,13 @@ private:
                 const x1 = spans[y].x1;
                 span.incX(x0 - sx);
                 int x = x0;
+                {
+                    const nx = (x + (AffineLength - 1)) & (AffineLength - 1);
+                    if(nx > x)
+                    {
+                        drawSpan!false(y, x, nx, span, line);
+                    }
+                }
                 while(true)
                 {
                     const nx = (x + AffineLength);
