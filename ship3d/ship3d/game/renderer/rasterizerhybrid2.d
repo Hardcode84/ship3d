@@ -882,7 +882,7 @@ private:
                 {
                     struct Transform
                     {
-                        @nogc auto opCall(T)(in T val,int x) const pure nothrow { return val; }
+                        @nogc auto opCall(T)(in T val,int) const pure nothrow { return val; }
                     }
                     alias TexT = Unqual!(typeof(span.u));
                     struct Context
@@ -919,17 +919,23 @@ private:
                 const x0 = spans[y].x0;
                 const x1 = spans[y].x1;
                 span.incX(x0 - sx);
+                static if(HasLight)
+                {
+                    lightProx.setXY(pack, x0 & ~(AffineLength - 1), y);
+                }
                 int x = x0;
                 {
-                    const nx = (x + (AffineLength - 1)) & (AffineLength - 1);
+                    const nx = (x + (AffineLength - 1)) & ~(AffineLength - 1);
                     if(nx > x)
                     {
+                        lightProx.incX();
                         drawSpan!false(y, x, nx, span, line);
                     }
                 }
                 while(true)
                 {
                     const nx = (x + AffineLength);
+                    lightProx.incX();
                     if(nx < x1)
                     {
                         span.incX(AffineLength);

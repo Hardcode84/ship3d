@@ -196,6 +196,7 @@
     <Compile Include="game\entities\inertialentity.d" />
     <Compile Include="game\renderer\rasterizerhybrid2.d" />
     <Compile Include="gamelib\graphics\color.d" />
+    <Compile Include="game\renderer\light.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />

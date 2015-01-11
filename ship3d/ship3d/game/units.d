@@ -21,11 +21,12 @@ alias mat2_t = Matrix!(pos_t,2,2);
 enum PaletteBits      = 6;
 enum LightPaletteBits = 6;
 
-alias light_palette_t = Palette!(ColorT,LightPaletteBits, true);
+alias light_palette_t = Palette!(ColorT,LightPaletteBits, true,"+");
 alias palette_t = LightPalette!(ColorT,PaletteBits,LightPaletteBits);
 //alias palette_t = Palette!ColorT;
 alias texture_t = Texture!(BaseTexturePaletted!(ColorT,palette_t));
 //alias texture_t = Texture!(BaseTextureRGB!ColorT);
+enum LightUnitDist = 10;
 
 
 struct Vertex

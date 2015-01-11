@@ -7,7 +7,7 @@ import gamelib.types;
 import gamelib.graphics.color;
 
 @nogc:
-final class Palette(ColT,int Bits, bool BlendTable)
+final class Palette(ColT,int Bits, bool BlendTable, string BlendOp = "*")
 {
 pure nothrow:
 private:
@@ -35,7 +35,7 @@ public:
             {
                 foreach(j,dstCol;mEntries[])
                 {
-                    const testCol = srcCol * dstCol;
+                    mixin("const testCol = srcCol "~BlendOp~" dstCol;");
                     auto best = reduce!((a,b) =>
                         (testCol.distanceSquared(mEntries[a]) < testCol.distanceSquared(mEntries[b]) ? a : b))(0,iota(0,Count));
                     assert(best >= 0 && best <= ubyte.max, debugConv(best));
@@ -87,7 +87,7 @@ public:
         }
         body
         {
-            return mEntries[mBlendTable[col1 + Count * col2]];
+            return mBlendTable[col1 + Count * col2];
         }
     }
 }
@@ -105,7 +105,7 @@ public:
     this(T)(in T[] ent, in T[] colorEnt)
     in
     {
-        assert(ent.length      == PlaneSize, debugConv(ent.length));
+        assert(ent.length      == PlaneSize,   debugConv(ent.length));
         assert(colorEnt.length == PlanesCount, debugConv(colorEnt.length));
     }
     body
