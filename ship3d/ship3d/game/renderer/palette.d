@@ -98,15 +98,15 @@ pure nothrow:
 private:
     static assert(LightBits > 0);
     enum PlaneSize   = (1 << ColorBits);
-    enum PlanesCount = 1 + (1 << LightBits);
+    enum PlanesCount = (1 << LightBits);
     enum Count = PlaneSize * PlanesCount;
     ColT[Count] mEntries;
 public:
     this(T)(in T[] ent, in T[] colorEnt)
     in
     {
-        assert(ent.length      == PlaneSize);
-        assert(colorEnt.length == PlanesCount);
+        assert(ent.length      == PlaneSize, debugConv(ent.length));
+        assert(colorEnt.length == PlanesCount, debugConv(colorEnt.length));
     }
     body
     {
@@ -116,7 +116,7 @@ public:
             auto plane = mEntries[i * PlaneSize..(i + 1) * PlaneSize];
             foreach(j, ref c; plane[])
             {
-                c = ent[j] * colorEnt[i - 1];
+                c = ent[j] * colorEnt[i];
             }
         }
     }
