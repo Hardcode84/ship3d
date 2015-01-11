@@ -1,6 +1,6 @@
 ﻿module game.units;
 
-public import gamelib.types, gamelib.linalg, gamelib.math, gamelib.fixedpoint;
+public import gamelib.types, gamelib.linalg, gamelib.math, gamelib.fixedpoint, gamelib.graphics.color;
 
 import game.renderer.texture;
 import game.renderer.palette;
@@ -18,9 +18,15 @@ alias mat4_t = Matrix!(pos_t,4,4);
 alias mat3_t = Matrix!(pos_t,3,3);
 alias mat2_t = Matrix!(pos_t,2,2);
 
-alias texture_t = Texture!(BaseTexturePaletted!ColorT);
+enum PaletteBits      = 6;
+enum LightPaletteBits = 6;
+
+alias light_palette_t = Palette!(ColorT,LightPaletteBits, true);
+alias palette_t = LightPalette!(ColorT,PaletteBits,LightPaletteBits);
+//alias palette_t = Palette!ColorT;
+alias texture_t = Texture!(BaseTexturePaletted!(ColorT,palette_t));
 //alias texture_t = Texture!(BaseTextureRGB!ColorT);
-alias palette_t = Palette!ColorT;
+
 
 struct Vertex
 {
@@ -30,9 +36,9 @@ struct Vertex
 
 struct TransformedVertex
 {
-    vec4_t pos;
-    vec2_t tpos;
     vec3_t refPos;
+    vec2_t tpos;
+    vec4_t pos;
 }
 
 @nogc TransformedVertex transformVertex(in Vertex v, in mat4_t mat) pure nothrow

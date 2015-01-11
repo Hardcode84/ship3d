@@ -27,7 +27,7 @@ public:
     {
         super(w, h);
         mData.length = w * h;
-        import gamelib.types;
+        //import gamelib.types;
         //mData[] = ColorBlue;
     }
 
@@ -44,13 +44,12 @@ public:
         TextT v = context.v;
         const TextT dux = context.dux;
         const TextT dvx = context.dvx;
-
         auto dstPtr = outLine.ptr;
         foreach(i;TupleRange!(0,W))
         {
             const x = cast(int)(u * w) & wmask;
             const y = cast(int)(v * h) & hmask;
-            *dstPtr = getColor(mData[x + y * width]);
+            *dstPtr = getColor(context.colorProxy(mData[x + y * width],i));
             u += dux;
             v += dvx;
             ++dstPtr;

@@ -111,7 +111,7 @@ public:
                     //draw mask
                     struct Context1 {}
                     Context1 ctx;
-                    alias RastT1 = RasterizerHybrid2!(false,true,true);
+                    alias RastT1 = RasterizerHybrid2!(false,true,true,false);
                     renderer.drawIndexedTriangle!RastT1(ctx, transformedVerts[], mIndices[]);
                     if(!renderer.getState().dstMask.isEmpty)
                     {
@@ -136,7 +136,7 @@ public:
             }
             assert(mTexture !is null);
             Context2 ctx = {texture: mTexture};
-            alias RastT2 = RasterizerHybrid2!(true,false,true);
+            alias RastT2 = RasterizerHybrid2!(true,false,true,true);
             renderer.drawIndexedTriangle!RastT2(ctx, transformedVerts[], mIndices[]);
         }
     }

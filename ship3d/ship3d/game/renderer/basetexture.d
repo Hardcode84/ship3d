@@ -73,10 +73,9 @@ public:
     }
 }
 
-abstract class BaseTexturePaletted(ColT) : BaseTexture!ubyte
+abstract class BaseTexturePaletted(ColT,PalT) : BaseTexture!ubyte
 {
 private:
-    alias PalT = Palette!ColT;
     PalT mPalette;
 protected:
     alias ColorType = ColT;

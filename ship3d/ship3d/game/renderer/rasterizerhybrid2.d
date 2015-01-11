@@ -16,7 +16,7 @@ import game.units;
 
 @nogc:
 
-struct RasterizerHybrid2(bool HasTextures, bool WriteMask, bool ReadMask, bool HasLight = false)
+struct RasterizerHybrid2(bool HasTextures, bool WriteMask, bool ReadMask, bool HasLight)
 {
     static void drawIndexedTriangle(CtxT1,CtxT2,VertT,IndT)
         (auto ref CtxT1 outputContext, auto ref CtxT2 extContext, in VertT[] verts, in IndT[] indices) if(isIntegral!IndT)
@@ -31,10 +31,11 @@ private:
     enum AffineLength = 32;
     struct Line(PosT)
     {
+    pure nothrow:
     @nogc:
         immutable PosT dx, dy, c;
 
-        this(VT,ST)(in VT v1, in VT v2, in VT v3, in ST size) pure nothrow
+        this(VT,ST)(in VT v1, in VT v2, in VT v3, in ST size) 
         {
             const x1 = v1.pos.x;
             const x2 = v2.pos.x;
@@ -47,7 +48,7 @@ private:
             c  = (x2 * y1 - x1 * y2) - dy * (size.h / 2) + dx * (size.w / 2) /*+ (dy - dx) / 2*/;
         }
 
-        auto val(int x, int y) const pure nothrow
+        auto val(int x, int y) const
         {
             return c + dy * y - dx * x;
         }
@@ -96,8 +97,7 @@ private:
         }
         static if(HasLight)
         {
-            alias PlaneTRefPos = Plane!vec3;
-            PlaneTRefPos refPosPlane;
+            immutable PlaneT refXplane, refYplane, refZplane;
         }
         this(VT,ST)(in VT v1, in VT v2, in VT v3, in ST size) pure nothrow
         {
@@ -145,10 +145,12 @@ private:
             }
             static if(HasLight)
             {
-                const rpos1 = v1.refPos;
-                const rpos2 = v2.refPos;
-                const rpos3 = v3.refPos;
-                refPosPlane = PlaneTRefPos(invMat * Vector!(vec3,3)(rpos1,rpos2,rpos3));
+                const refPos1 = v1.refPos;
+                const refPos2 = v2.refPos;
+                const refPos3 = v3.refPos;
+                refXplane = PlaneT(invMat * vec3(refPos1.x,refPos2.x,refPos3.x), size);
+                refYplane = PlaneT(invMat * vec3(refPos1.y,refPos2.y,refPos3.y), size);
+                refZplane = PlaneT(invMat * vec3(refPos1.z,refPos2.z,refPos3.z), size);
             }
         }
     }
@@ -213,6 +215,7 @@ private:
 
     struct Span(PosT)
     {
+    pure nothrow:
         PosT wStart = void, wCurr = void;
         immutable PosT dwx, dwy;
 
@@ -267,6 +270,38 @@ private:
         }
     }
 
+    struct LightProxy(int Len, PosT)
+    {
+    pure nothrow:
+    @nogc:
+        int currX, currY;
+        ubyte[Len] buffer;
+        alias vec3 = Vector!(PosT,3);
+        int l1, l2;
+        immutable vec3 normal;
+        vec3 pos;
+        vec3 posDx;
+
+        this(V)(in V[] v)
+        {
+            assert(v.length == 3);
+            normal = cross(v[1].refPos - v[0].refPos,v[2].refPos - v[0].refPos);
+        }
+
+        void setXY(PackT)(in ref PackT pack, int x, int y)
+        {
+            pos   = vec3(pack.refXplane.get(x,y),pack.refYplane.get(x,y),pack.refZplane.get(x,y));
+            posDx = vec3(pack.refXplane.dx,pack.refYplane.dx,pack.refZplane.dx);
+        }
+
+        void incX()
+        {
+            currX += Len;
+            pos += posDx;
+            l1 = l2;
+        }
+    }
+
     static void drawTriangle(CtxT1,CtxT2,VertT)
         (auto ref CtxT1 outContext, auto ref CtxT2 extContext, in VertT[] pverts)
     {
@@ -286,6 +321,10 @@ private:
         alias PackT   = LinesPack!(PosT,TextT,LineT);
         alias PointT  = Point!(PosT);
         alias SpanT   = Span!(PosT);
+        static if(HasLight)
+        {
+            alias LightProxT = LightProxy!(AffineLength, PosT);
+        }
 
         const clipRect = outContext.clipRect;
         const size = outContext.size;
@@ -827,6 +866,10 @@ private:
 
         static if(HasTextures)
         {
+            static if(HasLight)
+            {
+                auto lightProx = LightProxT(pverts);
+            }
             void drawSpan(bool FixedLen,L)(
                 int y,
                 int x1, int x2,
@@ -837,9 +880,14 @@ private:
                 if(x1 >= x2) return;
                 static if(HasTextures)
                 {
+                    struct Transform
+                    {
+                        @nogc auto opCall(T)(in T val,int x) const pure nothrow { return val; }
+                    }
                     alias TexT = Unqual!(typeof(span.u));
                     struct Context
                     {
+                        Transform colorProxy;
                         TexT u;
                         TexT v;
                         TexT dux;
@@ -913,8 +961,6 @@ private:
         {
             void writeMask(bool Empty)()
             {
-                static int i = 0;
-                //++i;
                 static immutable colors = [ColorRed,ColorGreen,ColorBlue];
                 int mskMinX = maxX;
                 int mskMaxX = minX;
