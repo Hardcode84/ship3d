@@ -40,7 +40,7 @@ public:
             if(ndl <= 0) continue;
             const dist = dpos.magnitude;
             const ndl1 = ndl / dist;
-            enum GradNum = 8;
+            enum GradNum = 1 << LightPaletteBits;
             enum Mask = GradNum - 1;
             const val = cast(int)(((l.color & Mask) >> ((cast(int)dist) / LightUnitDist)) * ndl1);
             const col = val | (l.color & ~Mask);
