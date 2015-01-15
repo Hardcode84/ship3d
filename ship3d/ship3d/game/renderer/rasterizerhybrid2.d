@@ -11,6 +11,7 @@ import std.c.stdlib: alloca;
 import gamelib.util;
 import gamelib.graphics.graph;
 import gamelib.memory.utils;
+import gamelib.memory.arrayview;
 
 import game.units;
 
@@ -279,10 +280,10 @@ private:
         alias vec3 = Vector!(PosT,3);
         int l1, l2;
         immutable vec3 normal;
-        vec3 pos;
-        vec3 posDx;
+        //vec3 pos;
+        //vec3 posDx;
 
-        this(V)(in V[] v)
+        this(V,PackT)(in V[] v, in ref PackT pack)
         {
             assert(v.length == 3);
             normal = cross(v[1].refPos - v[0].refPos,v[2].refPos - v[0].refPos);
@@ -290,16 +291,27 @@ private:
 
         void setXY(PackT)(in ref PackT pack, int x, int y)
         {
-            pos   = vec3(pack.refXplane.get(x,y),pack.refYplane.get(x,y),pack.refZplane.get(x,y));
-            posDx = vec3(pack.refXplane.dx,pack.refYplane.dx,pack.refZplane.dx);
+            //pos   = vec3(pack.refXplane.get(x,y),pack.refYplane.get(x,y),pack.refZplane.get(x,y));
+            //posDx = vec3(pack.refXplane.dx,pack.refYplane.dx,pack.refZplane.dx);
         }
 
         void incX()
         {
             currX += Len;
-            pos += posDx;
+            //pos += posDx;
             l1 = l2;
         }
+    }
+
+    struct SpanRange
+    {
+        struct Span
+        {
+            int x0, x1;
+        }
+        int y0;
+        int y1;
+        Span[] spans;
     }
 
     static void drawTriangle(CtxT1,CtxT2,VertT)
@@ -368,25 +380,28 @@ private:
             return;
         }
 
-        struct Span
+        /*struct Span
         {
             int x0, x1;
-        }
+        }*/
+
+        SpanRange spanrange;
         //version(LDC) pragma(LDC_never_inline);
         //auto spans = alignPointer!Span(alloca(size.h * Span.sizeof + Span.alignof))[0..size.h];
-        Span[4096] spansRaw; //TODO: LDC crahes when used memory from alloca with optimization enabled
-        auto spans = spansRaw[0..size.h];
+        //Span[4096] spansRaw; //TODO: LDC crahes when used memory from alloca with optimization enabled
+        void[4096 * SpanRange.Span.sizeof] spansRaw = void; //TODO: LDC crahes when used memory from alloca with optimization enabled
+        spanrange.spans = alignPointer!(SpanRange.Span)(spansRaw.ptr)[0..size.h];
 
-        int y0;
-        int y1;
+        //int y0;
+        //int y1;
         if(PointT(pack, minX, minY).check() &&
            PointT(pack, maxX, minY).check() &&
            PointT(pack, minX, maxY).check() &&
            PointT(pack, maxX, maxY).check())
         {
-            y0 = minY;
-            y1 = maxY;
-            foreach(y;y0..y1)
+            spanrange.y0 = minY;
+            spanrange.y1 = maxY;
+            foreach(y;minY..maxY)
             {
                 static if(ReadMask)
                 {
@@ -398,8 +413,8 @@ private:
                     const xc0 = minX;
                     const xc1 = maxX;
                 }
-                spans[y].x0 = xc0;
-                spans[y].x1 = xc1;
+                spanrange.spans[y].x0 = xc0;
+                spanrange.spans[y].x1 = xc1;
             }
         }
         else if(pack.external)
@@ -581,8 +596,8 @@ private:
                     }
                     const x0 = findLeft();
                     const x1 = findRight();
-                    spans[pt.curry].x0 = clamp(x0, leftBound, rightBound);
-                    spans[pt.curry].x1 = clamp(x1, leftBound, rightBound);
+                    spanrange.spans[pt.curry].x0 = clamp(x0, leftBound, rightBound);
+                    spanrange.spans[pt.curry].x1 = clamp(x1, leftBound, rightBound);
                     return vec2i(x0, x1);
                 }
                 assert(false);
@@ -693,8 +708,8 @@ private:
             }
             const sy = startPoint.curry;
             const bounds = fillLine(startPoint);
-            y1 = search!true(bounds, sy);
-            y0 = search!false(bounds, sy) + 1;
+            spanrange.y1 = search!true(bounds, sy);
+            spanrange.y0 = search!false(bounds, sy) + 1;
         }
         else //external
         {
@@ -834,9 +849,9 @@ private:
                                     {
                                         return false;
                                     }
-                                    spans[y].x0 = xc0;
+                                    spanrange.spans[y].x0 = xc0;
                                 }
-                                spans[y].x1 = xc1;
+                                spanrange.spans[y].x1 = xc1;
                                 //outContext.surface[y][xc0..xc1] = ColorBlue;
                             }
                             ++y;
@@ -848,9 +863,9 @@ private:
                 } //iterate
                 if(iterate!false())
                 {
-                    y0 = y;
+                    spanrange.y0 = y;
                     iterate!true();
-                    y1 = y;
+                    spanrange.y1 = y;
                 }
             } //fillspans
             if(revX)
@@ -862,13 +877,13 @@ private:
                 fillSpans!false();
             }
         } //external
-        if(y0 >= y1) return;
+        if(spanrange.y0 >= spanrange.y1) return;
 
         static if(HasTextures)
         {
             static if(HasLight)
             {
-                auto lightProx = LightProxT(pverts);
+                auto lightProx = LightProxT(pverts,pack);
             }
             void drawSpan(bool FixedLen,L)(
                 int y,
@@ -910,14 +925,14 @@ private:
                 }
             }
 
-            const sx = spans[y0].x0;
-            auto span = SpanT(pack, sx, y0);
+            const sx = spanrange.spans[spanrange.y0].x0;
+            auto span = SpanT(pack, sx, spanrange.y0);
 
-            auto line = outContext.surface[y0];
-            foreach(y;y0..y1)
+            auto line = outContext.surface[spanrange.y0];
+            foreach(y;spanrange.y0..spanrange.y1)
             {
-                const x0 = spans[y].x0;
-                const x1 = spans[y].x1;
+                const x0 = spanrange.spans[y].x0;
+                const x1 = spanrange.spans[y].x1;
                 span.incX(x0 - sx);
                 static if(HasLight)
                 {
@@ -970,10 +985,10 @@ private:
                 static immutable colors = [ColorRed,ColorGreen,ColorBlue];
                 int mskMinX = maxX;
                 int mskMaxX = minX;
-                foreach(y;y0..y1)
+                foreach(y;spanrange.y0..spanrange.y1)
                 {
-                    const x0 = spans[y].x0;
-                    const x1 = spans[y].x1;
+                    const x0 = spanrange.spans[y].x0;
+                    const x1 = spanrange.spans[y].x1;
                     assert(x0 >= minX);
                     assert(x1 <= maxX);
                     assert(x1 >= x0);
@@ -995,8 +1010,8 @@ private:
                 }
                 static if(Empty)
                 {
-                    dstMask.y0 = y0;
-                    dstMask.y1 = y1;
+                    dstMask.y0 = spanrange.y0;
+                    dstMask.y1 = spanrange.y1;
                     dstMask.x0 = mskMinX;
                     dstMask.x1 = mskMaxX;
                 }
@@ -1004,8 +1019,8 @@ private:
                 {
                     dstMask.x0 = min(mskMinX, dstMask.x0);
                     dstMask.x1 = max(mskMaxX, dstMask.x1);
-                    dstMask.y0 = min(y0, dstMask.y0);
-                    dstMask.y1 = max(y1, dstMask.y1);
+                    dstMask.y0 = min(spanrange.y0, dstMask.y0);
+                    dstMask.y1 = max(spanrange.y1, dstMask.y1);
                 }
             }
 

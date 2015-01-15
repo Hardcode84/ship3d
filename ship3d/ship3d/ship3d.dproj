@@ -197,6 +197,7 @@
     <Compile Include="game\renderer\rasterizerhybrid2.d" />
     <Compile Include="gamelib\graphics\color.d" />
     <Compile Include="game\renderer\light.d" />
+    <Compile Include="gamelib\memory\arrayview.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />
