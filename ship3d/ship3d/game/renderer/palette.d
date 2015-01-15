@@ -9,7 +9,7 @@ import gamelib.graphics.color;
 @nogc:
 final class Palette(ColT,int Bits, bool BlendTable, string BlendOp = "*")
 {
-pure nothrow:
+//pure nothrow:
 private:
     static assert(Bits > 0);
     enum Count = (1 << Bits);
@@ -70,7 +70,7 @@ public:
         return mEntries[i1..i2];
     }
 
-    auto opIndex() const
+    auto opSlice() const
     {
         return mEntries[];
     }
