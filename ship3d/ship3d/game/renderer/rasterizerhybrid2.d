@@ -282,11 +282,27 @@ private:
         immutable vec3 normal;
         //vec3 pos;
         //vec3 posDx;
+        alias ColView = ArrayView!int;
+        ArrayView!(ColView) lightData;
 
-        this(V,PackT)(in V[] v, in ref PackT pack)
+        this(V,PackT,SpansT)(in V[] v, in ref PackT pack, in ref SpansT spans)
         {
             assert(v.length == 3);
             normal = cross(v[1].refPos - v[0].refPos,v[2].refPos - v[0].refPos);
+            const minTy = spans.y0 / Len;
+            const maxTy = (spans.y1 + Len - 1) / Len;
+            foreach(ty;minTy..maxTy)
+            {
+                const miny = max(spans.y0,ty * Len);
+                const maxy = min(spans.y1,ty * Len);
+                int minx = int.max;
+                int maxx = 0;
+                foreach(y;miny..maxy)
+                {
+                    minx = min(minx, spans.spans[y].x0);
+                    maxx = max(maxx, spans.spans[y].x1);
+                }
+            }
         }
 
         void setXY(PackT)(in ref PackT pack, int x, int y)
@@ -380,20 +396,14 @@ private:
             return;
         }
 
-        /*struct Span
-        {
-            int x0, x1;
-        }*/
-
         SpanRange spanrange;
         //version(LDC) pragma(LDC_never_inline);
         //auto spans = alignPointer!Span(alloca(size.h * Span.sizeof + Span.alignof))[0..size.h];
         //Span[4096] spansRaw; //TODO: LDC crahes when used memory from alloca with optimization enabled
         void[4096 * SpanRange.Span.sizeof] spansRaw = void; //TODO: LDC crahes when used memory from alloca with optimization enabled
         spanrange.spans = alignPointer!(SpanRange.Span)(spansRaw.ptr)[0..size.h];
+        //spanrange.spans = alignPointer!(SpanRange.Span)(alloca(size.h * SpanRange.Span.sizeof + Span.alignof))[0..size.h];
 
-        //int y0;
-        //int y1;
         if(PointT(pack, minX, minY).check() &&
            PointT(pack, maxX, minY).check() &&
            PointT(pack, minX, maxY).check() &&
@@ -883,7 +893,7 @@ private:
         {
             static if(HasLight)
             {
-                auto lightProx = LightProxT(pverts,pack);
+                auto lightProx = LightProxT(pverts,pack,spanrange);
             }
             void drawSpan(bool FixedLen,L)(
                 int y,

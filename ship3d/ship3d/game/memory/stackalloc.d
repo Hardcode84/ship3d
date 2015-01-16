@@ -7,17 +7,18 @@ import gamelib.memory.utils;
 
 final class StackAlloc
 {
+pure nothrow:
 private:
     void[] mMemory;
     void*  mPtr;
 public:
-    this(size_t bytes) pure nothrow
+    this(size_t bytes)
     {
         mMemory.length = bytes;
         mPtr = mMemory.ptr;
     }
 
-@nogc pure nothrow:
+@nogc:
 
     alias State = void*;
 
@@ -29,6 +30,7 @@ public:
     void restoreState(State s)
     in
     {
+        assert(s !is null);
         assert(s >= mMemory.ptr);
         assert(s <  mMemory.ptr + mMemory.length);
     }

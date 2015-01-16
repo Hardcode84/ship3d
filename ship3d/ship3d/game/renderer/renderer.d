@@ -3,6 +3,8 @@
 import std.traits;
 import std.algorithm;
 
+import game.memory.stackalloc;
+
 import gamelib.types;
 
 //import game.units;

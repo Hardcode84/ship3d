@@ -10,15 +10,6 @@ import game.controls;
 
 import game.units;
 import game.renderer.renderer;
-import game.renderer.rasterizer;
-import game.renderer.rasterizer2;
-import game.renderer.rasterizerhp;
-import game.renderer.rasterizerhp2;
-import game.renderer.rasterizerhp3;
-import game.renderer.rasterizerhp4;
-import game.renderer.rasterizerhp5;
-import game.renderer.rasterizerhp6;
-import game.renderer.rasterizerhybrid;
 import game.renderer.texture;
 import game.renderer.basetexture;
 import game.renderer.spanmask;
