@@ -65,8 +65,8 @@ private:
     {
         auto ret = new texture_t(256, 256);
         ret.palette = mPalette;
-        //ret.fillChess(cast(ubyte)((1 << PaletteBits) - 1), cast(ubyte)(desc.i));
-        ret.fill(cast(ubyte)(desc.i));
+        ret.fillChess(cast(ubyte)((1 << PaletteBits) - 1), cast(ubyte)(desc.i));
+        //ret.fill(cast(ubyte)(desc.i));
         return ret;
     }
 public:

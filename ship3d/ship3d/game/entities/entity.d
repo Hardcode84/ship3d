@@ -20,7 +20,6 @@ private:
     EntityRef*[] mConnections;
 public:
 //pure nothrow:
-
     this(World w)
     {
         mWorld = w;

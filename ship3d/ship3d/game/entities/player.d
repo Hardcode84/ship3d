@@ -9,6 +9,8 @@ import game.world;
 
 class Player : InertialEntity
 {
+//pure nothrow:
+private:
     static assert(KeyActions.min >= 0);
     static assert(KeyActions.max < 0xff);
     bool mActState[KeyActions.max + 1] = false;
@@ -29,7 +31,7 @@ class Player : InertialEntity
         mActState[e.action] = e.pressed;
     }
 
-    @property actState(in KeyActions a) const pure nothrow { return mActState[a]; }
+    @property actState(in KeyActions a) const { return mActState[a]; }
 
     void onCursorEvent(in ref CursorEvent e)
     {

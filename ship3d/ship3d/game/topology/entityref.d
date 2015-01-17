@@ -7,6 +7,7 @@ import game.entities.entity;
 
 struct EntityRef
 {
+//pure nothrow:
     union
     {
         Room room;
@@ -19,10 +20,9 @@ struct EntityRef
     vec3_t correction = vec3_t(0,0,0); //TODO
     bool remove = false;
 
-    void updatePos(in vec3_t dpos) /*pure nothrow*/
+    void updatePos(in vec3_t dpos)
     {
         assert(room !is null);
-        //assert(!remove);
         room.updateEntityPos(&this, dpos);
     }
 }
