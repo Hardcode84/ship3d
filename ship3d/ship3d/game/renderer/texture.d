@@ -27,8 +27,6 @@ public:
     {
         super(w, h);
         mData.length = w * h;
-        //import gamelib.types;
-        //mData[] = ColorBlue;
     }
 
     void getLine(int W, C, T)(in ref C context, T[] outLine) const pure nothrow
@@ -46,7 +44,7 @@ public:
         const TextT dux = context.dux;
         const TextT dvx = context.dvx;
         auto dstPtr = outLine.ptr;
-        foreach(i;0..W)
+        foreach(i;TupleRange!(0,W))
         {
             const x = cast(int)(u * w) & wmask;
             const y = cast(int)(v * h) & hmask;
@@ -66,7 +64,7 @@ private:
     alias ArrT  = DataT[];
     ArrT          mData;
 protected:
-    override void setData(in ColT[] data) pure nothrow
+    override void setData(in DataT[] data) pure nothrow
     {
         //debugOut("setData");
         //scope(exit) debugOut("setData done");
@@ -102,8 +100,6 @@ public:
         assert(h >= TileSize);
         super(w, h);
         mData.length = w * h;
-        import gamelib.types;
-        mData[] = ColorBlue;
     }
 
     void getLine(int W, C, T)(in ref C context, T[] outLine) const pure nothrow
