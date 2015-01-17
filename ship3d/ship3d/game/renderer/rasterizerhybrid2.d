@@ -1026,7 +1026,7 @@ private:
                     const nx = (x + (AffineLength - 1)) & ~(AffineLength - 1);
                     if(nx > x && nx < x1)
                     {
-                        lightProx.incX();
+                        static if(HasLight) lightProx.incX();
                         span.incX(nx - x - 1);
                         drawSpan!false(y, x, nx, span, line);
                         x = nx;
@@ -1035,7 +1035,7 @@ private:
                 foreach(i;0..((x1-x) / AffineLength))
                 {
                     span.incX(AffineLength);
-                    lightProx.incX();
+                    static if(HasLight) lightProx.incX();
                     drawSpan!true(y, x, x + AffineLength, span, line);
                     x += AffineLength;
                 }
@@ -1043,7 +1043,7 @@ private:
                 if(rem > 0)
                 {
                     span.incX(rem);
-                    lightProx.incX();
+                    static if(HasLight) lightProx.incX();
                     drawSpan!false(y, x, x1, span, line);
                 }
                 /*if(pack.external)
