@@ -40,12 +40,13 @@ public:
         const wmask = w - 1;
         const hmask = h - 1;
         alias TextT = Unqual!(typeof(context.u));
+        //alias TextT = FixedPoint!(16,16,int);
         TextT u = context.u;
         TextT v = context.v;
         const TextT dux = context.dux;
         const TextT dvx = context.dvx;
         auto dstPtr = outLine.ptr;
-        foreach(i;TupleRange!(0,W))
+        foreach(i;0..W)
         {
             const x = cast(int)(u * w) & wmask;
             const y = cast(int)(v * h) & hmask;

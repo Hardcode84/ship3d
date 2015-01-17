@@ -159,7 +159,7 @@ public:
         auto allocState = mAllocator.state;
         scope(exit) mAllocator.restoreState(allocState);
 
-        surf.fill(ColorBlue);
+        debug surf.fill(ColorBlue);
         surf.lock();
         scope(exit) surf.unlock();
 

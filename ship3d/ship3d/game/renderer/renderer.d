@@ -15,10 +15,8 @@ struct Renderer(State, int MaxDepth)
 private:
     State[MaxDepth] mStateStack;
     int             mCurrentState = 0;
-
 public:
 //pure nothrow:
-
     void pushState()
     {
         assert(mCurrentState < MaxDepth);
@@ -39,17 +37,19 @@ public:
         return mStateStack[mCurrentState];
     }
 
-    void drawIndexedTriangle(RasterizerT,CtxT,VertexT,IndexT)(in auto ref CtxT context, in VertexT[] verts, in IndexT[] indices)
+    void drawIndexedTriangle(RasterizerT,AllocT,CtxT,VertexT,IndexT)(auto ref AllocT alloc, in auto ref CtxT context, in VertexT[] verts, in IndexT[] indices)
     {
         //debugOut("Renderer.drawIndexedTriangle");
         static assert(isIntegral!IndexT);
         assert(indices.length % 3 == 0);
+        auto allocState = alloc.state;
+        scope(exit) alloc.restoreState(allocState);
         RasterizerT rast;
         foreach(i;0..indices.length / 3)
         {
             const i0 = i * 3;
             const i1 = i0 + 3;
-            rast.drawIndexedTriangle(getState(), context, verts, indices[i0..i1]);
+            rast.drawIndexedTriangle(alloc, getState(), context, verts, indices[i0..i1]);
         }
     }
 }

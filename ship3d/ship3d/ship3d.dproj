@@ -26,7 +26,7 @@
         <Lib>gdi32.lib</Lib>
       </Libs>
     </Libs>
-    <ExtraCompilerArguments>-w</ExtraCompilerArguments>
+    <ExtraCompilerArguments>-w -gc</ExtraCompilerArguments>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <OutputPath>bin\Release</OutputPath>
@@ -42,7 +42,7 @@
         <Lib>gdi32.lib</Lib>
       </Libs>
     </Libs>
-    <ExtraCompilerArguments>-boundscheck=off -g</ExtraCompilerArguments>
+    <ExtraCompilerArguments>-boundscheck=off -gc</ExtraCompilerArguments>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Unittest|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>

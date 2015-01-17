@@ -6,7 +6,7 @@ import std.array;
 import std.string;
 import std.functional;
 import std.range;
-import std.c.stdlib: alloca;
+//import std.c.stdlib: alloca;
 
 import gamelib.util;
 import gamelib.graphics.graph;
@@ -19,13 +19,13 @@ import game.units;
 
 struct RasterizerHybrid2(bool HasTextures, bool WriteMask, bool ReadMask, bool HasLight)
 {
-    static void drawIndexedTriangle(CtxT1,CtxT2,VertT,IndT)
-        (auto ref CtxT1 outputContext, auto ref CtxT2 extContext, in VertT[] verts, in IndT[] indices) if(isIntegral!IndT)
+    static void drawIndexedTriangle(AllocT,CtxT1,CtxT2,VertT,IndT)
+        (auto ref AllocT alloc, auto ref CtxT1 outputContext, auto ref CtxT2 extContext, in VertT[] verts, in IndT[] indices) if(isIntegral!IndT)
     {
         assert(indices.length == 3);
         const(VertT)*[3] pverts;
         foreach(i,ind; indices) pverts[i] = verts.ptr + ind;
-        drawTriangle(outputContext, extContext, pverts);
+        drawTriangle(alloc, outputContext, extContext, pverts);
     }
 
 private:
@@ -282,15 +282,20 @@ private:
         immutable vec3 normal;
         //vec3 pos;
         //vec3 posDx;
-        alias ColView = ArrayView!int;
-        ArrayView!(ColView) lightData;
+        alias LightT = int;
+        alias ColView = ArrayView!LightT;
+        alias DataT = ArrayView!(ColView);
+        DataT lightData;
 
-        this(V,PackT,SpansT)(in V[] v, in ref PackT pack, in ref SpansT spans)
+        this(AllocT,V,PackT,SpansT)(auto ref AllocT alloc, in V[] v, in ref PackT pack, in ref SpansT spans)
         {
             assert(v.length == 3);
             normal = cross(v[1].refPos - v[0].refPos,v[2].refPos - v[0].refPos);
             const minTy = spans.y0 / Len;
-            const maxTy = (spans.y1 + Len - 1) / Len;
+            const maxTy = 1 + (spans.y1 + Len - 1) / Len;
+            lightData = DataT(alloc.alloc!ColView(maxTy - minTy), minTy);
+            int prevMinTx = int.max;
+            int prevMaxTx = 0;
             foreach(ty;minTy..maxTy)
             {
                 const miny = max(spans.y0,ty * Len);
@@ -301,6 +306,16 @@ private:
                 {
                     minx = min(minx, spans.spans[y].x0);
                     maxx = max(maxx, spans.spans[y].x1);
+                }
+                if(maxx >= minx || prevMaxTx >= prevMinTx)
+                {
+                    const minTx = minx / Len;
+                    const maxTx = (maxx + Len - 1) / Len;
+                    const tx0 = min(minTx, prevMinTx);
+                    const tx1 = max(maxTx, prevMaxTx);
+                    lightData[ty] = ColView(alloc.alloc!LightT(tx1 - tx0),tx0);
+                    prevMinTx = minTx;
+                    prevMaxTx = maxTx;
                 }
             }
         }
@@ -330,8 +345,8 @@ private:
         Span[] spans;
     }
 
-    static void drawTriangle(CtxT1,CtxT2,VertT)
-        (auto ref CtxT1 outContext, auto ref CtxT2 extContext, in VertT[] pverts)
+    static void drawTriangle(AllocT,CtxT1,CtxT2,VertT)
+        (auto ref AllocT alloc, auto ref CtxT1 outContext, auto ref CtxT2 extContext, in VertT[] pverts)
     {
         assert(pverts.length == 3);
         //alias PosT = FixedPoint!(16,16,int);
@@ -397,12 +412,7 @@ private:
         }
 
         SpanRange spanrange;
-        //version(LDC) pragma(LDC_never_inline);
-        //auto spans = alignPointer!Span(alloca(size.h * Span.sizeof + Span.alignof))[0..size.h];
-        //Span[4096] spansRaw; //TODO: LDC crahes when used memory from alloca with optimization enabled
-        void[4096 * SpanRange.Span.sizeof] spansRaw = void; //TODO: LDC crahes when used memory from alloca with optimization enabled
-        spanrange.spans = alignPointer!(SpanRange.Span)(spansRaw.ptr)[0..size.h];
-        //spanrange.spans = alignPointer!(SpanRange.Span)(alloca(size.h * SpanRange.Span.sizeof + Span.alignof))[0..size.h];
+        spanrange.spans = alloc.alloc!(SpanRange.Span)(size.h);
 
         if(PointT(pack, minX, minY).check() &&
            PointT(pack, maxX, minY).check() &&
@@ -893,7 +903,7 @@ private:
         {
             static if(HasLight)
             {
-                auto lightProx = LightProxT(pverts,pack,spanrange);
+                auto lightProx = LightProxT(alloc,pverts,pack,spanrange);
             }
             void drawSpan(bool FixedLen,L)(
                 int y,
@@ -925,7 +935,17 @@ private:
                     }
                     else
                     {
-                        foreach(x;x1..x2)
+                        enum SmallLine = 4;
+                        int cx = x1;
+                        foreach(sx;0..(x2 - x1) / SmallLine)
+                        {
+                            //const x = x1 + sx * SmallLine;
+                            extContext.texture.getLine!SmallLine(ctx,line[cx..cx+SmallLine]);
+                            ctx.u += ctx.dux * SmallLine;
+                            ctx.v += ctx.dvx * SmallLine;
+                            cx += SmallLine;
+                        }
+                        foreach(x;cx..x2)
                         {
                             extContext.texture.getLine!1(ctx,line[x..x+1]);
                             ctx.u += ctx.dux;
