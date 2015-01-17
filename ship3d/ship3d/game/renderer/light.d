@@ -4,6 +4,7 @@ import game.units;
 
 struct Light
 {
+@nogc:
 pure nothrow:
 private:
     vec3_t mPos;
@@ -21,11 +22,12 @@ public:
 
 final class LightController
 {
+@nogc:
 pure nothrow:
 private:
-    light_palette_t mPalette;
+    const light_palette_t mPalette;
 public:
-    this(light_palette_t palette)
+    this(in light_palette_t palette)
     {
         mPalette = palette;
     }
@@ -40,9 +42,11 @@ public:
             if(ndl <= 0) continue;
             const dist = dpos.magnitude;
             const ndl1 = ndl / dist;
-            enum GradNum = 1 << LightPaletteBits;
+            enum GradNum = 1 << LightBrightnessBits;
             enum Mask = GradNum - 1;
-            const val = cast(int)(((l.color & Mask) >> ((cast(int)dist) / LightUnitDist)) * ndl1);
+            const val = cast(int)(((l.color & Mask)) * ndl1);
+            assert(val >= 0,debugConv(val));
+            assert(val < GradNum,debugConv(val));
             const col = val | (l.color & ~Mask);
             result = mPalette.blend(result, col);
         }

@@ -17,9 +17,9 @@ private:
     palette_t mPalette;
     texture_t[TextureDesc] mTextures;
 
-    enum GradNum = 8;
     void createLightPalette()
     {
+        enum GradNum = 1 << LightBrightnessBits;
         const ColorT[] colors = [
             ColorWhite,
             ColorRed,
@@ -34,12 +34,13 @@ private:
             const startInd = i * GradNum;
             const endInd = startInd + GradNum;
             auto line = data[startInd..endInd];
-            ColorT.interpolateLine!GradNum(line, c, ColorBlack);
+            ColorT.interpolateLine!GradNum(line, ColorBlack, c);
         }
         mLightPalette = new light_palette_t(data[0..(1 << LightPaletteBits)]);
     }
     void createPalette()
     {
+        //enum GradNum = 1 << PaletteBits;
         const ColorT[] colors = [
             ColorYellow,
             ColorCyan,
@@ -51,10 +52,11 @@ private:
         ColorT[256] data = ColorBlack;
         foreach(i,c; colors[])
         {
-            const startInd = i * GradNum;
+            data[i] = c;
+            /*const startInd = i * GradNum;
             const endInd = startInd + GradNum;
             auto line = data[startInd..endInd];
-            ColorT.interpolateLine!GradNum(line, c, ColorBlack);
+            ColorT.interpolateLine!GradNum(line, c, ColorBlack);*/
         }
         mPalette = new palette_t(data[0..(1 << PaletteBits)], mLightPalette[]);
     }
@@ -63,7 +65,8 @@ private:
     {
         auto ret = new texture_t(256, 256);
         ret.palette = mPalette;
-        fillChess(ret, cast(ubyte)(255 - 7), cast(ubyte)(desc.i * GradNum));
+        //ret.fillChess(cast(ubyte)((1 << PaletteBits) - 1), cast(ubyte)(desc.i));
+        ret.fill(cast(ubyte)(desc.i));
         return ret;
     }
 public:
@@ -72,6 +75,8 @@ public:
         createLightPalette();
         createPalette();
     }
+
+    @property lightPalette() inout { return mLightPalette; }
 
     auto getTexture(in TextureDesc desc)
     {

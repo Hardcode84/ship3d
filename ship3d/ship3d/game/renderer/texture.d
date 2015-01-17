@@ -50,7 +50,7 @@ public:
         {
             const x = cast(int)(u * w) & wmask;
             const y = cast(int)(v * h) & hmask;
-            *dstPtr = getColor(context.colorProxy(mData[x + y * width],i));
+            *dstPtr = getColor(context.colorProxy(mData[x + y * width],context.x + i));
             u += dux;
             v += dvx;
             ++dstPtr;
@@ -158,6 +158,20 @@ void fillChess(T,C)(auto ref T surf, in C col1, in C col2)
             {
                 view[y][x] = col2;
             }
+        }
+    }
+}
+
+void fill(T,C)(auto ref T surf, in C col)
+{
+    import gamelib.types;
+    auto view = surf.lock();
+    scope(exit) surf.unlock();
+    foreach(y;0..surf.height)
+    {
+        foreach(x;0..surf.width)
+        {
+            view[y][x] = col;
         }
     }
 }

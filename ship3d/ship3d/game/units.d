@@ -20,13 +20,17 @@ alias mat2_t = Matrix!(pos_t,2,2);
 
 enum PaletteBits      = 6;
 enum LightPaletteBits = 6;
+enum LightColorBits   = 3;
+enum LightBrightnessBits = LightPaletteBits - LightColorBits;
+static assert(LightColorBits > 0);
+static assert(LightBrightnessBits > 0);
 
 alias light_palette_t = Palette!(ColorT,LightPaletteBits, true,"+");
 alias palette_t = LightPalette!(ColorT,PaletteBits,LightPaletteBits);
 //alias palette_t = Palette!ColorT;
 alias texture_t = Texture!(BaseTexturePaletted!(ColorT,palette_t));
 //alias texture_t = Texture!(BaseTextureRGB!ColorT);
-enum LightUnitDist = 10;
+enum LightUnitDist = 1;
 
 
 struct Vertex

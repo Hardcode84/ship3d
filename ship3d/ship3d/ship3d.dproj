@@ -42,7 +42,7 @@
         <Lib>gdi32.lib</Lib>
       </Libs>
     </Libs>
-    <ExtraCompilerArguments>-boundscheck=off -gc</ExtraCompilerArguments>
+    <ExtraCompilerArguments>-boundscheck=off -g</ExtraCompilerArguments>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Unittest|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -88,7 +88,7 @@
     </Libs>
     <DebugLevel>0</DebugLevel>
     <ObjectsDirectory>obj\Release</ObjectsDirectory>
-    <ExtraCompilerArguments>-oq -singleobj</ExtraCompilerArguments>
+    <ExtraCompilerArguments>-oq -singleobj -boundscheck=off</ExtraCompilerArguments>
     <Target>Executable</Target>
     <Externalconsole>true</Externalconsole>
     <UnittestMode>false</UnittestMode>
@@ -121,7 +121,7 @@
     </Libs>
     <DebugLevel>0</DebugLevel>
     <ObjectsDirectory>obj\Release</ObjectsDirectory>
-    <ExtraCompilerArguments>-oq -mcpu=i686 -mattr=+mmx,+sse -singleobj</ExtraCompilerArguments>
+    <ExtraCompilerArguments>-oq -mcpu=i686 -mattr=+mmx,+sse -singleobj -boundscheck=off</ExtraCompilerArguments>
     <Target>Executable</Target>
     <Externalconsole>true</Externalconsole>
     <UnittestMode>false</UnittestMode>

@@ -80,10 +80,10 @@ public:
         auto blend(int col1, int col2) const
         in
         {
-            assert(col1 >= 0);
-            assert(col1 < Count);
-            assert(col2 >= 0);
-            assert(col2 < Count);
+            assert(col1 >= 0,    debugConv(col1," ",Count));
+            assert(col1 < Count, debugConv(col1," ",Count));
+            assert(col2 >= 0,    debugConv(col2," ",Count));
+            assert(col2 < Count, debugConv(col2," ",Count));
         }
         body
         {
@@ -124,8 +124,8 @@ public:
     auto opIndex(int i) const
     in
     {
-        assert(i >= 0);
-        assert(i < Count);
+        assert(i >= 0,debugConv(i," ",Count));
+        assert(i < Count,debugConv(i," ",Count));
     }
     body
     {

@@ -9,21 +9,22 @@ import game.topology.plane;
 import game.entities.entity;
 
 import game.renderer.spanmask;
-import game.renderer.rasterizerhybrid;
 import game.renderer.rasterizerhybrid2;
+import game.renderer.light;
 
 struct Polygon
 {
 private:
-    immutable vec3_t   mCenterOffset;
-    Room               mRoom = null;
-    Plane[]            mPlanes;
-    Polygon*           mConnection = null;
-    vec3_t             mConnectionOffset;
-    quat_t             mConnectionDir;
-    immutable(int)[]   mIndices;
-    texture_t          mTexture = null;
-    Polygon*[]         mAdjacent;
+    immutable vec3_t    mCenterOffset;
+    Room                mRoom = null;
+    Plane[]             mPlanes;
+    Polygon*            mConnection = null;
+    vec3_t              mConnectionOffset;
+    quat_t              mConnectionDir;
+    immutable(int)[]    mIndices;
+    texture_t           mTexture = null;
+    Polygon*[]          mAdjacent;
+    Light[]             mLights;
 public:
 //pure nothrow:
     this(in int[] indices, in vec3_t centerOffset)
@@ -32,6 +33,7 @@ public:
         assert(indices.length % 3 == 0);
         mCenterOffset = centerOffset;
         mIndices = indices.idup;
+        mLights = [Light(vec3_t(1,0,0),7)];
     }
 
     package void calcPlanes()
@@ -132,10 +134,12 @@ public:
         {
             struct Context2
             {
-                const(texture_t) texture;
+                const texture_t texture;
+                const Light[] lights;
+                const LightController lightController;
             }
             assert(mTexture !is null);
-            Context2 ctx = {texture: mTexture};
+            Context2 ctx = {texture: mTexture, lights: mLights, lightController: room.lightController};
             alias RastT2 = RasterizerHybrid2!(true,false,true,true);
             renderer.drawIndexedTriangle!RastT2(alloc, ctx, transformedVerts[], mIndices[]);
         }

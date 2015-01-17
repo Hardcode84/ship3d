@@ -55,14 +55,15 @@ final:
 
 abstract class BaseTextureRGB(ColT) : BaseTexture!ColT
 {
+pure nothrow:
 protected:
     alias ColorType = ColT;
     alias ColorArrayType = ColT;
-    static auto getColor(in ColT col) pure nothrow
+    static auto getColor(in ColT col)
     {
         return col;
     }
-    static auto avgColor(in ColT col00, in ColT col10, in ColT col01, in ColT col11) pure nothrow
+    static auto avgColor(in ColT col00, in ColT col10, in ColT col01, in ColT col11)
     {
         return ColT.average(ColT.average(col00,col10),ColT.average(col01,col11));
     }
@@ -73,14 +74,15 @@ public:
     }
 }
 
-abstract class BaseTexturePaletted(ColT,PalT) : BaseTexture!ubyte
+abstract class BaseTexturePaletted(ColT,PalT) : BaseTexture!int
 {
+pure nothrow:
 private:
     PalT mPalette;
 protected:
     alias ColorType = ColT;
-    alias ColorArrayType = ubyte;
-    final auto getColor(ubyte col) const pure nothrow
+    alias ColorArrayType = int;
+    final auto getColor(int col) const
     {
         assert(mPalette !is null);
         return mPalette[col];
@@ -91,6 +93,6 @@ public:
         super(w, h);
     }
 
-    @property auto palette() const pure nothrow { return mPalette; }
-    @property void palette(PalT p) pure nothrow { mPalette = p; }
+    @property palette() const { return mPalette; }
+    @property palette(PalT p) { mPalette = p; }
 }

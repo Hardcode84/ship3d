@@ -13,6 +13,7 @@ import game.renderer.renderer;
 import game.renderer.texture;
 import game.renderer.basetexture;
 import game.renderer.spanmask;
+import game.renderer.light;
 
 import game.topology.room;
 import game.topology.entityref;
@@ -32,8 +33,6 @@ private:
     Entity[] mEntities;
     Player   mPlayer;
 
-    int mCurrentId = 0;
-
     StackAlloc mAllocator;
     EntityRefAllocator mERefAlloc;
 
@@ -48,13 +47,16 @@ private:
     }
     alias RendererT = Renderer!(OutContext,17);
     RendererT mRenderer;
+    LightController mLightController = null;
 
     alias InputListenerT = void delegate(in ref InputEvent);
     InputListenerT[] mInputListeners;
 public:
 //pure nothrow:
-    @property allocator()     inout pure nothrow { return mAllocator; }
-    @property erefAllocator() inout pure nothrow { return mERefAlloc; }
+    @property allocator()       inout { return mAllocator; }
+    @property erefAllocator()   inout { return mERefAlloc; }
+    @property lightController() inout { return mLightController; }
+    @property lightPalette(light_palette_t pal) { mLightController = new LightController(pal); }
 
     alias SurfT  = FFSurface!ColorT;
     this(in Size sz, uint seed)
@@ -68,8 +70,6 @@ public:
         addEntity(mPlayer);
         mRooms[0].addEntity(mPlayer, vec3_t(0,0,0), quat_t.identity);
     }
-
-    auto generateId() { return ++mCurrentId; }
 
     void addEntity(Entity e)
     {

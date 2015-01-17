@@ -6,7 +6,6 @@ import std.array;
 import std.string;
 import std.functional;
 import std.range;
-//import std.c.stdlib: alloca;
 
 import gamelib.util;
 import gamelib.graphics.graph;
@@ -29,7 +28,7 @@ struct RasterizerHybrid2(bool HasTextures, bool WriteMask, bool ReadMask, bool H
     }
 
 private:
-    enum AffineLength = 32;
+    enum AffineLength = 16;
     struct Line(PosT)
     {
     pure nothrow:
@@ -46,7 +45,7 @@ private:
             const w2 = v2.pos.w;
             dx = (y1 * w2 - y2 * w1) / (size.w);
             dy = (x1 * w2 - x2 * w1) / (size.h);
-            c  = (x2 * y1 - x1 * y2) - dy * (size.h / 2) + dx * (size.w / 2) /*+ (dy - dx) / 2*/;
+            c  = (x2 * y1 - x1 * y2) - dy * (size.h / 2) + dx * (size.w / 2);
         }
 
         auto val(int x, int y) const
@@ -99,6 +98,7 @@ private:
         static if(HasLight)
         {
             immutable PlaneT refXplane, refYplane, refZplane;
+            immutable vec3 normal;
         }
         this(VT,ST)(in VT v1, in VT v2, in VT v3, in ST size) pure nothrow
         {
@@ -152,6 +152,7 @@ private:
                 refXplane = PlaneT(invMat * vec3(refPos1.x,refPos2.x,refPos3.x), size);
                 refYplane = PlaneT(invMat * vec3(refPos1.y,refPos2.y,refPos3.y), size);
                 refZplane = PlaneT(invMat * vec3(refPos1.z,refPos2.z,refPos3.z), size);
+                normal = cross(refPos2 - refPos1, refPos3 - refPos1).normalized;
             }
         }
     }
@@ -278,19 +279,20 @@ private:
         int currX, currY;
         ubyte[Len] buffer;
         alias vec3 = Vector!(PosT,3);
-        int l1, l2;
-        immutable vec3 normal;
-        //vec3 pos;
-        //vec3 posDx;
+        alias vec4 = Vector!(PosT,4);
         alias LightT = int;
         alias ColView = ArrayView!LightT;
         alias DataT = ArrayView!(ColView);
         DataT lightData;
+        LightT[Len] buff = void;
+        LightT l1,l2;
 
-        this(AllocT,V,PackT,SpansT)(auto ref AllocT alloc, in V[] v, in ref PackT pack, in ref SpansT spans)
+        this(AllocT,PackT,SpansT,CtxT)(
+            auto ref AllocT alloc,
+            in ref PackT pack,
+            in ref SpansT spans,
+            in auto ref CtxT ctx)
         {
-            assert(v.length == 3);
-            normal = cross(v[1].refPos - v[0].refPos,v[2].refPos - v[0].refPos);
             const minTy = spans.y0 / Len;
             const maxTy = 1 + (spans.y1 + Len - 1) / Len;
             lightData = DataT(alloc.alloc!ColView(maxTy - minTy), minTy);
@@ -299,7 +301,7 @@ private:
             foreach(ty;minTy..maxTy)
             {
                 const miny = max(spans.y0,ty * Len);
-                const maxy = min(spans.y1,ty * Len);
+                const maxy = min(spans.y1,(ty + 1) * Len);
                 int minx = int.max;
                 int maxx = 0;
                 foreach(y;miny..maxy)
@@ -310,7 +312,7 @@ private:
                 if(maxx >= minx || prevMaxTx >= prevMinTx)
                 {
                     const minTx = minx / Len;
-                    const maxTx = (maxx + Len - 1) / Len;
+                    const maxTx = (maxx + Len - 1) / Len + 1;
                     const tx0 = min(minTx, prevMinTx);
                     const tx1 = max(maxTx, prevMaxTx);
                     lightData[ty] = ColView(alloc.alloc!LightT(tx1 - tx0),tx0);
@@ -318,19 +320,51 @@ private:
                     prevMaxTx = maxTx;
                 }
             }
+            const lights = ctx.lights;
+            const lightController = ctx.lightController;
+            const posDx = vec4(pack.refXplane.dx * Len,pack.refYplane.dx * Len,pack.refZplane.dx * Len,pack.wplane.dx);
+            foreach(ty;lightData.low..lightData.high)
+            {
+                const row = lightData[ty];
+                const y = ty * Len;
+                auto  x = row.low * Len;
+                auto pos = vec4(pack.refXplane.get(x,y),pack.refYplane.get(x,y),pack.refZplane.get(x,y),pack.wplane.get(x,y));
+                foreach(tx;row.low..row.high)
+                {
+                    lightData[ty][tx] = lightController.calcLight(pos.xyz / pos.w,pack.normal,lights,0);
+                    pos += posDx;
+                }
+            }
         }
 
-        void setXY(PackT)(in ref PackT pack, int x, int y)
+        void setXY(int x, int y)
         {
-            //pos   = vec3(pack.refXplane.get(x,y),pack.refYplane.get(x,y),pack.refZplane.get(x,y));
-            //posDx = vec3(pack.refXplane.dx,pack.refYplane.dx,pack.refZplane.dx);
+            currX = x / Len;
+            currY = y;
+            l2 = get();
         }
 
         void incX()
         {
-            currX += Len;
-            //pos += posDx;
+            ++currX;
             l1 = l2;
+            l2 = get();
+            //ditherLine!Len(buff[],0,Len,currY,l1,l2);
+            foreach(i;TupleRange!(0,Len))
+            {
+                buff[i] = (i + currY) % 2 ? l1 : l2;
+            }
+        }
+
+        @property x() const { return (currX - 1) * Len; }
+
+        private auto get() const
+        {
+            const ty = currY / Len;
+            const row1 = lightData[ty];
+            const row2 = lightData[ty + 1];
+            return currY % 2 ? row1[currX] : row2[currX];
+            //return ditherPixel!Len(currY,currX,row1[currX],row2[currX]);
         }
     }
 
@@ -536,9 +570,9 @@ private:
                     auto pt1c = PointT(pack, x1, cy);
                     auto ptc1 = PointT(pack, cx, y1);
                     return checkQuad(pt00, ptc0, pt0c, ptcc) ||
-                        checkQuad(ptc0, pt10, ptcc, pt1c) ||
-                            checkQuad(pt0c, ptcc, pt01, ptc1) ||
-                            checkQuad(ptcc, pt1c, ptc1, pt11);
+                           checkQuad(ptc0, pt10, ptcc, pt1c) ||
+                           checkQuad(pt0c, ptcc, pt01, ptc1) ||
+                           checkQuad(ptcc, pt1c, ptc1, pt11);
                 }
                 if(checkQuad(PointT(pack, minX, minY),
                              PointT(pack, maxX, minY),
@@ -903,7 +937,7 @@ private:
         {
             static if(HasLight)
             {
-                auto lightProx = LightProxT(alloc,pverts,pack,spanrange);
+                auto lightProx = LightProxT(alloc,pack,spanrange,extContext);
             }
             void drawSpan(bool FixedLen,L)(
                 int y,
@@ -917,18 +951,38 @@ private:
                 {
                     struct Transform
                     {
-                        @nogc auto opCall(T)(in T val,int) const pure nothrow { return val; }
+                    @nogc:
+                    pure nothrow:
+                        static if(HasLight)
+                        {
+                            ArrayView!int view;
+                            auto opCall(T)(in T val,int x) const
+                            {
+                                //debugOut(view[x]);
+                                return val + view[x] * (1 << LightPaletteBits);
+                            }
+                        }
+                        else
+                        {
+                            auto opCall(T)(in T val,int) const { return val; }
+                        }
                     }
                     alias TexT = Unqual!(typeof(span.u));
                     struct Context
                     {
                         Transform colorProxy;
+                        int x;
                         TexT u;
                         TexT v;
                         TexT dux;
                         TexT dvx;
                     }
-                    Context ctx = {u: span.u, v: span.v, dux: span.dux, dvx: span.dvx};
+                    Context ctx = {x: x1, u: span.u, v: span.v, dux: span.dux, dvx: span.dvx};
+                    static if(HasLight)
+                    {
+                        ctx.colorProxy.view.assign(lightProx.buff[],lightProx.x);
+                    }
+
                     static if(FixedLen)
                     {
                         extContext.texture.getLine!AffineLength(ctx,line[x1..x2]);
@@ -936,20 +990,19 @@ private:
                     else
                     {
                         enum SmallLine = 4;
-                        int cx = x1;
                         foreach(sx;0..(x2 - x1) / SmallLine)
                         {
-                            //const x = x1 + sx * SmallLine;
-                            extContext.texture.getLine!SmallLine(ctx,line[cx..cx+SmallLine]);
+                            extContext.texture.getLine!SmallLine(ctx,line[ctx.x..ctx.x+SmallLine]);
                             ctx.u += ctx.dux * SmallLine;
                             ctx.v += ctx.dvx * SmallLine;
-                            cx += SmallLine;
+                            ctx.x += SmallLine;
                         }
-                        foreach(x;cx..x2)
+                        foreach(x;ctx.x..x2)
                         {
                             extContext.texture.getLine!1(ctx,line[x..x+1]);
                             ctx.u += ctx.dux;
                             ctx.v += ctx.dvx;
+                            ++ctx.x;
                         }
                     }
                 }
@@ -966,7 +1019,7 @@ private:
                 span.incX(x0 - sx);
                 static if(HasLight)
                 {
-                    lightProx.setXY(pack, x0 & ~(AffineLength - 1), y);
+                    lightProx.setXY(x0, y);
                 }
                 int x = x0;
                 {
@@ -982,6 +1035,7 @@ private:
                 foreach(i;0..((x1-x) / AffineLength))
                 {
                     span.incX(AffineLength);
+                    lightProx.incX();
                     drawSpan!true(y, x, x + AffineLength, span, line);
                     x += AffineLength;
                 }
@@ -989,6 +1043,7 @@ private:
                 if(rem > 0)
                 {
                     span.incX(rem);
+                    lightProx.incX();
                     drawSpan!false(y, x, x1, span, line);
                 }
                 /*if(pack.external)

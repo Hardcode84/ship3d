@@ -16,7 +16,6 @@ private:
     Vertex[]    mVertices;
     Polygon[]   mPolygons;
 
-    //Array!EntityRef mEntities;
     EntityRef*[]     mEntities;
     bool             mNeedUdateEntities;
 public:
@@ -40,6 +39,7 @@ public:
     @property auto vertices()           inout { return mVertices[]; }
     @property auto polygons()           inout { return mPolygons[]; }
     @property world()                   inout { return mWorld; }
+    @property lightController()         inout { return mWorld.lightController(); }
 
     void draw(RT, AT)(auto ref RT renderer, auto ref AT alloc, in vec3_t pos, in quat_t dir, in Entity srce, int depth) const
     {
@@ -56,19 +56,15 @@ public:
         transformedVerticesFlags[] = false;
         foreach(const ref p; mPolygons[])
         {
-            const ignore = false;//p.isPortal && canFind(mInputListeners[], listener);
-            if(!ignore)
+            foreach(ind; p.indices[])
             {
-                foreach(ind; p.indices[])
+                if(!transformedVerticesFlags[ind])
                 {
-                    if(!transformedVerticesFlags[ind])
-                    {
-                        transformedVertices[ind] = transformVertex(mVertices[ind], mat);
-                        transformedVerticesFlags[ind] = true;
-                    }
+                    transformedVertices[ind] = transformVertex(mVertices[ind], mat);
+                    transformedVerticesFlags[ind] = true;
                 }
-                p.draw(renderer, alloc, transformedVertices, pos, dir, srce, depth);
             }
+            p.draw(renderer, alloc, transformedVertices, pos, dir, srce, depth);
         }
 
         //sort entities
