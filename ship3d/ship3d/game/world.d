@@ -6,6 +6,8 @@ import gamelib.graphics.surface;
 import gamelib.graphics.graph;
 import gamelib.graphics.memsurface;
 
+import gamelib.containers.intrusivelist;
+
 import game.controls;
 
 import game.units;
@@ -30,7 +32,8 @@ private:
     immutable Size mSize;
 
     Room[]   mRooms;
-    Entity[] mEntities;
+    //Entity[] mEntities;
+    IntrusiveList!(Entity,"worldLink") mEntities;
     Player   mPlayer;
 
     StackAlloc mAllocator;
@@ -67,13 +70,15 @@ public:
         mProjMat = mat4_t.perspective(sz.w,sz.h,90,0.1,1000);
         mRooms = generateWorld(this, seed);
         mPlayer = new Player(this);
-        addEntity(mPlayer);
-        mRooms[0].addEntity(mPlayer, vec3_t(0,0,0), quat_t.identity);
+        addEntity(mPlayer, mRooms[0], vec3_t(0,0,0), quat_t.identity);
     }
 
-    void addEntity(Entity e)
+    void addEntity(Entity e, Room room, in vec3_t pos, in quat_t dir)
     {
-        mEntities ~= e;
+        assert(e !is null);
+        assert(room !is null);
+        room.addEntity(e, pos, dir);
+        mEntities.insertBack(e);
     }
 
     void addInputListener(in InputListenerT listener)
@@ -107,20 +112,17 @@ public:
         {
             return false;
         }
-        foreach(e; mEntities[])
+        auto range = mEntities[];
+        while(!range.empty)
         {
-            e.update();
-        }
-        auto newLen = mEntities.length;
-        foreach_reverse(i,e; mEntities[])
-        {
-            if(!e.isAlive)
+            Entity ent = range.front;
+            ent.update();
+            range.popFront();
+            if(!ent.isAlive)
             {
-                mEntities[i] = mEntities[newLen - 1];
-                --newLen;
+                ent.worldLink.unlink();
             }
         }
-        mEntities.length = newLen;
 
         enum MaxUpdates = 20;
         foreach(i; 0..MaxUpdates)

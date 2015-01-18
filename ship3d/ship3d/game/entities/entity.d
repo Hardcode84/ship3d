@@ -21,6 +21,7 @@ private:
     quat_t       mRefDir = quat_t.identity;
     IntrusiveList!(EntityRef,"entityLink") mConnections;
 public:
+    IntrusiveListLink   worldLink;
 //pure nothrow:
     this(World w)
     {
@@ -48,9 +49,7 @@ public:
         return connections[].find!(a => a.inside).front;
     }
 
-    void draw(T)(in auto ref T renderer) const
-    {
-    }
+    void draw(T)(in auto ref T renderer) const {}
 
     void update() {}
 

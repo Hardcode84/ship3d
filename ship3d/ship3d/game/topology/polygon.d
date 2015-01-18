@@ -24,7 +24,6 @@ private:
     immutable(int)[]    mIndices;
     texture_t           mTexture = null;
     Polygon*[]          mAdjacent;
-    Light[]             mLights;
 public:
 //pure nothrow:
     this(in int[] indices, in vec3_t centerOffset)
@@ -33,7 +32,6 @@ public:
         assert(indices.length % 3 == 0);
         mCenterOffset = centerOffset;
         mIndices = indices.idup;
-        mLights = [Light(vec3_t(1,0,0),7)];
     }
 
     package void calcPlanes()
@@ -139,7 +137,7 @@ public:
                 const LightController lightController;
             }
             assert(mTexture !is null);
-            Context2 ctx = {texture: mTexture, lights: mLights, lightController: room.lightController};
+            Context2 ctx = {texture: mTexture, lights: room.lights, lightController: room.lightController};
             alias RastT2 = RasterizerHybrid2!(true,false,true,true);
             renderer.drawIndexedTriangle!RastT2(alloc, ctx, transformedVerts[], mIndices[]);
         }

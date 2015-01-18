@@ -11,6 +11,7 @@ import game.world;
 import game.entities.entity;
 import game.topology.polygon;
 import game.topology.entityref;
+import game.renderer.light;
 
 final class Room
 {
@@ -18,6 +19,7 @@ private:
     World       mWorld;
     Vertex[]    mVertices;
     Polygon[]   mPolygons;
+    Light[]     mLights;
 
     IntrusiveList!(EntityRef,"roomLink") mEntities;
     bool             mNeedUdateEntities;
@@ -35,6 +37,7 @@ public:
             p.calcPlanes();
         }
         calcAdjacent();
+        mLights = [Light(vec3_t(1,0,0),7)];
     }
 
     void invalidateEntities()                 { mNeedUdateEntities = true; }
@@ -43,6 +46,7 @@ public:
     @property auto polygons()           inout { return mPolygons[]; }
     @property world()                   inout { return mWorld; }
     @property lightController()         inout { return mWorld.lightController(); }
+    @property lights()                  inout { return mLights[]; }
 
     void draw(RT, AT)(auto ref RT renderer, auto ref AT alloc, in vec3_t pos, in quat_t dir, in Entity srce, int depth) const
     {
@@ -87,7 +91,6 @@ public:
     package void addEntity(Entity e, in vec3_t epos, in quat_t edir, in Room src)
     {
         assert(e !is null);
-        //const id = world.generateId();
         auto r = world.erefAllocator.allocate();
         r.room = this;
         r.ent = e;
@@ -109,35 +112,38 @@ public:
         {
             auto e = range.front;
             auto entity = e.ent;
-            const r = entity.radius() + 0.001f;
-            const oldPos = e.pos;
-            const newPos = oldPos + entity.posDelta * (entity.dir * e.dir.inverse);
-
-            //update position
-            auto dpos = vec3_t(0,0,0);
-            bool moved = false;
-            foreach(const ref p; polygons)
+            if(entity.isAlive)
             {
-                if(!p.isPortal)
+                const r = entity.radius() + 0.001f;
+                const oldPos = e.pos;
+                const newPos = oldPos + entity.posDelta * (entity.dir * e.dir.inverse);
+
+                //update position
+                auto dpos = vec3_t(0,0,0);
+                bool moved = false;
+                foreach(const ref p; polygons)
                 {
-                    foreach(const ref pl; p.planes)
+                    if(!p.isPortal)
                     {
-                        vec3_t norm = void;
-                        if(pl.checkCollision(oldPos, newPos, r, norm))
+                        foreach(const ref pl; p.planes)
                         {
-                            dpos += norm * 1.001f;
-                            moved = true;
+                            vec3_t norm = void;
+                            if(pl.checkCollision(oldPos, newPos, r, norm))
+                            {
+                                dpos += norm * 1.001f;
+                                moved = true;
+                            }
                         }
                     }
                 }
-            }
-            if(moved)
-            {
-                entity.move(dpos * (entity.dir * e.dir.inverse));
+                if(moved)
+                {
+                    entity.move(dpos * (entity.dir * e.dir.inverse));
+                }
             }
 
             range.popFront();
-            if(e.remove)
+            if(e.remove || !entity.isAlive)
             {
                 e.ent.onRemovedFromRoom(e);
                 world.erefAllocator.free(e);
