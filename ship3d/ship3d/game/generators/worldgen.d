@@ -24,13 +24,13 @@ Room[] generateWorld(World world, uint seed)
 
     auto ret = appender!(Room[])();
 
-    auto room = generateRoom(rnd, world, vec3i(1,1,1));
+    /*auto room = generateRoom(rnd, world, vec3i(1,1,1));
     foreach(ref p; room.polygons)
     {
         p.texture = texgen.getTexture(TextureDesc(cast(ubyte)0));
     }
-    ret.put(room);
-    /*Appender!(Room[])[numGenerations] rooms;
+    ret.put(room);*/
+    Appender!(Room[])[numGenerations] rooms;
     foreach(g;0..numGenerations)
     {
         foreach(r;0..numRooms)
@@ -55,7 +55,7 @@ Room[] generateWorld(World world, uint seed)
             }
             ret.put(room);
         }
-    }*/
+    }
     return ret.data;
 }
 

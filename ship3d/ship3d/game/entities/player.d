@@ -17,17 +17,6 @@ private:
     void onKeyEvent(in ref KeyEvent e)
     {
         //debugOut(e.action);
-        /*if(e.pressed)
-        {
-            if(KeyActions.FORWARD == e.action)
-            {
-                move(dir * vec3_t(0,0,1.0f)*10);
-            }
-            else if(KeyActions.BACKWARD == e.action)
-            {
-                move(dir * vec3_t(0,0,-1.0f)*10);
-            }
-        }*/
         mActState[e.action] = e.pressed;
     }
 
@@ -68,10 +57,6 @@ public:
         {
             accelerate(dir * vec3_t(0,0,-1.0f)*0.1f);
         }
-        /*if(actState(KeyActions.FORWARD))
-        {
-            mSpeed = dir*vec3_t(0,0,1.0f)*2.0f;
-        }*/
 
         enum strafeDir = quat_t.yrotation(PI / 2);
         if(actState(KeyActions.STRAFE_LEFT))

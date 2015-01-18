@@ -4,11 +4,14 @@ import std.container;
 import std.range;
 import std.algorithm;
 
+import gamelib.containers.intrusivelist;
+
 import game.units;
 import game.world;
 import game.entities.entity;
 import game.topology.polygon;
 import game.topology.entityref;
+
 final class Room
 {
 private:
@@ -16,7 +19,7 @@ private:
     Vertex[]    mVertices;
     Polygon[]   mPolygons;
 
-    EntityRef*[]     mEntities;
+    IntrusiveList!(EntityRef,"roomLink") mEntities;
     bool             mNeedUdateEntities;
 public:
 //pure nothrow:
@@ -91,7 +94,7 @@ public:
         r.pos = epos;
         r.dir = edir;
 
-        mEntities ~= r;
+        mEntities.insertBack(r);
         e.onAddedToRoom(r);
         mNeedUdateEntities = true;
     }
@@ -101,9 +104,10 @@ public:
         //debugOut("updateEntities");
         scope(exit) mNeedUdateEntities = false;
         if(mEntities.empty) return;
-        for(int i = cast(int)mEntities.length - 1; i >= 0; --i)
+        auto range = mEntities[];
+        while(!range.empty)
         {
-            auto e = mEntities[i];
+            auto e = range.front;
             auto entity = e.ent;
             const r = entity.radius() + 0.001f;
             const oldPos = e.pos;
@@ -132,12 +136,11 @@ public:
                 entity.move(dpos * (entity.dir * e.dir.inverse));
             }
 
+            range.popFront();
             if(e.remove)
             {
                 e.ent.onRemovedFromRoom(e);
                 world.erefAllocator.free(e);
-                mEntities[i] = mEntities[$ - 1];
-                --mEntities.length;
             }
         }
     }

@@ -349,7 +349,6 @@ private:
             ++currX;
             l1 = l2;
             l2 = get();
-            //ditherLine!Len(buff[],0,Len,currY,l1,l2);
             foreach(i;TupleRange!(0,Len))
             {
                 buff[i] = (i + currY) % 2 ? l1 : l2;
@@ -364,7 +363,6 @@ private:
             const row1 = lightData[ty];
             const row2 = lightData[ty + 1];
             return currY % 2 ? row1[currX] : row2[currX];
-            //return ditherPixel!Len(currY,currX,row1[currX],row2[currX]);
         }
     }
 
@@ -812,7 +810,7 @@ private:
                     currX += dx * val;
                 }
 
-                @property x() const { return cast(int)(currX+1); }
+                @property x() const { return cast(int)(currX+1.1f); }
             }
 
             Edge edges[3] = void;

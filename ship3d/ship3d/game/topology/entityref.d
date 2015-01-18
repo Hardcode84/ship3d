@@ -1,5 +1,8 @@
 ﻿module game.topology.entityref;
 
+import gamelib.memory.utils;
+import gamelib.containers.intrusivelist;
+
 import game.units;
 
 import game.topology.room;
@@ -19,6 +22,8 @@ struct EntityRef
     bool inside = true;
     vec3_t correction = vec3_t(0,0,0); //TODO
     bool remove = false;
+    IntrusiveListLink roomLink;
+    IntrusiveListLink entityLink;
 
     void updatePos(in vec3_t dpos)
     {
@@ -61,6 +66,7 @@ public:
 
     void free(EntityRef* ptr)
     {
+        destruct(*ptr);
         assert(ptr !is null);
         ptr.prev = mLast;
         mLast = ptr;

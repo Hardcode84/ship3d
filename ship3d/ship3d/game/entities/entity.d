@@ -2,6 +2,8 @@
 
 import std.algorithm;
 
+import gamelib.containers.intrusivelist;
+
 import game.units;
 import game.topology.room;
 import game.topology.entityref;
@@ -17,7 +19,7 @@ private:
     vec3_t       mRefPos = vec3_t(0,0,0);
     vec3_t       mPosDelta = vec3_t(0,0,0);
     quat_t       mRefDir = quat_t.identity;
-    EntityRef*[] mConnections;
+    IntrusiveList!(EntityRef,"entityLink") mConnections;
 public:
 //pure nothrow:
     this(World w)
@@ -36,7 +38,7 @@ public:
 
     final @property connections() inout
     {
-        assert(mConnections.length > 0, "Connection list is empty");
+        assert(!mConnections.empty, "Connection list is empty");
         return mConnections[];
     }
 
@@ -74,23 +76,18 @@ public:
 
     final void onAddedToRoom(EntityRef* eref)
     {
-        debugOut("added ", cast(const(void)*)eref.room, " ", mConnections.length + 1);
         assert(!canFind(mConnections[], eref));
-        mConnections ~= eref;
+        assert(!eref.entityLink.isLinked);
+        mConnections.insertBack(eref);
+        debugOut("added ", cast(const(void)*)eref.room, " ", mConnections[].count!(a => true));
+        assert(eref.entityLink.isLinked);
     }
 
     final void onRemovedFromRoom(EntityRef* eref)
     {
-        foreach(i,c; mConnections[])
-        {
-            if(eref is c)
-            {
-                mConnections[i] = mConnections[$ - 1];
-                mConnections.length--;
-                debugOut("removed ",mConnections.length);
-                return;
-            }
-        }
-        assert(false, "onRemovedFromRoom invalid eref");
+        assert(canFind(mConnections[], eref));
+        assert(eref.entityLink.isLinked);
+        eref.entityLink.unlink();
+        debugOut("removed ",mConnections[].count!(a => true));
     }
 }

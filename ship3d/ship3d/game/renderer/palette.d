@@ -124,7 +124,7 @@ public:
     auto opIndex(int i) const
     in
     {
-        assert(i >= 0,debugConv(i," ",Count));
+        assert(i >= 0,   debugConv(i," ",Count));
         assert(i < Count,debugConv(i," ",Count));
     }
     body
