@@ -77,9 +77,9 @@ public:
             {
 
                 CursorEvent event = {x:  e.motion.x * mSettings.cursorSensX,
-                                           y:  e.motion.y * mSettings.cursorSensY,
-                                           dx: e.motion.xrel * mSettings.cursorSensX,
-                                           dy: e.motion.yrel * mSettings.cursorSensY};
+                                     y:  e.motion.y * mSettings.cursorSensY,
+                                     dx: e.motion.xrel * mSettings.cursorSensX,
+                                     dy: e.motion.yrel * mSettings.cursorSensY};
                 mListener(InputEvent(event));
             }
             break;

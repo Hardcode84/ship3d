@@ -67,6 +67,16 @@ public:
         {
             accelerate(dir * strafeDir * vec3_t(0,0,-1.0f)*0.1f);
         }
+
+        enum rollSpeed = PI / 2 * 0.01f;
+        if(actState(KeyActions.ROLL_LEFT))
+        {
+            rotate(quat_t.zrotation(-rollSpeed));
+        }
+        else if(actState(KeyActions.ROLL_RIGHT))
+        {
+            rotate(quat_t.zrotation(rollSpeed));
+        }
         super.update();
     }
 }
