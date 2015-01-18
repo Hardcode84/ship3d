@@ -810,7 +810,7 @@ private:
                     currX += dx * val;
                 }
 
-                @property x() const { return cast(int)(currX+1.1f); }
+                @property x() const { return cast(int)(currX + 1.1f); }
             }
 
             Edge edges[3] = void;

@@ -42,6 +42,12 @@ public:
         return mConnections[];
     }
 
+    final @property mainConnection() inout
+    {
+        assert(connections[].canFind!(a => a.inside));
+        return connections[].find!(a => a.inside).front;
+    }
+
     void draw(T)(in auto ref T renderer) const
     {
     }
