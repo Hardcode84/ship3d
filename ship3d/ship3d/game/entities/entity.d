@@ -4,11 +4,11 @@ import std.algorithm;
 
 import gamelib.containers.intrusivelist;
 
-import game.units;
-import game.topology.room;
-import game.topology.entityref;
+public import game.units;
+public import game.topology.room;
+public import game.topology.entityref;
 
-import game.world;
+public import game.world;
 
 abstract class Entity
 {

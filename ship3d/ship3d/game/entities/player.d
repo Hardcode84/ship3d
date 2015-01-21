@@ -2,14 +2,6 @@
 
 public import game.entities.inertialentity;
 
-import game.entities.lightref;
-
-import game.topology.entityref;
-
-import game.units;
-import game.controls;
-import game.world;
-
 class Player : InertialEntity
 {
 //pure nothrow:
@@ -39,10 +31,6 @@ private:
                    () {});
     }
 
-    LightRef[] mLightRefs;
-    void updateLightRefs()
-    {
-    }
 public:
     this(World w)
     {
@@ -91,13 +79,11 @@ public:
     override void onAddedToRoom(EntityRef* eref)
     {
         super.onAddedToRoom(eref);
-        updateLightRefs();
     }
     
     override void onRemovedFromRoom(EntityRef* eref)
     {
         super.onRemovedFromRoom(eref);
-        updateLightRefs();
     }
 }
 
