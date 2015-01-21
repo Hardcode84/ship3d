@@ -199,6 +199,7 @@
     <Compile Include="gamelib\memory\arrayview.d" />
     <Compile Include="gamelib\containers\queue.d" />
     <Compile Include="gamelib\containers\intrusivelist.d" />
+    <Compile Include="game\entities\lightref.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />

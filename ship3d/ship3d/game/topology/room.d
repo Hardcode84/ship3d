@@ -8,7 +8,10 @@ import gamelib.containers.intrusivelist;
 
 import game.units;
 import game.world;
+
 import game.entities.entity;
+import game.entities.lightref;
+
 import game.topology.polygon;
 import game.topology.entityref;
 import game.renderer.light;
@@ -19,10 +22,13 @@ private:
     World       mWorld;
     Vertex[]    mVertices;
     Polygon[]   mPolygons;
-    Light[]     mLights;
 
     IntrusiveList!(EntityRef,"roomLink") mEntities;
-    bool             mNeedUdateEntities;
+    bool            mNeedUdateEntities = true;
+
+    Light[]     mLights;
+    IntrusiveList!(LightRef,"roomLink") mLightRefs;
+    bool            mNeedUpdateLights = true;
 public:
 //pure nothrow:
     this(World w, Vertex[] vertices, Polygon[] polygons)
@@ -41,12 +47,20 @@ public:
     }
 
     void invalidateEntities()                 { mNeedUdateEntities = true; }
+    void invalidateLights()                   { mNeedUpdateLights = true; }
     @property bool needUpdateEntities() const { return mNeedUdateEntities; }
     @property auto vertices()           inout { return mVertices[]; }
     @property auto polygons()           inout { return mPolygons[]; }
     @property world()                   inout { return mWorld; }
     @property lightController()         inout { return mWorld.lightController(); }
     @property lights()                  inout { return mLights[]; }
+
+    void addLight(LightRef* lref)
+    {
+        assert(lref !is null);
+        mLightRefs.insertBack(lref);
+        invalidateLights();
+    }
 
     void draw(RT, AT)(auto ref RT renderer, auto ref AT alloc, in vec3_t pos, in quat_t dir, in Entity srce, int depth) const
     {
@@ -148,6 +162,14 @@ public:
                 e.ent.onRemovedFromRoom(e);
                 world.erefAllocator.free(e);
             }
+        }
+    }
+
+    void updateLights()
+    {
+        if(mNeedUpdateLights)
+        {
+            mNeedUpdateLights = false;
         }
     }
 

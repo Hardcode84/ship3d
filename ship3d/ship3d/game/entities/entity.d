@@ -79,7 +79,7 @@ public:
         }
     }
 
-    final void onAddedToRoom(EntityRef* eref)
+    void onAddedToRoom(EntityRef* eref)
     {
         assert(!canFind(mConnections[], eref));
         assert(!eref.entityLink.isLinked);
@@ -88,7 +88,7 @@ public:
         assert(eref.entityLink.isLinked);
     }
 
-    final void onRemovedFromRoom(EntityRef* eref)
+    void onRemovedFromRoom(EntityRef* eref)
     {
         assert(canFind(mConnections[], eref));
         assert(eref.entityLink.isLinked);

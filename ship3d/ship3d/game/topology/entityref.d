@@ -24,6 +24,7 @@ struct EntityRef
     bool remove = false;
     IntrusiveListLink roomLink;
     IntrusiveListLink entityLink;
+    IntrusiveListLink lightLink;
 
     void updatePos(in vec3_t dpos)
     {

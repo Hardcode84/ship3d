@@ -1,5 +1,7 @@
 ﻿module game.renderer.light;
 
+import std.range;
+
 import game.units;
 
 struct Light
@@ -32,7 +34,7 @@ public:
         mPalette = palette;
     }
 
-    auto calcLight(in vec3_t pos, in vec3_t normal, in Light[] lights, int ambient) const
+    auto calcLight(LightRange)(in vec3_t pos, in vec3_t normal, in LightRange lights, int ambient) const if(isInputRange!LightRange)
     {
         int result = ambient;
         foreach(i,const ref l; lights[])

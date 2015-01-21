@@ -2,9 +2,12 @@
 
 public import game.entities.inertialentity;
 
+import game.entities.lightref;
+
+import game.topology.entityref;
+
 import game.units;
 import game.controls;
-
 import game.world;
 
 class Player : InertialEntity
@@ -34,6 +37,11 @@ private:
         e.tryVisit(&this.onKeyEvent,
                    &this.onCursorEvent,
                    () {});
+    }
+
+    LightRef[] mLightRefs;
+    void updateLightRefs()
+    {
     }
 public:
     this(World w)
@@ -78,6 +86,18 @@ public:
             rotate(quat_t.zrotation(rollSpeed));
         }
         super.update();
+    }
+
+    override void onAddedToRoom(EntityRef* eref)
+    {
+        super.onAddedToRoom(eref);
+        updateLightRefs();
+    }
+    
+    override void onRemovedFromRoom(EntityRef* eref)
+    {
+        super.onRemovedFromRoom(eref);
+        updateLightRefs();
     }
 }
 

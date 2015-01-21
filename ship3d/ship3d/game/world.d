@@ -120,6 +120,7 @@ public:
             range.popFront();
             if(!ent.isAlive)
             {
+                ent.dispose();
                 ent.worldLink.unlink();
             }
         }
@@ -144,6 +145,10 @@ public:
         foreach(e; mEntities[])
         {
             e.updatePos();
+        }
+        foreach(r; mRooms[])
+        {
+            r.updateLights();
         }
         return true;
     }
