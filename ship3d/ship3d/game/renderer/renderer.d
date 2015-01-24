@@ -3,7 +3,7 @@
 import std.traits;
 import std.algorithm;
 
-import game.memory.stackalloc;
+import gamelib.memory.stackalloc;
 
 import gamelib.types;
 

@@ -2,8 +2,6 @@
 
 public import game.entities.inertialentity;
 
-import game.entities.lightentity;
-
 import game.controls;
 
 class Player : InertialEntity
@@ -34,9 +32,6 @@ private:
                    &this.onCursorEvent,
                    () {});
     }
-
-    LightEntity mLight = null;
-
 public:
     this(World w)
     {
@@ -47,11 +42,6 @@ public:
     override void dispose()
     {
         world.removeInputListener(&this.onInputEvent);
-        if(mLight !is null)
-        {
-            mLight.kill();
-            mLight = null;
-        }
     }
 
     override void update()
@@ -84,16 +74,12 @@ public:
         {
             rotate(quat_t.zrotation(rollSpeed));
         }
-        assert(mLight !is null);
-        mLight.move(speed);
         super.update();
     }
 
     override void onAddedToWorld(Room room, in vec3_t pos, in quat_t dir) 
     {
         super.onAddedToWorld(room, pos, dir);
-        assert(mLight is null);
-        mLight = world.createEntity!LightEntity(room, pos, dir);
     }
 
     override void onAddedToRoom(EntityRef* eref)

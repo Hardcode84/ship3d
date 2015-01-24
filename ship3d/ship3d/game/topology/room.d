@@ -13,6 +13,8 @@ import game.entities.entity;
 
 import game.topology.polygon;
 import game.topology.entityref;
+import game.topology.lightref;
+import game.topology.refalloc;
 import game.renderer.light;
 
 final class Room
@@ -26,7 +28,7 @@ private:
     bool            mNeedUdateEntities = true;
 
     Light[]     mLights;
-    IntrusiveList!(EntityRef,"roomLightLink") mLightRefs;
+    //IntrusiveList!(EntityRef,"roomLightLink") mLightRefs;
     bool            mNeedUpdateLights = true;
 public:
 //pure nothrow:
@@ -42,7 +44,7 @@ public:
             p.calcPlanes();
         }
         calcAdjacent();
-        //mLights = [Light(vec3_t(1,0,0),7)];
+        mLights = [Light(vec3_t(1,0,0),7)];
     }
 
     void invalidateEntities()                 { mNeedUdateEntities = true; }
@@ -54,12 +56,12 @@ public:
     @property lightController()         inout { return mWorld.lightController(); }
     @property lights()                  inout { return mLights[]; }
 
-    void addLight(EntityRef* lref)
+    /*void addLight(EntityRef* lref)
     {
         assert(lref !is null);
         mLightRefs.insertBack(lref);
         invalidateLights();
-    }
+    }*/
 
     void draw(RT, AT)(auto ref RT renderer, auto ref AT alloc, in vec3_t pos, in quat_t dir, in Entity srce, int depth) const
     {
@@ -104,7 +106,7 @@ public:
     package void addEntity(Entity e, in vec3_t epos, in quat_t edir, in Room src)
     {
         assert(e !is null);
-        auto r = world.erefAllocator.allocate();
+        auto r = world.refAllocator.allocate!EntityRef();
         r.room = this;
         r.ent = e;
         r.pos = epos;
@@ -159,7 +161,7 @@ public:
             if(e.remove || !entity.isAlive)
             {
                 e.ent.onRemovedFromRoom(e);
-                world.erefAllocator.free(e);
+                world.refAllocator.free(e);
             }
         }
     }
@@ -168,13 +170,13 @@ public:
     {
         if(mNeedUpdateLights)
         {
-            mLights.length = 0;
-            foreach(r;mLightRefs[])
+            //wmLights.length = 0;
+            /*foreach(r;mLightRefs[])
             {
                 auto lent = r.lightEnt;
                 assert(lent !is null);
                 mLights ~= Light(lent.pos, lent.color); 
-            }
+            }*/
             mNeedUpdateLights = false;
         }
     }

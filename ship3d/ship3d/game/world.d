@@ -18,11 +18,11 @@ import game.renderer.spanmask;
 import game.renderer.light;
 
 import game.topology.room;
-import game.topology.entityref;
+import game.topology.refalloc;
 import game.entities.player;
 import game.generators.worldgen;
 
-import game.memory.stackalloc;
+import gamelib.memory.stackalloc;
 
 final class World
 {
@@ -37,7 +37,7 @@ private:
     Player   mPlayer;
 
     StackAlloc mAllocator;
-    EntityRefAllocator mERefAlloc;
+    RefAllocator mRefAlloc;
 
     struct OutContext
     {
@@ -57,7 +57,7 @@ private:
 public:
 //pure nothrow:
     @property allocator()       inout { return mAllocator; }
-    @property erefAllocator()   inout { return mERefAlloc; }
+    @property refAllocator()    inout { return mRefAlloc; }
     @property lightController() inout { return mLightController; }
     @property lightPalette(light_palette_t pal) { mLightController = new LightController(pal); }
 
@@ -65,7 +65,7 @@ public:
     this(in Size sz, uint seed)
     {
         mAllocator = new StackAlloc(0xFFFFFF);
-        mERefAlloc = new EntityRefAllocator(0xFF);
+        mRefAlloc =  new RefAllocator(0xFF);
         mSize = sz;
         mProjMat = mat4_t.perspective(sz.w,sz.h,90,0.1,1000);
         mRooms = generateWorld(this, seed);

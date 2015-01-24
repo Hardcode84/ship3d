@@ -7,7 +7,6 @@ import game.units;
 
 import game.topology.room;
 import game.entities.entity;
-import game.entities.lightentity;
 
 struct EntityRef
 {
@@ -15,10 +14,9 @@ struct EntityRef
     union
     {
         Room room;
-        package EntityRef* prev; //for allocator
+        EntityRef* prev; //for allocator
     }
     Entity ent;
-    LightEntity lightEnt;
     vec3_t pos = vec3_t(0,0,0);
     quat_t dir = quat_t.identity;
     bool inside = true;
@@ -26,7 +24,6 @@ struct EntityRef
     bool remove = false;
     IntrusiveListLink roomLink;
     IntrusiveListLink entityLink;
-    IntrusiveListLink roomLightLink;
 
     void updatePos(in vec3_t dpos)
     {
@@ -34,7 +31,7 @@ struct EntityRef
         room.updateEntityPos(&this, dpos);
     }
 }
-
+/*
 final class EntityRefAllocator
 {
 pure nothrow:
@@ -75,3 +72,4 @@ public:
         mLast = ptr;
     }
 }
+*/
