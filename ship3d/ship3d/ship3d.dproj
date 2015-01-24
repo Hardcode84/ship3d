@@ -199,8 +199,9 @@
     <Compile Include="gamelib\memory\arrayview.d" />
     <Compile Include="gamelib\containers\queue.d" />
     <Compile Include="gamelib\containers\intrusivelist.d" />
-    <Compile Include="game\entities\lightref.d" />
     <Compile Include="game\entities\lightentity.d" />
+    <Compile Include="gamelib\memory\stackalloc.d" />
+    <Compile Include="gamelib\memory\poolalloc.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />

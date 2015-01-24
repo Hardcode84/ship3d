@@ -15,6 +15,8 @@ public:
         super(w);
     }
 
+    final @property speed() const { return mSpeed; }
+
     override void update()
     {
         move(mSpeed);

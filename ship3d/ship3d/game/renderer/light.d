@@ -10,9 +10,9 @@ struct Light
 pure nothrow:
 private:
     vec3_t mPos;
-    int mColorInd;
+    LightColorT mColorInd;
 public:
-    this(in vec3_t pos, int colorInd)
+    this(in vec3_t pos, LightColorT colorInd)
     {
         mPos = pos;
         mColorInd = colorInd;
@@ -34,9 +34,9 @@ public:
         mPalette = palette;
     }
 
-    auto calcLight(LightRange)(in vec3_t pos, in vec3_t normal, in LightRange lights, int ambient) const if(isInputRange!LightRange)
+    auto calcLight(LightRange)(in vec3_t pos, in vec3_t normal, in LightRange lights, LightColorT ambient) const if(isInputRange!LightRange)
     {
-        int result = ambient;
+        LightColorT result = ambient;
         foreach(i,const ref l; lights[])
         {
             const dpos = l.pos - pos;

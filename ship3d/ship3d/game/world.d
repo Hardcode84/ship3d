@@ -69,8 +69,16 @@ public:
         mSize = sz;
         mProjMat = mat4_t.perspective(sz.w,sz.h,90,0.1,1000);
         mRooms = generateWorld(this, seed);
-        mPlayer = new Player(this);
-        addEntity(mPlayer, mRooms[0], vec3_t(0,0,0), quat_t.identity);
+        //mPlayer = new Player(this);
+        //addEntity(mPlayer, mRooms[0], vec3_t(0,0,0), quat_t.identity);
+        mPlayer = createEntity!Player(mRooms[0], vec3_t(0,0,0), quat_t.identity);
+    }
+
+    auto createEntity(E)(Room room, in vec3_t pos, in quat_t dir)
+    {
+        E ent = new E(this);
+        addEntity(ent, room, pos, dir);
+        return ent;
     }
 
     void addEntity(Entity e, Room room, in vec3_t pos, in quat_t dir)
@@ -79,6 +87,7 @@ public:
         assert(room !is null);
         room.addEntity(e, pos, dir);
         mEntities.insertBack(e);
+        e.onAddedToWorld(room, pos, dir);
     }
 
     void addInputListener(in InputListenerT listener)

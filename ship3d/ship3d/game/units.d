@@ -7,6 +7,7 @@ import game.renderer.palette;
 
 //alias ColorT = RGBA8888Color;
 alias ColorT = BGRA8888Color;
+alias LightColorT = int;
 
 alias pos_t = float;
 //alias pos_t = FixedPoint!(16,16,int);

@@ -15,7 +15,7 @@ abstract class Entity
 private:
     World        mWorld;
     bool         mIsAlive = true;
-    pos_t        mRadius = 5;
+    immutable pos_t mRadius;
     vec3_t       mRefPos = vec3_t(0,0,0);
     vec3_t       mPosDelta = vec3_t(0,0,0);
     quat_t       mRefDir = quat_t.identity;
@@ -23,10 +23,13 @@ private:
 public:
     IntrusiveListLink   worldLink;
 //pure nothrow:
-    this(World w)
+    this(World w, in pos_t radius = 5)
     {
         mWorld = w;
+        mRadius = radius;
     }
+
+    void kill() { mIsAlive = false; }
 
     void dispose() {}
 
@@ -78,6 +81,8 @@ public:
             c.dir *= rot;
         }
     }
+
+    void onAddedToWorld(Room room, in vec3_t pos, in quat_t dir) {}
 
     void onAddedToRoom(EntityRef* eref)
     {

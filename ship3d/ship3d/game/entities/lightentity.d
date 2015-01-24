@@ -1,33 +1,32 @@
-﻿module game.entities.LightEntity;
+﻿module game.entities.lightentity;
 
 import game.entities.entity;
-
-import game.entities.lightref;
 
 class LightEntity : Entity
 {
 public:
     this(World w)
     {
-        super(w);
-        mRadius = 20;
+        super(w, 20);
     }
+
+    @property LightColorT color() const { return mColor; }
 
     override void onAddedToRoom(EntityRef* eref)
     {
         super.onAddedToRoom(eref);
-        updateLightRefs();
+        eref.room.addLight(eref);
+        eref.lightEnt = this;
     }
     
     override void onRemovedFromRoom(EntityRef* eref)
     {
         super.onRemovedFromRoom(eref);
-        updateLightRefs();
+        eref.roomLightLink.unlink();
+        eref.lightEnt = null;
     }
 
 private:
-    void updateLightRefs()
-    {
-    }
+    LightColorT mColor = 7;
 }
 

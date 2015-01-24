@@ -10,7 +10,6 @@ import game.units;
 import game.world;
 
 import game.entities.entity;
-import game.entities.lightref;
 
 import game.topology.polygon;
 import game.topology.entityref;
@@ -27,7 +26,7 @@ private:
     bool            mNeedUdateEntities = true;
 
     Light[]     mLights;
-    IntrusiveList!(LightRef,"roomLink") mLightRefs;
+    IntrusiveList!(EntityRef,"roomLightLink") mLightRefs;
     bool            mNeedUpdateLights = true;
 public:
 //pure nothrow:
@@ -43,7 +42,7 @@ public:
             p.calcPlanes();
         }
         calcAdjacent();
-        mLights = [Light(vec3_t(1,0,0),7)];
+        //mLights = [Light(vec3_t(1,0,0),7)];
     }
 
     void invalidateEntities()                 { mNeedUdateEntities = true; }
@@ -55,7 +54,7 @@ public:
     @property lightController()         inout { return mWorld.lightController(); }
     @property lights()                  inout { return mLights[]; }
 
-    void addLight(LightRef* lref)
+    void addLight(EntityRef* lref)
     {
         assert(lref !is null);
         mLightRefs.insertBack(lref);
@@ -169,6 +168,13 @@ public:
     {
         if(mNeedUpdateLights)
         {
+            mLights.length = 0;
+            foreach(r;mLightRefs[])
+            {
+                auto lent = r.lightEnt;
+                assert(lent !is null);
+                mLights ~= Light(lent.pos, lent.color); 
+            }
             mNeedUpdateLights = false;
         }
     }
