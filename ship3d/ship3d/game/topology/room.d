@@ -112,7 +112,6 @@ public:
 
     void updateEntities()
     {
-        //debugOut("updateEntities");
         scope(exit) mNeedUdateEntities = false;
         if(mEntities.empty) return;
         auto range = mEntities[];
@@ -122,9 +121,10 @@ public:
             auto entity = e.ent;
             if(entity.isAlive)
             {
-                const r = entity.radius() + 0.001f;
+                const r = entity.radius();
                 const oldPos = e.pos;
-                const newPos = oldPos + entity.posDelta * (entity.dir * e.dir.inverse);
+                const dir = (e.dir * entity.dir.inverse);
+                auto newPos = oldPos + entity.posDelta * dir;
 
                 //update position
                 auto dpos = vec3_t(0,0,0);
@@ -138,7 +138,9 @@ public:
                             vec3_t norm = void;
                             if(pl.checkCollision(oldPos, newPos, r, norm))
                             {
-                                dpos += norm * 1.001f;
+                                //debugOut(norm);
+                                newPos += norm;
+                                dpos += norm;
                                 moved = true;
                             }
                         }
@@ -146,7 +148,7 @@ public:
                 }
                 if(moved)
                 {
-                    entity.move(dpos * (entity.dir * e.dir.inverse));
+                    entity.move(dpos * dir.inverse);
                 }
             }
 
@@ -194,7 +196,6 @@ public:
 
     package void updateEntityPos(EntityRef* e, in vec3_t dpos)
     {
-        //debugOut("updateEntityPos");
         e.inside = true;
         e.correction = vec3_t(0,0,0);
         const r = e.ent.radius;

@@ -69,8 +69,6 @@ public:
         mSize = sz;
         mProjMat = mat4_t.perspective(sz.w,sz.h,90,0.1,1000);
         mRooms = generateWorld(this, seed);
-        //mPlayer = new Player(this);
-        //addEntity(mPlayer, mRooms[0], vec3_t(0,0,0), quat_t.identity);
         mPlayer = createEntity!Player(mRooms[0], vec3_t(0,0,0), quat_t.identity);
     }
 

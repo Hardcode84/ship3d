@@ -13,6 +13,9 @@ public import game.world;
 abstract class Entity
 {
 private:
+    enum NormalizeCounterMax = 50;
+    int mRotateNormalizeCounter = NormalizeCounterMax;
+
     World        mWorld;
     bool         mIsAlive = true;
     immutable pos_t mRadius;
@@ -76,10 +79,24 @@ public:
 
     final void rotate(in quat_t rot)
     {
-        mRefDir *= rot;
-        foreach(ref c; mConnections[])
+        if(0 == --mRotateNormalizeCounter)
         {
-            c.dir *= rot;
+            mRotateNormalizeCounter = NormalizeCounterMax;
+            mRefDir *= rot;
+            mRefDir.normalize;
+            foreach(ref c; mConnections[])
+            {
+                c.dir *= rot;
+                c.dir.normalize;
+            }
+        }
+        else
+        {
+            mRefDir *= rot;
+            foreach(ref c; mConnections[])
+            {
+                c.dir *= rot;
+            }
         }
     }
 
@@ -90,7 +107,7 @@ public:
         assert(!canFind(mConnections[], eref));
         assert(!eref.entityLink.isLinked);
         mConnections.insertFront(eref);
-        debugOut("added ", cast(const(void)*)eref.room, " ", mConnections[].count!(a => true));
+        debugOut("added ", mConnections[].count!(a => true), " ", cast(const(void)*)eref.room);
         assert(eref.entityLink.isLinked);
     }
 
@@ -99,6 +116,6 @@ public:
         assert(canFind(mConnections[], eref));
         assert(eref.entityLink.isLinked);
         eref.entityLink.unlink();
-        debugOut("removed ",mConnections[].count!(a => true));
+        debugOut("removed ", mConnections[].count!(a => true));
     }
 }

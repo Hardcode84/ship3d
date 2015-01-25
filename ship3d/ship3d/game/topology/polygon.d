@@ -81,9 +81,9 @@ public:
         assert(poly.planes.length == 1);
         const dir0 = quat_t.from_unit_vectors(-planes[0].normal,vec3_t(0,0,1));
         const dir1 = quat_t.from_unit_vectors(poly.planes[0].normal,vec3_t(0,0,1));
-        const dir3 = quat_t.axis_rotation(rot,poly.planes[0].normal);
+        const dir2 = quat_t.axis_rotation(rot,poly.planes[0].normal);
         const offset = (mCenterOffset * dir0 - poly.mCenterOffset * dir1) * dir1.inverse;
-        connect(poly, offset, (dir0.inverse * dir1 * dir3));
+        connect(poly, offset, (dir0.inverse * dir1 * dir2));
     }
 
     private void connect(Polygon* poly, in vec3_t pos, in quat_t dir)
@@ -93,10 +93,10 @@ public:
         assert(poly !is &this);
         mConnection            = poly;
         mConnectionOffset      = pos;
-        mConnectionDir         = dir;
+        mConnectionDir         = dir.normalized;
         poly.mConnection       = &this;
-        poly.mConnectionOffset = (-pos) * dir;
-        poly.mConnectionDir    = dir.inverse;
+        poly.mConnectionOffset = (-pos) * mConnectionDir;
+        poly.mConnectionDir    = dir.inverse.normalized;
     }
 
     void draw(RT,AT,VT)(auto ref RT renderer, auto ref AT alloc, in VT[] transformedVerts, in vec3_t pos, in quat_t dir, in Entity srce, int depth)

@@ -22,7 +22,13 @@ public:
         move(mSpeed);
         super.update();
         mSpeed *= 0.95f;
-        assert(mSpeed.magnitude_squared <= radius^^2);
+        assert(mSpeed.magnitude_squared <= radius^^2, debugConv(mSpeed.magnitude_squared));
+    }
+
+    override void updatePos()
+    {
+        //mSpeed = posDelta * 0.95f;
+        super.updatePos();
     }
 
 final:

@@ -41,8 +41,17 @@ private:
         }
 
         bool opEquals(in Edge e) const
+        out(result)
         {
-            const eps = 0.001f;
+            if(result)
+            {
+                enum eps = 0.001f;
+                assert(almost_equal(normal, e.normal, eps));
+            }
+        }
+        body
+        {
+            enum eps = 0.001f;
             return almost_equal(dx, e.dx, eps) &&
                    almost_equal(dy, e.dy, eps) &&
                    almost_equal(c,  e.c,  eps);
@@ -63,7 +72,7 @@ public:
     {
         mNormal = cross((v1.xyz - v0.xyz),(v2.xyz - v0.xyz)).normalized;
         mVec0   = (v1.xyz - v0.xyz).normalized;
-        mVec1   = cross(mNormal, mVec0);
+        mVec1   = cross(mNormal, mVec0).normalized;
         mD      = -dot(v0.xyz, mNormal);
         mEdges  = [
             Edge(project(v0.xyz), project(v1.xyz),cross(mNormal,(v1.xyz - v0.xyz))),
@@ -90,7 +99,7 @@ public:
 
     bool opEquals(in Plane p) const
     {
-        const eps = 0.001f;
+        enum eps = 0.001f;
         return almost_equal(mNormal.x, p.mNormal.x, eps) &&
                almost_equal(mNormal.y, p.mNormal.y, eps) &&
                almost_equal(mNormal.z, p.mNormal.z, eps) &&
@@ -138,12 +147,15 @@ public:
 
     bool checkCollision(in vec3_t oldPos, in vec3_t newPos, in pos_t size, out vec3_t norm) const
     {
+        enum ExtraPull = 0.001f;
         assert(!edges.empty);
         const newDist = distance(newPos);
         if(newDist > size) return false;
+
         foreach(const ref e; edges)
         {
-            if(e.val(project(newPos)) < -size) return false;
+            const dist = e.val(project(newPos));
+            if(dist < -size) return false;
         }
 
         const oldDist = distance(oldPos);
@@ -155,12 +167,14 @@ public:
                 if(edist < -size)
                 {
                     const neweDist = e.val(project(newPos));
-                    norm = -e.normal * (size + neweDist);
+                    norm = e.normal * (-neweDist - size - ExtraPull);
                     return true;
                 }
             }
+            debugOut(newDist," ",oldDist);
+            assert(false,"Unreachable");
         }
-        norm = normal * (size - newDist);
+        norm = normal * (size - newDist + ExtraPull);
         return true;
     }
 
