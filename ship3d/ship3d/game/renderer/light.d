@@ -28,6 +28,14 @@ final class LightController
 pure nothrow:
 private:
     const light_palette_t mPalette;
+    enum LightRadius = 100.0f;
+    enum ConstantsAtt = 1.0f;
+    enum LinearAtt = 2.0f / LightRadius;
+    enum QuadraticAtt = 1.0f / (LightRadius ^^ 2);
+    private static auto computeAttenuation(pos_t dist)
+    {
+        return 1.0f / (ConstantsAtt + LinearAtt * dist + QuadraticAtt * dist * dist);
+    }
 public:
     this(in light_palette_t palette)
     {
@@ -46,7 +54,7 @@ public:
             const ndl1 = ndl / dist;
             enum GradNum = 1 << LightBrightnessBits;
             enum Mask = GradNum - 1;
-            const val = cast(int)(((l.color & Mask)) * ndl1);
+            const val = cast(int)(((l.color & Mask)) * ndl1 * computeAttenuation(dist));
             assert(val >= 0,debugConv(val));
             assert(val < GradNum,debugConv(val));
             const col = val | (l.color & ~Mask);

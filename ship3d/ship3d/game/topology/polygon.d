@@ -42,15 +42,23 @@ public:
         mPlanes = createPlanes(vertices, indices);
     }
 
-    @property texture(texture_t t) { mTexture = t; }
-    @property isPortal()     const { return mConnection != null; }
-    @property indices()      inout { return mIndices[]; }
-    @property vertices()     inout { return room.vertices; }
-    @property room()         inout { return mRoom; }
-    @property room(Room r)         { mRoom = r; }
-    @property connection()   inout { return mConnection; }
-    @property planes()       inout { return mPlanes[]; }
-    @property adjacent()     inout { return mAdjacent[]; }
+    @property texture(texture_t t)     { mTexture = t; }
+    @property isPortal()         const { return mConnection != null; }
+    @property indices()          inout { return mIndices[]; }
+    @property vertices()         inout { return room.vertices; }
+    @property room()             inout { return mRoom; }
+    @property room(Room r)             { mRoom = r; }
+    @property connection()       inout { return mConnection; }
+    @property planes()           inout { return mPlanes[]; }
+    @property adjacent()         inout { return mAdjacent[]; }
+    @property connectionOffset() const { return mConnectionOffset; }
+    @property connectionDir()    const { return mConnectionDir; }
+
+    auto distance(in vec3_t pos) const
+    {
+        assert(planes.length == 1);
+        return planes[0].distance(pos);
+    }
 
     void addAdjacent(Polygon* poly)
     {
@@ -91,7 +99,7 @@ public:
         poly.mConnectionDir    = dir.inverse;
     }
 
-    void draw(RT,AT,VT)(auto ref RT renderer, auto ref AT alloc, in VT[] transformedVerts, in vec3_t pos, in quat_t dir, in Entity srce, int depth) const
+    void draw(RT,AT,VT)(auto ref RT renderer, auto ref AT alloc, in VT[] transformedVerts, in vec3_t pos, in quat_t dir, in Entity srce, int depth)
     {
         //debugOut("polygon.draw");
         if(isPortal)

@@ -155,10 +155,6 @@ public:
         {
             e.updatePos();
         }
-        foreach(r; mRooms[])
-        {
-            r.updateLights();
-        }
         return true;
     }
 
@@ -183,16 +179,15 @@ public:
         const mat = mProjMat;
         OutContext octx = {mSize, surf, clipRect, mat, SpanMask(mSize, mAllocator)};
         mRenderer.getState() = octx;
-        //debugOut("world.draw");
         drawPlayer(surf);
     }
 
     private void drawPlayer(SurfT surf)
     {
-        const playerCon  = mPlayer.mainConnection;
-        const playerRoom = playerCon.room;
-        const playerPos  = playerCon.pos + playerCon.correction;
-        const playerDir  = playerCon.dir;
+        auto playerCon  = mPlayer.mainConnection;
+        auto playerRoom = playerCon.room;
+        auto playerPos  = playerCon.pos + playerCon.correction;
+        auto playerDir  = playerCon.dir;
         enum MaxDepth = 16;
         playerRoom.draw(mRenderer, allocator(), playerPos, playerDir, mPlayer, MaxDepth);
     }

@@ -40,13 +40,14 @@ public:
     final @property dir()     const { return mRefDir; }
     final @property isAlive() const { return mIsAlive; }
 
-    final @property connections() inout
+    final @property connections()
     {
         assert(!mConnections.empty, "Connection list is empty");
+        pragma(msg,typeof(mConnections[]));
         return mConnections[];
     }
 
-    final @property mainConnection() inout
+    final @property mainConnection()
     {
         assert(connections[].canFind!(a => a.inside));
         return connections[].find!(a => a.inside).front;
@@ -88,7 +89,7 @@ public:
     {
         assert(!canFind(mConnections[], eref));
         assert(!eref.entityLink.isLinked);
-        mConnections.insertBack(eref);
+        mConnections.insertFront(eref);
         debugOut("added ", cast(const(void)*)eref.room, " ", mConnections[].count!(a => true));
         assert(eref.entityLink.isLinked);
     }

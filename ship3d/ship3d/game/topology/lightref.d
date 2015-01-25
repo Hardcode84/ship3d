@@ -3,11 +3,13 @@
 import gamelib.containers.intrusivelist;
 
 import game.units;
+import game.topology.room;
+import game.renderer.light;
 
 struct LightRef
 {
-    vec3_t pos;
-    LightColorT color;
+    Light light;
+    Room room;
     LightRef* prev; //for allocator
 
     IntrusiveListLink roomLink;

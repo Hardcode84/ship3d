@@ -31,7 +31,8 @@ alias palette_t = LightPalette!(ColorT,PaletteBits,LightPaletteBits);
 //alias palette_t = Palette!ColorT;
 alias texture_t = Texture!(BaseTexturePaletted!(ColorT,palette_t));
 //alias texture_t = Texture!(BaseTextureRGB!ColorT);
-enum LightUnitDist = 1;
+//enum LightUnitDist = 10;
+enum MaxLightDist = 200;
 
 
 struct Vertex

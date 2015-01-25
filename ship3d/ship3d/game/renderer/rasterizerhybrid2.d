@@ -35,7 +35,7 @@ private:
     @nogc:
         immutable PosT dx, dy, c;
 
-        this(VT,ST)(in VT v1, in VT v2, in VT v3, in ST size) 
+        this(VT,ST)(in VT v1, in VT v2, in VT v3, in ST size)
         {
             const x1 = v1.pos.x;
             const x2 = v2.pos.x;
@@ -322,7 +322,7 @@ private:
             }
             const lights = ctx.lights;
             const lightController = ctx.lightController;
-            const posDx = vec4(pack.refXplane.dx * Len,pack.refYplane.dx * Len,pack.refZplane.dx * Len,pack.wplane.dx);
+            const posDx = vec4(pack.refXplane.dx,pack.refYplane.dx,pack.refZplane.dx,pack.wplane.dx) * Len;
             foreach(ty;lightData.low..lightData.high)
             {
                 const row = lightData[ty];
@@ -810,7 +810,7 @@ private:
                     currX += dx * val;
                 }
 
-                @property x() const { return cast(int)(currX + 1.1f); }
+                @property x() const { return cast(int)(currX + 1.0f); }
             }
 
             Edge edges[3] = void;

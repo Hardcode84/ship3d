@@ -1,6 +1,13 @@
 ﻿module game.entities.player;
 
+import gamelib.containers.intrusivelist;
+
 public import game.entities.inertialentity;
+
+import game.topology.lightref;
+import game.topology.polygon;
+
+import game.renderer.light;
 
 import game.controls;
 
@@ -11,6 +18,9 @@ private:
     static assert(KeyActions.min >= 0);
     static assert(KeyActions.max < 0xff);
     bool mActState[KeyActions.max + 1] = false;
+
+    IntrusiveList!(LightRef,"entityLink") mLightRefs;
+
     void onKeyEvent(in ref KeyEvent e)
     {
         //debugOut(e.action);
@@ -90,6 +100,39 @@ public:
     override void onRemovedFromRoom(EntityRef* eref)
     {
         super.onRemovedFromRoom(eref);
+    }
+
+    override void updatePos()
+    {
+        super.updatePos();
+        auto range = mLightRefs[];
+        while(!range.empty)
+        {
+            auto r = range.front;
+            range.popFront;
+            r.room.removeLight(r);
+        }
+        assert(mLightRefs.empty);
+        auto con = mainConnection;
+        addLight(con.room, null, con.pos);
+    }
+
+    private void addLight(Room room, Polygon* srcpoly, in vec3_t pos)
+    {
+        assert(room !is null);
+        mLightRefs.insertFront(room.addLight(Light(pos, 7)));
+        foreach(ref p;room.polygons)
+        {
+            if(p.isPortal && &p !is srcpoly)
+            {
+                auto con = p.connection;
+                const newPos = (pos + con.connectionOffset) * con.connectionDir;
+                if(con.distance(newPos) > -MaxLightDist)
+                {
+                    addLight(con.room, con, newPos);
+                }
+            }
+        }
     }
 }
 

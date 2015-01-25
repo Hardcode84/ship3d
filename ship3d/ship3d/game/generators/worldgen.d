@@ -24,7 +24,7 @@ Room[] generateWorld(World world, uint seed)
 
     auto ret = appender!(Room[])();
 
-    /*auto room = generateRoom(rnd, world, vec3i(1,1,1));
+    /*auto room = generateRoom(rnd, world, vec3i(3,3,3));
     foreach(ref p; room.polygons)
     {
         p.texture = texgen.getTexture(TextureDesc(cast(ubyte)0));

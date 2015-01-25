@@ -27,8 +27,8 @@ private:
     IntrusiveList!(EntityRef,"roomLink") mEntities;
     bool            mNeedUdateEntities = true;
 
-    Light[]     mLights;
-    //IntrusiveList!(EntityRef,"roomLightLink") mLightRefs;
+    Light[]         mLights;
+    IntrusiveList!(LightRef,"roomLink") mLightRefs;
     bool            mNeedUpdateLights = true;
 public:
 //pure nothrow:
@@ -44,7 +44,7 @@ public:
             p.calcPlanes();
         }
         calcAdjacent();
-        mLights = [Light(vec3_t(1,0,0),7)];
+        //mLights = [Light(vec3_t(29,0,0),7)];
     }
 
     void invalidateEntities()                 { mNeedUdateEntities = true; }
@@ -56,16 +56,9 @@ public:
     @property lightController()         inout { return mWorld.lightController(); }
     @property lights()                  inout { return mLights[]; }
 
-    /*void addLight(EntityRef* lref)
+    void draw(RT, AT)(auto ref RT renderer, auto ref AT alloc, in vec3_t pos, in quat_t dir, in Entity srce, int depth)
     {
-        assert(lref !is null);
-        mLightRefs.insertBack(lref);
-        invalidateLights();
-    }*/
-
-    void draw(RT, AT)(auto ref RT renderer, auto ref AT alloc, in vec3_t pos, in quat_t dir, in Entity srce, int depth) const
-    {
-        //debugOut("Room.draw");
+        updateLights();//fuck const
         auto allocState = alloc.state;
         scope(exit) alloc.restoreState(allocState);
 
@@ -76,7 +69,7 @@ public:
         auto transformedVertices      = alloc.alloc!TransformedVertex(mVertices.length);
         auto transformedVerticesFlags = alloc.alloc!bool(mVertices.length);
         transformedVerticesFlags[] = false;
-        foreach(const ref p; mPolygons[])
+        foreach(ref p; mPolygons[])
         {
             foreach(ind; p.indices[])
             {
@@ -166,17 +159,35 @@ public:
         }
     }
 
+    auto addLight(in Light light)
+    {
+        auto lref = world.refAllocator.allocate!LightRef();
+        lref.light = light;
+        lref.room = this;
+        mLightRefs.insertFront(lref);
+        invalidateLights();
+        return lref;
+    }
+    void removeLight(LightRef* lref)
+    in
+    {
+        assert(lref !is null);
+    }
+    body
+    {
+        world.refAllocator.free(lref);
+        invalidateLights();
+    }
+
     void updateLights()
     {
         if(mNeedUpdateLights)
         {
-            //wmLights.length = 0;
-            /*foreach(r;mLightRefs[])
+            mLights.length = 0;
+            foreach(r;mLightRefs[])
             {
-                auto lent = r.lightEnt;
-                assert(lent !is null);
-                mLights ~= Light(lent.pos, lent.color); 
-            }*/
+                mLights ~= r.light;
+            }
             mNeedUpdateLights = false;
         }
     }
