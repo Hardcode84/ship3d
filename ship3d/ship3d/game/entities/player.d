@@ -18,12 +18,12 @@ private:
     static assert(KeyActions.min >= 0);
     static assert(KeyActions.max < 0xff);
     bool mActState[KeyActions.max + 1] = false;
+    pos_t mRollSpeed = 0.0f;
 
     IntrusiveList!(LightRef,"entityLink") mLightRefs;
 
     void onKeyEvent(in ref KeyEvent e)
     {
-        //debugOut(e.action);
         mActState[e.action] = e.pressed;
     }
 
@@ -75,15 +75,19 @@ public:
             accelerate(dir * strafeDir * vec3_t(0,0,-1.0f)*0.1f);
         }
 
-        enum rollSpeed = PI / 2 * 0.01f;
+        enum rollSpeed = PI / 2 * 0.001f;
         if(actState(KeyActions.ROLL_LEFT))
         {
-            rotate(quat_t.zrotation(-rollSpeed));
+            mRollSpeed -= rollSpeed;
+            //rotate(quat_t.zrotation(-rollSpeed));
         }
         else if(actState(KeyActions.ROLL_RIGHT))
         {
-            rotate(quat_t.zrotation(rollSpeed));
+            mRollSpeed += rollSpeed;
+            //rotate(quat_t.zrotation(rollSpeed));
         }
+        mRollSpeed *= 0.95f;
+        rotate(quat_t.zrotation(mRollSpeed));
         super.update();
     }
 

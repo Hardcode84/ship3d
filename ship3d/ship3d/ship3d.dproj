@@ -202,7 +202,7 @@
     <Compile Include="gamelib\memory\poolalloc.d" />
     <Compile Include="game\topology\lightref.d" />
     <Compile Include="game\topology\refalloc.d" />
-    <Compile Include="game\generators\lightmapgen.d" />
+    <Compile Include="game\generators\lightgen.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />
@@ -221,5 +221,6 @@
     <None Include="gamelib\3rdparty\DerelictUtil-master\.gitignore" />
     <None Include="gamelib\3rdparty\DerelictUtil-master\package.json" />
     <None Include="gamelib\3rdparty\DerelictUtil-master\README.md" />
+    <None Include="todo.txt" />
   </ItemGroup>
 </Project>

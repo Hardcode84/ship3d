@@ -10,12 +10,12 @@ import game.world;
 import game.topology.room;
 import game.topology.polygon;
 
-Room generateRoom(R)(auto ref R random, World world, in vec3i size)
+Room generateRoom(R)(auto ref R random, World world, in vec3i size, in pos_t unitLength)
 {
     assert(size.x > 0);
     assert(size.y > 0);
     assert(size.z > 0);
-    const pos_t unitLength = 30;
+    //const pos_t unitLength = 30;
 
     auto vertices = appender!(Vertex[])();
     auto polygons = appender!(Polygon[])();
@@ -29,6 +29,10 @@ Room generateRoom(R)(auto ref R random, World world, in vec3i size)
     int currInd = 0;
     foreach(k;TupleRange!(0,6))
     {
+        const type = [
+            PolygonType.Back,  PolygonType.Front,
+            PolygonType.Right, PolygonType.Left,
+            PolygonType.Down,  PolygonType.Up][k];
         const sizex = [size.x,size.x,size.z,size.z,size.x,size.x][k];
         const sizey = [size.y,size.y,size.y,size.y,size.z,size.z][k];
 
@@ -69,7 +73,7 @@ Room generateRoom(R)(auto ref R random, World world, in vec3i size)
                 const z = [zoffset          , -zoffset,
                           -zoffset - ju - u2,  zoffset + ju + u2,
                           -zoffset - iu - u2, -zoffset - iu - u2][k];
-                polygons.put(Polygon(indices, vec3_t(x,y,z)));
+                polygons.put(Polygon(indices, vec3_t(x,y,z), type));
             }
         }
 

@@ -11,6 +11,7 @@ import game.topology.polygon;
 
 import game.generators.roomgen;
 import game.generators.texturegen;
+import game.generators.lightgen;
 
 //pure nothrow:
 Room[] generateWorld(World world, uint seed)
@@ -39,7 +40,7 @@ Room[] generateWorld(World world, uint seed)
                 uniform(1,5,rnd),
                 uniform(1,5,rnd),
                 uniform(1,5,rnd));
-            auto room = generateRoom(rnd, world, size);
+            auto room = generateRoom(rnd, world, size, 50);
             foreach(ref p; room.polygons)
             {
                 p.texture = texgen.getTexture(TextureDesc(cast(ubyte)g));
@@ -56,6 +57,7 @@ Room[] generateWorld(World world, uint seed)
             ret.put(room);
         }
     }
+    generateLights(rnd, ret.data);
     return ret.data;
 }
 

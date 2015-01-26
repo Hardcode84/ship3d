@@ -55,8 +55,7 @@ public:
     @property world()                   inout { return mWorld; }
     @property lightController()         inout { return mWorld.lightController(); }
     @property lights()                  inout { return mLights[]; }
-    @property staticLights()            inout { return mStaticLights[]; }
-    @property staticLights(in Light[] l)      { mStaticLights = l.dup; }  
+    @property ref staticLights()        inout { return mStaticLights; }
 
     void draw(RT, AT)(auto ref RT renderer, auto ref AT alloc, in vec3_t pos, in quat_t dir, in Entity srce, int depth)
     {
