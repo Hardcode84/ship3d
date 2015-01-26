@@ -202,6 +202,7 @@
     <Compile Include="gamelib\memory\poolalloc.d" />
     <Compile Include="game\topology\lightref.d" />
     <Compile Include="game\topology\refalloc.d" />
+    <Compile Include="game\generators\lightmapgen.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />

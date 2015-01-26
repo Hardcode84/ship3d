@@ -20,13 +20,14 @@ import game.renderer.light;
 final class Room
 {
 private:
-    World       mWorld;
-    Vertex[]    mVertices;
-    Polygon[]   mPolygons;
+    World           mWorld;
+    Vertex[]        mVertices;
+    Polygon[]       mPolygons;
 
     IntrusiveList!(EntityRef,"roomLink") mEntities;
     bool            mNeedUdateEntities = true;
 
+    Light[]         mStaticLights;
     Light[]         mLights;
     IntrusiveList!(LightRef,"roomLink") mLightRefs;
     bool            mNeedUpdateLights = true;
@@ -44,17 +45,18 @@ public:
             p.calcPlanes();
         }
         calcAdjacent();
-        //mLights = [Light(vec3_t(29,0,0),7)];
     }
 
     void invalidateEntities()                 { mNeedUdateEntities = true; }
     void invalidateLights()                   { mNeedUpdateLights = true; }
-    @property bool needUpdateEntities() const { return mNeedUdateEntities; }
-    @property auto vertices()           inout { return mVertices[]; }
-    @property auto polygons()           inout { return mPolygons[]; }
+    @property needUpdateEntities()      const { return mNeedUdateEntities; }
+    @property vertices()                inout { return mVertices[]; }
+    @property polygons()                inout { return mPolygons[]; }
     @property world()                   inout { return mWorld; }
     @property lightController()         inout { return mWorld.lightController(); }
     @property lights()                  inout { return mLights[]; }
+    @property staticLights()            inout { return mStaticLights[]; }
+    @property staticLights(in Light[] l)      { mStaticLights = l.dup; }  
 
     void draw(RT, AT)(auto ref RT renderer, auto ref AT alloc, in vec3_t pos, in quat_t dir, in Entity srce, int depth)
     {
@@ -69,17 +71,28 @@ public:
         auto transformedVertices      = alloc.alloc!TransformedVertex(mVertices.length);
         auto transformedVerticesFlags = alloc.alloc!bool(mVertices.length);
         transformedVerticesFlags[] = false;
-        foreach(ref p; mPolygons[])
+        void drawPolygons(bool DynLights)()
         {
-            foreach(ind; p.indices[])
+            foreach(ref p; mPolygons[])
             {
-                if(!transformedVerticesFlags[ind])
+                foreach(ind; p.indices[])
                 {
-                    transformedVertices[ind] = transformVertex(mVertices[ind], mat);
-                    transformedVerticesFlags[ind] = true;
+                    if(!transformedVerticesFlags[ind])
+                    {
+                        transformedVertices[ind] = transformVertex(mVertices[ind], mat);
+                        transformedVerticesFlags[ind] = true;
+                    }
                 }
+                p.draw!DynLights(renderer, alloc, transformedVertices, pos, dir, srce, depth);
             }
-            p.draw(renderer, alloc, transformedVertices, pos, dir, srce, depth);
+        }
+        if(!lights.empty)
+        {
+            drawPolygons!true();
+        }
+        else
+        {
+            drawPolygons!false();
         }
 
         //sort entities

@@ -23,6 +23,7 @@ enum PaletteBits      = 6;
 enum LightPaletteBits = 6;
 enum LightColorBits   = 3;
 enum LightBrightnessBits = LightPaletteBits - LightColorBits;
+enum LightmapRes = 16;
 static assert(LightColorBits > 0);
 static assert(LightBrightnessBits > 0);
 
@@ -30,6 +31,7 @@ alias light_palette_t = Palette!(ColorT,LightPaletteBits, true,"+");
 alias palette_t = LightPalette!(ColorT,PaletteBits,LightPaletteBits);
 //alias palette_t = Palette!ColorT;
 alias texture_t = Texture!(BaseTexturePaletted!(ColorT,palette_t));
+alias lightmap_t = Texture!(BaseTextureRGB!byte);
 //alias texture_t = Texture!(BaseTextureRGB!ColorT);
 //enum LightUnitDist = 10;
 enum MaxLightDist = 200;

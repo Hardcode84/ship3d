@@ -12,9 +12,20 @@ import game.renderer.spanmask;
 import game.renderer.rasterizerhybrid2;
 import game.renderer.light;
 
+enum PolygonType
+{
+    Up,
+    Down,
+    Left,
+    Right,
+    Front,
+    Back
+}
+
 struct Polygon
 {
 private:
+    immutable PolygonType mType;
     immutable vec3_t    mCenterOffset;
     Room                mRoom = null;
     Plane[]             mPlanes;
@@ -23,10 +34,11 @@ private:
     quat_t              mConnectionDir;
     immutable(int)[]    mIndices;
     texture_t           mTexture = null;
+    lightmap_t          mLightmap = null;
     Polygon*[]          mAdjacent;
 public:
 //pure nothrow:
-    this(in int[] indices, in vec3_t centerOffset)
+    this(in int[] indices, in vec3_t centerOffset, in PolygonType type)
     {
         assert(indices.length > 0);
         assert(indices.length % 3 == 0);
@@ -43,6 +55,7 @@ public:
     }
 
     @property texture(texture_t t)     { mTexture = t; }
+    @property lightmap(lightmap_t l)   { mLightmap = l; }
     @property isPortal()         const { return mConnection != null; }
     @property indices()          inout { return mIndices[]; }
     @property vertices()         inout { return room.vertices; }
@@ -99,7 +112,7 @@ public:
         poly.mConnectionDir    = dir.inverse.normalized;
     }
 
-    void draw(RT,AT,VT)(auto ref RT renderer, auto ref AT alloc, in VT[] transformedVerts, in vec3_t pos, in quat_t dir, in Entity srce, int depth)
+    void draw(bool DynLights, RT,AT,VT)(auto ref RT renderer, auto ref AT alloc, in VT[] transformedVerts, in vec3_t pos, in quat_t dir, in Entity srce, int depth)
     {
         //debugOut("polygon.draw");
         if(isPortal)
@@ -141,12 +154,22 @@ public:
             struct Context2
             {
                 const texture_t texture;
-                const Light[] lights;
+                static if(DynLights)
+                {
+                    const Light[] lights;
+                }
                 const LightController lightController;
             }
             assert(mTexture !is null);
-            Context2 ctx = {texture: mTexture, lights: room.lights, lightController: room.lightController};
-            alias RastT2 = RasterizerHybrid2!(true,false,true,true);
+            static if(DynLights)
+            {
+                Context2 ctx = {texture: mTexture, lights: room.lights, lightController: room.lightController};
+            }
+            else
+            {
+                Context2 ctx = {texture: mTexture, lightController: room.lightController};
+            }
+            alias RastT2 = RasterizerHybrid2!(true,false,true,DynLights);
             renderer.drawIndexedTriangle!RastT2(alloc, ctx, transformedVerts[], mIndices[]);
         }
     }
