@@ -156,10 +156,9 @@ private:
         {
             windowFlags |= SDL_WINDOW_FULLSCREEN;
         }
-        mWindow = new Window("game",mWidth,mHeight, windowFlags);
-        initWindowSurface();
-
         mWorld = new World(Size(mWidth,mHeight),seed);
+        mWindow = new Window("game", mWidth, mHeight, windowFlags);
+        initWindowSurface();
         mControls = new Controls(cSettings, &mWorld.onInputEvent);
         mixin SDL_CHECK!(`SDL_SetRelativeMouseMode(true)`);
     }

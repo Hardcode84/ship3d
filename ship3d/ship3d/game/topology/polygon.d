@@ -29,15 +29,17 @@ private:
     immutable PolygonType mType;
     immutable vec3_t    mCenterOffset;
     Room                mRoom = null;
-    Plane[]             mPlanes;
-    Polygon*            mConnection = null;
-    vec3_t              mConnectionOffset;
-    quat_t              mConnectionDir;
     immutable(int)[]    mIndices;
+    Plane[]             mPlanes;
+
     immutable(int)[]    mConnectionIndices;
     texture_t           mTexture = null;
     lightmap_t          mLightmap = null;
     Polygon*[]          mAdjacent;
+
+    Polygon*            mConnection = null;
+    vec3_t              mConnectionOffset;
+    quat_t              mConnectionDir;
     Polygon*[]          mConnectionAdjacent;
 public:
 //pure nothrow:
@@ -45,6 +47,7 @@ public:
     {
         assert(indices.length > 0);
         assert(indices.length % 3 == 0);
+        mType = type;
         mCenterOffset = centerOffset;
         mIndices = indices.idup;
     }
@@ -57,19 +60,21 @@ public:
         mPlanes = createPlanes(vertices, indices);
     }
 
-    @property texture(texture_t t)     { mTexture = t; }
-    @property lightmap(lightmap_t l)   { mLightmap = l; }
-    @property isPortal()         const { return mConnection != null; }
-    @property indices()          inout { return mIndices[]; }
-    @property vertices()         inout { return room.vertices; }
-    @property polyVertices()     const { return indices[].map!(a => vertices[a]); }
-    @property room()             inout { return mRoom; }
-    @property room(Room r)             { mRoom = r; }
-    @property connection()       inout { return mConnection; }
-    @property planes()           inout { return mPlanes[]; }
-    @property adjacent()         inout { return mAdjacent[]; }
-    @property connectionOffset() const { return mConnectionOffset; }
-    @property connectionDir()    const { return mConnectionDir; }
+    @property type()                const { return mType; }
+    @property texture(texture_t t)        { mTexture = t; }
+    @property lightmap(lightmap_t l)      { mLightmap = l; }
+    @property isPortal()            const { return mConnection != null; }
+    @property indices()             inout { return mIndices[]; }
+    @property vertices()            inout { return room.vertices; }
+    @property polyVertices()        const { return indices[].map!(a => vertices[a]); }
+    @property room()                inout { return mRoom; }
+    @property room(Room r)                { mRoom = r; }
+    @property connection()          inout { return mConnection; }
+    @property planes()              inout { return mPlanes[]; }
+    @property adjacent()            inout { return mAdjacent[]; }
+    @property connectionAdjacent()  inout { return mConnectionAdjacent[]; }
+    @property connectionOffset()    const { return mConnectionOffset; }
+    @property connectionDir()       const { return mConnectionDir; }
 
     auto distance(in vec3_t pos) const
     {
@@ -122,6 +127,21 @@ public:
         poly.mConnectionDir    = dir.inverse.normalized;
         updateConnecionIndices();
         poly.updateConnecionIndices();
+        updateConnectionAdjacent();
+        poly.updateConnectionAdjacent();
+    }
+
+    void disconnect()
+    {
+        assert(isPortal);
+        connection.disconnectImpl();
+        disconnectImpl();
+    }
+
+    private void disconnectImpl()
+    {
+        mConnection = null;
+        mConnectionAdjacent.length = 0;
     }
 
     private void updateConnecionIndices()
@@ -143,7 +163,7 @@ public:
                     continue outer;
                 }
             }
-            assert(false);
+            assert(false, "Cannot find adjacent point");
         }
         mConnectionIndices = newInd.idup;
     }
@@ -154,18 +174,24 @@ public:
         assert(!adjacent.empty);
         auto con = connection;
         mConnectionAdjacent.length = adjacent.length;
-    outer: foreach(p1;adjacent[])
+        enum eps = 0.001f;
+    outer: foreach(i,p1;adjacent[])
         {
             foreach(p2;con.adjacent[])
             {
-
+                if(cartesianProduct(p1.polyVertices.map!(a => a.pos),p2.polyVertices.map!(a => transformFromPortal(a.pos)))
+                    .filter!(a => almost_equal(a[0],a[1],eps)).take(2).count == 2)
+                {
+                    mConnectionAdjacent[i] = p2;
+                    continue outer;
+                }
             }
+            assert(false, "Cannot find adjacent polygon");
         }
     }
 
     void draw(bool DynLights, RT,AT,VT)(auto ref RT renderer, auto ref AT alloc, in VT[] transformedVerts, in vec3_t pos, in quat_t dir, in Entity srce, int depth)
     {
-        //debugOut("polygon.draw");
         if(isPortal)
         {
             if(depth > 0)

@@ -32,7 +32,6 @@ private:
     immutable Size mSize;
 
     Room[]   mRooms;
-    //Entity[] mEntities;
     IntrusiveList!(Entity,"worldLink") mEntities;
     Player   mPlayer;
 

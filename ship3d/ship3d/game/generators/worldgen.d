@@ -1,5 +1,6 @@
 ﻿module game.generators.worldgen;
 
+import std.stdio;
 import std.array;
 import std.random;
 import std.algorithm;
@@ -16,6 +17,8 @@ import game.generators.lightgen;
 //pure nothrow:
 Room[] generateWorld(World world, uint seed)
 {
+    writeln("generateWorld");
+    scope(exit) writeln("generateWorld done");
     Random rnd = seed;
     TextureGen texgen = seed;
     world.lightPalette = texgen.lightPalette;
@@ -23,6 +26,7 @@ Room[] generateWorld(World world, uint seed)
     enum numGenerations = 7;
     enum numRooms = 10;
 
+    writeln("create rooms");
     auto ret = appender!(Room[])();
 
     /*auto room = generateRoom(rnd, world, vec3i(3,3,3));
@@ -52,11 +56,22 @@ Room[] generateWorld(World world, uint seed)
                 auto polys2 = polygonsForPortals(room).array;
                 assert(!polys1.empty);
                 assert(!polys2.empty);
-                polys1[uniform(0,polys1.length,rnd)].connect(polys2[uniform(0,polys2.length,rnd)]);
+                //polys1[uniform(0,polys1.length,rnd)].connect(polys2[uniform(0,polys2.length,rnd)]);
+                auto arr = cartesianProduct(polys1,polys2).filter!(a => isCompatiblePolygons(a[0],a[1])).array;
+                if(arr.empty)
+                {
+                    assert(false,"Unable to connect rooms");
+                }
+                auto res = arr[uniform(0,arr.length,rnd)];
+                res[0].connect(res[1]);
             }
+            write(".");
+            stdout.flush();
             ret.put(room);
         }
     }
+    writeln();
+    writeln("create rooms done");
     generateLights(rnd, ret.data);
     return ret.data;
 }
@@ -65,4 +80,28 @@ private:
 auto polygonsForPortals(Room room)
 {
     return room.polygons.map!((ref a) => &a).filter!(a => (!a.isPortal && a.adjacent.all!(a => !a.isPortal)));
+}
+
+bool isCompatiblePolygons(Polygon* poly1, Polygon* poly2)
+{
+    assert(poly1 !is null);
+    assert(poly2 !is null);
+    return (poly1.type == PolygonType.Front && poly2.type == PolygonType.Back) ||
+           (poly1.type == PolygonType.Back  && poly2.type == PolygonType.Front) ||
+           (poly1.type == PolygonType.Up    && poly2.type == PolygonType.Down) ||
+           (poly1.type == PolygonType.Down  && poly2.type == PolygonType.Up) ||
+           (poly1.type == PolygonType.Left  && poly2.type == PolygonType.Right) ||
+           (poly1.type == PolygonType.Right && poly2.type == PolygonType.Left);
+}
+
+bool checkNormals(Polygon* poly)
+{
+    assert(poly !is null);
+    assert(poly.isPortal);
+    enum eps = 0.001f;
+    return zip(poly.adjacent[],poly.connectionAdjacent[])
+        .all!(a => !almost_equal(
+                (a[0].planes[0].normal * poly.connectionDir).normalized,
+                (-a[1].planes[0].normal),
+                eps));
 }
