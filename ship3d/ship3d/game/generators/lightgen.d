@@ -44,7 +44,7 @@ void generateLights(R)(auto ref R rnd, Room[] rooms)
                 if(p.isPortal && &p !is srcpoly)
                 {
                     auto con = p.connection;
-                    const newPos = (pos + con.connectionOffset) * con.connectionDir;
+                    const newPos = con.transformFromPortal(pos);
                     if(con.distance(newPos) > -MaxLightDist)
                     {
                         addLight(con.room, con, newPos, color);

@@ -130,7 +130,7 @@ public:
             if(p.isPortal && &p !is srcpoly)
             {
                 auto con = p.connection;
-                const newPos = (pos + con.connectionOffset) * con.connectionDir;
+                const newPos = con.transformFromPortal(pos);
                 if(con.distance(newPos) > -MaxLightDist)
                 {
                     addLight(con.room, con, newPos);
