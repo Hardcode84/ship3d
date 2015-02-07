@@ -56,7 +56,6 @@ Room[] generateWorld(World world, uint seed)
                 auto polys2 = polygonsForPortals(room).array;
                 assert(!polys1.empty);
                 assert(!polys2.empty);
-                //polys1[uniform(0,polys1.length,rnd)].connect(polys2[uniform(0,polys2.length,rnd)]);
                 auto arr = cartesianProduct(polys1,polys2).filter!(a => isCompatiblePolygons(a[0],a[1])).array;
                 if(arr.empty)
                 {

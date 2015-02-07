@@ -179,8 +179,8 @@
     <Compile Include="game\topology\room.d" />
     <Compile Include="game\entities\player.d" />
     <Compile Include="game\generators\worldgen.d" />
-    <Compile Include="game\generators\roomgen.d" />
     <Compile Include="game\generators\texturegen.d" />
+    <Compile Include="game\generators\roomgen.d" />
     <Compile Include="game\topology\entityref.d" />
     <Compile Include="gamelib\memory\intrusiveptr.d" />
     <Compile Include="gamelib\memory\memory.d" />
@@ -203,6 +203,7 @@
     <Compile Include="game\topology\lightref.d" />
     <Compile Include="game\topology\refalloc.d" />
     <Compile Include="game\generators\lightgen.d" />
+    <Compile Include="game\generators\texturegen\basetexgen.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />
@@ -212,6 +213,7 @@
     <Folder Include="game\generators\" />
     <Folder Include="gamelib\memory\" />
     <Folder Include="gamelib\containers\" />
+    <Folder Include="game\generators\texturegen\" />
   </ItemGroup>
   <ItemGroup>
     <None Include="gamelib\3rdparty\build.bat" />
