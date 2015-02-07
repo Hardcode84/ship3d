@@ -54,13 +54,11 @@ Room generateRoom(R)(auto ref R random, World world, in vec3i size, in pos_t uni
         {
             foreach(j;0..sizex)
             {
-                int[6] indices;
+                int[4] indices;
                 indices[0] = (currInd + (i + 0) * (sizex + 1) + j + 0);
                 indices[1] = (currInd + (i + 0) * (sizex + 1) + j + 1);
                 indices[2] = (currInd + (i + 1) * (sizex + 1) + j + 1);
-                indices[3] = (currInd + (i + 0) * (sizex + 1) + j + 0);
-                indices[4] = (currInd + (i + 1) * (sizex + 1) + j + 1);
-                indices[5] = (currInd + (i + 1) * (sizex + 1) + j + 0);
+                indices[3] = (currInd + (i + 1) * (sizex + 1) + j + 0);
 
                 const iu = i * u;
                 const ju = j * u;

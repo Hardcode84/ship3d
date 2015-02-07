@@ -62,11 +62,11 @@ private:
             return Edge(-dx, -dy, -c, -normal);
         }
     }
-    immutable vec3_t mNormal;
-    immutable vec3_t mVec0;
-    immutable vec3_t mVec1;
-    immutable pos_t  mD;
-    Edge[]           mEdges;
+    vec3_t mNormal;
+    vec3_t mVec0;
+    vec3_t mVec1;
+    pos_t  mD;
+    Edge[] mEdges;
 public:
     package this(V)(in V v0, in V v1, in V v2)
     {

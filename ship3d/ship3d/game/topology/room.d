@@ -145,16 +145,13 @@ public:
                 {
                     if(!p.isPortal)
                     {
-                        foreach(const ref pl; p.planes)
+                        vec3_t norm = void;
+                        if(p.plane.checkCollision(oldPos, newPos, r, norm))
                         {
-                            vec3_t norm = void;
-                            if(pl.checkCollision(oldPos, newPos, r, norm))
-                            {
-                                //debugOut(norm);
-                                newPos += norm;
-                                dpos += norm;
-                                moved = true;
-                            }
+                            //debugOut(norm);
+                            newPos += norm;
+                            dpos += norm;
+                            moved = true;
                         }
                     }
                 }
@@ -217,8 +214,7 @@ public:
         {
             if(p.isPortal)
             {
-                assert(1 == p.planes().length, debugConv(p.planes().length));
-                const pl = p.planes()[0];
+                const pl = p.plane;
 
                 const dist = pl.distance(newPos);
                 enum portalCorrection = 0.001f;

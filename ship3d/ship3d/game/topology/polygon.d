@@ -1,5 +1,6 @@
 ﻿module game.topology.polygon;
 
+import std.array;
 import std.algorithm;
 import std.range;
 
@@ -30,7 +31,8 @@ private:
     immutable vec3_t    mCenterOffset;
     Room                mRoom = null;
     immutable(int)[]    mIndices;
-    Plane[]             mPlanes;
+    immutable(int)[]    mTriangleIndices;
+    Plane               mPlane;
 
     immutable(int)[]    mConnectionIndices;
     texture_t           mTexture = null;
@@ -46,18 +48,21 @@ public:
     this(in int[] indices, in vec3_t centerOffset, in PolygonType type)
     {
         assert(indices.length > 0);
-        assert(indices.length % 3 == 0);
         mType = type;
         mCenterOffset = centerOffset;
         mIndices = indices.idup;
+        mTriangleIndices = chain(mIndices[0].only,iota(1,mIndices.length - 1).map!(a => mIndices[a..a + 2]).joiner(mIndices[0..1])).array;
+        assert(mTriangleIndices.length > 0);
+        assert(mTriangleIndices.length % 3 == 0);
     }
 
     package void calcPlanes()
     {
-        assert(mPlanes.length == 0);
         assert(room !is null);
-        assert(indices.length % 3 == 0);
-        mPlanes = createPlanes(vertices, indices);
+        assert(mTriangleIndices.length % 3 == 0);
+        auto planes = createPlanes(vertices, mTriangleIndices[]);
+        assert(planes.length == 1);
+        mPlane = planes[0];
     }
 
     @property type()                const { return mType; }
@@ -65,12 +70,13 @@ public:
     @property lightmap(lightmap_t l)      { mLightmap = l; }
     @property isPortal()            const { return mConnection != null; }
     @property indices()             inout { return mIndices[]; }
+    @property triangleIndices()     inout { return mTriangleIndices; }
     @property vertices()            inout { return room.vertices; }
     @property polyVertices()        const { return indices[].map!(a => vertices[a]); }
     @property room()                inout { return mRoom; }
     @property room(Room r)                { mRoom = r; }
     @property connection()          inout { return mConnection; }
-    @property planes()              inout { return mPlanes[]; }
+    @property plane()               const { return mPlane; }
     @property adjacent()            inout { return mAdjacent[]; }
     @property connectionAdjacent()  inout { return mConnectionAdjacent[]; }
     @property connectionOffset()    const { return mConnectionOffset; }
@@ -78,8 +84,7 @@ public:
 
     auto distance(in vec3_t pos) const
     {
-        assert(planes.length == 1);
-        return planes[0].distance(pos);
+        return plane.distance(pos);
     }
 
     package void addAdjacent(Polygon* poly)
@@ -105,11 +110,9 @@ public:
         assert(!isPortal);
         assert(!poly.isPortal);
         assert(poly !is null);
-        assert(planes.length == 1);
-        assert(poly.planes.length == 1);
-        const dir0 = quat_t.from_unit_vectors(-planes[0].normal,vec3_t(0,0,1));
-        const dir1 = quat_t.from_unit_vectors(poly.planes[0].normal,vec3_t(0,0,1));
-        const dir2 = quat_t.axis_rotation(rot,poly.planes[0].normal);
+        const dir0 = quat_t.from_unit_vectors(-plane.normal,vec3_t(0,0,1));
+        const dir1 = quat_t.from_unit_vectors(poly.plane.normal,vec3_t(0,0,1));
+        const dir2 = quat_t.axis_rotation(rot,poly.plane.normal);
         const offset = (mCenterOffset * dir0 - poly.mCenterOffset * dir1) * dir1.inverse;
         connect(poly, offset, (dir0.inverse * dir1 * dir2));
     }
@@ -199,9 +202,7 @@ public:
                 renderer.pushState();
                 scope(exit) renderer.popState();
                 bool drawPortal = false;
-
-                assert(1 == planes.length);
-                const pl = planes[0];
+                const pl = plane;
 
                 {
                     renderer.getState().dstMask = SpanMask(renderer.getState().size, alloc);
@@ -210,7 +211,7 @@ public:
                     struct Context1 {}
                     Context1 ctx;
                     alias RastT1 = RasterizerHybrid2!(false,true,true,false);
-                    renderer.drawIndexedTriangle!RastT1(alloc, ctx, transformedVerts[], mIndices[]);
+                    renderer.drawIndexedTriangle!RastT1(alloc, ctx, transformedVerts[], mTriangleIndices[]);
                     if(!renderer.getState().dstMask.isEmpty)
                     {
                         renderer.getState().mask = renderer.getState().dstMask;
@@ -218,10 +219,8 @@ public:
                     }
                 }
 
-                //debugOut(drawPortal);
                 if(drawPortal)
                 {
-                    //debugOut("draw port");
                     mConnection.room.draw(renderer, alloc, -mConnectionOffset, mConnectionDir.inverse, srce, depth - 1);
                 }
             }
@@ -247,7 +246,7 @@ public:
                 Context2 ctx = {texture: mTexture, lightController: room.lightController};
             }
             alias RastT2 = RasterizerHybrid2!(true,false,true,DynLights);
-            renderer.drawIndexedTriangle!RastT2(alloc, ctx, transformedVerts[], mIndices[]);
+            renderer.drawIndexedTriangle!RastT2(alloc, ctx, transformedVerts[], mTriangleIndices[]);
         }
     }
 }

@@ -46,7 +46,6 @@ public:
     final @property connections()
     {
         assert(!mConnections.empty, "Connection list is empty");
-        pragma(msg,typeof(mConnections[]));
         return mConnections[];
     }
 

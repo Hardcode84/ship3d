@@ -24,7 +24,7 @@ void generateLights(R)(auto ref R rnd, Room[] rooms)
             foreach(j;0..10000)
             {
                 const pos = vec3_t(zip(bbox[0][],bbox[1][]).map!(a => uniform!"()"(a[0],a[1],rnd)).array);
-                if(room.polygons[].map!(a => a.planes[]).joiner.all!(a => (a.distance(pos) > 0)))
+                if(room.polygons[].map!(a => a.plane).all!(a => (a.distance(pos) > 0)))
                 {
                     roomLights[room] ~= Light(pos, uniform(0, 1 << LightPaletteBits, rnd));
                     continue numlightsloop;

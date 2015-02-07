@@ -100,7 +100,7 @@ bool checkNormals(Polygon* poly)
     enum eps = 0.001f;
     return zip(poly.adjacent[],poly.connectionAdjacent[])
         .all!(a => !almost_equal(
-                (a[0].planes[0].normal * poly.connectionDir).normalized,
-                (-a[1].planes[0].normal),
+                (a[0].plane.normal * poly.connectionDir).normalized,
+                (-a[1].plane.normal),
                 eps));
 }
