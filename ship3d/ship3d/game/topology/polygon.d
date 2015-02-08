@@ -1,5 +1,6 @@
 ﻿module game.topology.polygon;
 
+import std.typecons;
 import std.array;
 import std.algorithm;
 import std.range;
@@ -40,6 +41,11 @@ private:
     texture_t           mTexture = null;
     lightmap_t          mLightmap = null;
     Polygon*[]          mAdjacent;
+    Tuple!(int,int)[]   mAdjacentIndices;
+    invariant
+    {
+        assert(mAdjacent.length == mAdjacentIndices.length);
+    }
 
     Polygon*            mConnection = null;
     vec3_t              mConnectionOffset;
@@ -81,6 +87,7 @@ public:
     @property connection()          inout { return mConnection; }
     @property plane()               const { return mPlane; }
     @property adjacentPolys()       inout { return mAdjacent[]; }
+    @property adjacenIndices()      inout { return mAdjacentIndices[]; }
     @property connectionAdjacent()  inout { return mConnectionAdjacent[]; }
     @property connectionOffset()    const { return mConnectionOffset; }
     @property connectionDir()       const { return mConnectionDir; }
@@ -90,10 +97,11 @@ public:
         return plane.distance(pos);
     }
 
-    package void addAdjacent(Polygon* poly)
+    package void addAdjacent(Polygon* poly, int i1, int i2)
     {
         assert(!canFind(adjacentPolys, poly));
         mAdjacent ~= poly;
+        mAdjacentIndices ~= tuple(i1,i2);
     }
 
     package void addEntity(Entity e, in vec3_t pos, in quat_t dir, in Room src)

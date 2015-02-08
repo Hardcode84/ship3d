@@ -255,14 +255,20 @@ public:
         loop1: foreach(ref p1; mPolygons[])
             {
                 if(&p0 == &p1) continue;
-                foreach(v0;p0.indices.cycle.adjacent.map!(a => tuple(vertices[a[0]],vertices[a[1]])).take(p0.indices.length))
+                foreach(i0;p0.indices.cycle.adjacent.take(p0.indices.length))
                 {
-                    foreach(v1;p1.indices.cycle.adjacent.map!(a => tuple(vertices[a[0]],vertices[a[1]])).take(p1.indices.length))
+                    const v0 = tuple(vertices[i0[0]],vertices[i0[1]]);
+                    foreach(i1;p1.indices.cycle.adjacent.take(p1.indices.length))
                     {
-                        if((almost_equal(v0[0].pos, v1[0].pos, eps) && almost_equal(v0[1].pos, v1[1].pos, eps)) ||
-                           (almost_equal(v0[0].pos, v1[1].pos, eps) && almost_equal(v0[1].pos, v1[0].pos, eps)))
+                        const v1 = tuple(vertices[i1[0]],vertices[i1[1]]);
+                        if(almost_equal(v0[0].pos, v1[0].pos, eps) && almost_equal(v0[1].pos, v1[1].pos, eps))
                         {
-                            p0.addAdjacent(&p1);
+                            p0.addAdjacent(&p1,i1[0],i1[1]);
+                            continue loop1;
+                        }
+                        if(almost_equal(v0[0].pos, v1[1].pos, eps) && almost_equal(v0[1].pos, v1[0].pos, eps))
+                        {
+                            p0.addAdjacent(&p1,i1[1],i1[0]);
                             continue loop1;
                         }
                     }
