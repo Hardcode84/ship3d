@@ -247,20 +247,16 @@ public:
 
     private void calcAdjacent()
     {
-        foreach(i,ref p0; mPolygons[])
+        foreach(ref p0; mPolygons[])
         {
-            const ind0 = p0.indices.dup.sort;
-        loop1: foreach(j,ref p1; mPolygons[])
+        loop1: foreach(ref p1; mPolygons[])
             {
-                if(i == j) continue;
+                if(&p0 == &p1) continue;
                 int same = 0;
-                const ind1 = p1.indices.dup.sort;
-                foreach(i0;ind0.uniq)
+                foreach(v0;p0.polyVertices)
                 {
-                    const v0 = vertices[i0];
-                    foreach(i1;ind1.uniq)
+                    foreach(v1;p1.polyVertices)
                     {
-                        const v1 = vertices[i1];
                         if(almost_equal(v0.pos, v1.pos))
                         {
                             ++same;
