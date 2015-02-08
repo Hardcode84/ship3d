@@ -1,9 +1,11 @@
 ﻿module game.topology.room;
 
+import std.typecons;
 import std.container;
 import std.range;
 import std.algorithm;
 
+import gamelib.range;
 import gamelib.containers.intrusivelist;
 
 import game.units;
@@ -253,19 +255,15 @@ public:
         loop1: foreach(ref p1; mPolygons[])
             {
                 if(&p0 == &p1) continue;
-                int same = 0;
-                foreach(v0;p0.polyVertices)
+                foreach(v0;p0.indices.cycle.adjacent.map!(a => tuple(vertices[a[0]],vertices[a[1]])).take(p0.indices.length))
                 {
-                    foreach(v1;p1.polyVertices)
+                    foreach(v1;p1.indices.cycle.adjacent.map!(a => tuple(vertices[a[0]],vertices[a[1]])).take(p1.indices.length))
                     {
-                        if(almost_equal(v0.pos, v1.pos, eps))
+                        if((almost_equal(v0[0].pos, v1[0].pos, eps) && almost_equal(v0[1].pos, v1[1].pos, eps)) ||
+                           (almost_equal(v0[0].pos, v1[1].pos, eps) && almost_equal(v0[1].pos, v1[0].pos, eps)))
                         {
-                            ++same;
-                            if(same >= 2)
-                            {
-                                p0.addAdjacent(&p1);
-                                continue loop1;
-                            }
+                            p0.addAdjacent(&p1);
+                            continue loop1;
                         }
                     }
                 }

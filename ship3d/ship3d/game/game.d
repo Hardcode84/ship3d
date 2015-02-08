@@ -132,7 +132,7 @@ private:
         import std.getopt;
         uint seed = unpredictableSeed;
         import std.stdio;
-        scope(exit) writeln("seed=",seed);
+        scope(success) writeln("seed=",seed);
         bool fullscreen = false;
         bool fullscreenDesktop = false;
         mWidth  = 800;

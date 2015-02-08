@@ -17,8 +17,8 @@ import game.generators.lightgen;
 //pure nothrow:
 Room[] generateWorld(World world, uint seed)
 {
-    writeln("generateWorld");
-    scope(exit) writeln("generateWorld done");
+    writeln("world");
+    scope(success) writeln("world done");
     Random rnd = seed;
     TextureGen texgen = seed;
     world.lightPalette = texgen.lightPalette;
@@ -26,7 +26,7 @@ Room[] generateWorld(World world, uint seed)
     enum numGenerations = 7;
     enum numRooms = 10;
 
-    writeln("create rooms");
+    writeln("rooms");
     auto ret = appender!(Room[])();
 
     /*auto room = generateRoom(rnd, world, vec3i(3,3,3));
@@ -70,7 +70,7 @@ Room[] generateWorld(World world, uint seed)
         }
     }
     writeln();
-    writeln("create rooms done");
+    writeln("rooms done");
     generateLights(rnd, ret.data);
     return ret.data;
 }
