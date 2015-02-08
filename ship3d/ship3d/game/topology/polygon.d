@@ -37,20 +37,21 @@ private:
     immutable(int)[]    mTriangleIndices;
     Plane               mPlane;
 
-    immutable(int)[]    mConnectionIndices;
     texture_t           mTexture = null;
     lightmap_t          mLightmap = null;
     Polygon*[]          mAdjacent;
     Tuple!(int,int)[]   mAdjacentIndices;
-    invariant
-    {
-        assert(mAdjacent.length == mAdjacentIndices.length);
-    }
 
     Polygon*            mConnection = null;
     vec3_t              mConnectionOffset;
     quat_t              mConnectionDir;
     Polygon*[]          mConnectionAdjacent;
+    immutable(int)[]    mConnectionIndices;
+
+    invariant
+    {
+        assert(mAdjacent.length == mAdjacentIndices.length);
+    }
 public:
 //pure nothrow:
     this(in int[] indices, in vec3_t centerOffset, in PolygonType type)
