@@ -78,7 +78,7 @@ Room[] generateWorld(World world, uint seed)
 private:
 auto polygonsForPortals(Room room)
 {
-    return room.polygons.map!((ref a) => &a).filter!(a => (!a.isPortal && a.adjacent.all!(a => !a.isPortal)));
+    return room.polygons.map!((ref a) => &a).filter!(a => (!a.isPortal && a.adjacentPolys.all!(a => !a.isPortal)));
 }
 
 bool isCompatiblePolygons(Polygon* poly1, Polygon* poly2)
@@ -98,7 +98,7 @@ bool checkNormals(Polygon* poly)
     assert(poly !is null);
     assert(poly.isPortal);
     enum eps = 0.001f;
-    return zip(poly.adjacent[],poly.connectionAdjacent[])
+    return zip(poly.adjacentPolys[],poly.connectionAdjacent[])
         .all!(a => !almost_equal(
                 (a[0].plane.normal * poly.connectionDir).normalized,
                 (-a[1].plane.normal),

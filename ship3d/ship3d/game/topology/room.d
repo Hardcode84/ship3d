@@ -247,6 +247,7 @@ public:
 
     private void calcAdjacent()
     {
+        enum eps = 0.001f;
         foreach(ref p0; mPolygons[])
         {
         loop1: foreach(ref p1; mPolygons[])
@@ -257,7 +258,7 @@ public:
                 {
                     foreach(v1;p1.polyVertices)
                     {
-                        if(almost_equal(v0.pos, v1.pos))
+                        if(almost_equal(v0.pos, v1.pos, eps))
                         {
                             ++same;
                             if(same >= 2)

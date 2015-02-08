@@ -4,6 +4,8 @@ import std.array;
 import std.algorithm;
 import std.range;
 
+import gamelib.range;
+
 import game.units;
 import game.topology.room;
 import game.topology.plane;
@@ -51,7 +53,8 @@ public:
         mType = type;
         mCenterOffset = centerOffset;
         mIndices = indices.idup;
-        mTriangleIndices = chain(mIndices[0].only,iota(1,mIndices.length - 1).map!(a => mIndices[a..a + 2]).joiner(mIndices[0..1])).array;
+        import std.exception;
+        mTriangleIndices = chain(indices[0].only, adjacent(indices.dropOne).map!(a => only(cast(int)a[0],a[1])).joiner(indices[0..1])).array.assumeUnique;
         assert(mTriangleIndices.length > 0);
         assert(mTriangleIndices.length % 3 == 0);
     }
@@ -77,7 +80,7 @@ public:
     @property room(Room r)                { mRoom = r; }
     @property connection()          inout { return mConnection; }
     @property plane()               const { return mPlane; }
-    @property adjacent()            inout { return mAdjacent[]; }
+    @property adjacentPolys()       inout { return mAdjacent[]; }
     @property connectionAdjacent()  inout { return mConnectionAdjacent[]; }
     @property connectionOffset()    const { return mConnectionOffset; }
     @property connectionDir()       const { return mConnectionDir; }
@@ -89,7 +92,7 @@ public:
 
     package void addAdjacent(Polygon* poly)
     {
-        assert(!canFind(adjacent, poly));
+        assert(!canFind(adjacentPolys, poly));
         mAdjacent ~= poly;
     }
 
@@ -119,7 +122,7 @@ public:
 
     private void connect(Polygon* poly, in vec3_t pos, in quat_t dir)
     {
-        assert(!canFind(adjacent, poly));
+        assert(!canFind(adjacentPolys, poly));
         assert(poly !is null);
         assert(poly !is &this);
         mConnection            = poly;
@@ -174,13 +177,13 @@ public:
     private void updateConnectionAdjacent()
     {
         assert(isPortal);
-        assert(!adjacent.empty);
+        assert(!adjacentPolys.empty);
         auto con = connection;
-        mConnectionAdjacent.length = adjacent.length;
+        mConnectionAdjacent.length = adjacentPolys.length;
         enum eps = 0.001f;
-    outer: foreach(i,p1;adjacent[])
+    outer: foreach(i,p1;adjacentPolys[])
         {
-            foreach(p2;con.adjacent[])
+            foreach(p2;con.adjacentPolys[])
             {
                 if(cartesianProduct(p1.polyVertices.map!(a => a.pos),p2.polyVertices.map!(a => transformFromPortal(a.pos)))
                     .filter!(a => almost_equal(a[0],a[1],eps)).take(2).count == 2)

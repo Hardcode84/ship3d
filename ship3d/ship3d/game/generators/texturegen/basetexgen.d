@@ -57,7 +57,7 @@ Poly[] createTopology(Room[] rooms)
     }
     foreach(ref p;ret[])
     {
-        foreach(a;p.src.adjacent)
+        foreach(a;p.src.adjacentPolys)
         {
             if(!a.isPortal)
             {

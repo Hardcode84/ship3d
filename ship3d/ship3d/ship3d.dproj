@@ -204,6 +204,7 @@
     <Compile Include="game\topology\refalloc.d" />
     <Compile Include="game\generators\lightgen.d" />
     <Compile Include="game\generators\texturegen\basetexgen.d" />
+    <Compile Include="gamelib\range.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />
