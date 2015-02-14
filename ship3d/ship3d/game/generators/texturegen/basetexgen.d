@@ -4,6 +4,8 @@ import std.array;
 import std.algorithm;
 import std.range;
 
+import gamelib.range;
+
 import game.units;
 import game.topology.room;
 import game.topology.polygon;
@@ -31,8 +33,7 @@ struct Poly
     {
         points = pts;
         src = p;
-        auto r = p.indices[].cycle;
-        edges = zip(r, r.dropOne).map!(a => Edge(&this,null,a[0],a[1],0,0)).take(p.indices[].length).array;
+        edges = p.indices[].cycle.adjacent.map!(a => Edge(&this,null,a[0],a[1],0,0)).take(p.indices[].length).array;
     }
     this(this)
     {
@@ -55,26 +56,28 @@ Poly[] createTopology(Room[] rooms)
     {
         mapping[p.src] = &p;
     }
-    foreach(ref p;ret[])
+    foreach(ref poly;ret[])
     {
-        foreach(a;p.src.adjacentPolys)
+        foreach(ref edge;poly.edges)
         {
-            if(!a.isPortal)
+            foreach(adjPoly,adjInd,adjSrcInd;lockstep(poly.src.adjacentPolys,poly.src.adjacentIndices,poly.src.adjacentSrcIndices))
             {
-            }
-            else
-            {
+                if(tuple(edge.i1,edge.i2) != adjSrcInd && tuple(edge.i2,edge.i1) != adjSrcInd) continue;
+                if(!adjPoly.isPortal)
+                {
+                    auto poly1 = mapping[adjPoly];
+                    assert(poly1 !is null);
+                    edge.connection = poly1.edges.map!((ref a) => &a).find!((a,b) => (tuple(a.i1,a.i2) == b || tuple(a.i2,a.i1) == b))(adjInd).front;
+                    edge.ci1 = adjInd[0];
+                    edge.ci2 = adjInd[1];
+                }
+                else
+                {
+                    assert(adjPoly.adjacentIndices.length == adjPoly.connectionIndices.length);
+                }
+                break;
             }
         }
     }
     return ret;
-}
-
-class BaseTexGen
-{
-public:
-    this()
-    {
-    }
-private:
 }

@@ -263,12 +263,12 @@ public:
                         const v1 = tuple(vertices[i1[0]],vertices[i1[1]]);
                         if(almost_equal(v0[0].pos, v1[0].pos, eps) && almost_equal(v0[1].pos, v1[1].pos, eps))
                         {
-                            p0.addAdjacent(&p1,i1[0],i1[1]);
+                            p0.addAdjacent(&p1,i0[0],i0[1],i1[0],i1[1]);
                             continue loop1;
                         }
                         if(almost_equal(v0[0].pos, v1[1].pos, eps) && almost_equal(v0[1].pos, v1[0].pos, eps))
                         {
-                            p0.addAdjacent(&p1,i1[1],i1[0]);
+                            p0.addAdjacent(&p1,i0[0],i0[1],i1[1],i1[0]);
                             continue loop1;
                         }
                     }

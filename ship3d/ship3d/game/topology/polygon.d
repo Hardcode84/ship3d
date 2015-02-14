@@ -4,6 +4,7 @@ import std.typecons;
 import std.array;
 import std.algorithm;
 import std.range;
+import std.exception;
 
 import gamelib.range;
 
@@ -40,17 +41,21 @@ private:
     texture_t           mTexture = null;
     lightmap_t          mLightmap = null;
     Polygon*[]          mAdjacent;
+    Tuple!(int,int)[]   mAdjacentSrcIndices;
     Tuple!(int,int)[]   mAdjacentIndices;
 
     Polygon*            mConnection = null;
     vec3_t              mConnectionOffset;
     quat_t              mConnectionDir;
     Polygon*[]          mConnectionAdjacent;
-    immutable(int)[]    mConnectionIndices;
+    Tuple!(int,int)[]   mConnectionIndices;
 
     invariant
     {
         assert(mAdjacent.length == mAdjacentIndices.length);
+        assert(mAdjacent.length == mAdjacentSrcIndices.length);
+        assert(mConnectionAdjacent.length == mConnectionIndices.length);
+        //assert(mConnection is null || (mAdjacent.length == mConnectionAdjacent.length && mAdjacentIndices == mConnectionIndices));
     }
 public:
 //pure nothrow:
@@ -60,7 +65,6 @@ public:
         mType = type;
         mCenterOffset = centerOffset;
         mIndices = indices.idup;
-        import std.exception;
         mTriangleIndices = chain(indices[0].only, adjacent(indices.dropOne).map!(a => only(cast(int)a[0],a[1])).joiner(indices[0..1])).array.assumeUnique;
         assert(mTriangleIndices.length > 0);
         assert(mTriangleIndices.length % 3 == 0);
@@ -88,20 +92,23 @@ public:
     @property connection()          inout { return mConnection; }
     @property plane()               const { return mPlane; }
     @property adjacentPolys()       inout { return mAdjacent[]; }
-    @property adjacenIndices()      inout { return mAdjacentIndices[]; }
+    @property adjacentIndices()     const { return mAdjacentIndices[]; }
+    @property adjacentSrcIndices()  const { return mAdjacentSrcIndices[]; }
     @property connectionAdjacent()  inout { return mConnectionAdjacent[]; }
     @property connectionOffset()    const { return mConnectionOffset; }
     @property connectionDir()       const { return mConnectionDir; }
+    @property connectionIndices()   const { return mConnectionIndices[]; }
 
     auto distance(in vec3_t pos) const
     {
         return plane.distance(pos);
     }
 
-    package void addAdjacent(Polygon* poly, int i1, int i2)
+    package void addAdjacent(Polygon* poly, int srci1, int srci2, int i1, int i2)
     {
         assert(!canFind(adjacentPolys, poly));
         mAdjacent ~= poly;
+        mAdjacentSrcIndices ~= tuple(srci1,srci2);
         mAdjacentIndices ~= tuple(i1,i2);
     }
 
@@ -180,7 +187,7 @@ public:
             }
             assert(false, "Cannot find adjacent point");
         }
-        mConnectionIndices = newInd.idup;
+        mConnectionIndices = newInd.cycle.adjacent.take(count).array;
     }
 
     private void updateConnectionAdjacent()
@@ -196,8 +203,8 @@ public:
             {
                 if(cartesianProduct(p1.polyVertices.map!(a => a.pos),p2.polyVertices.map!(a => transformFromPortal(a.pos)))
                     .filter!(a => almost_equal(a[0],a[1],eps)).take(2).count == 2)
-                {
                     mConnectionAdjacent[i] = p2;
+                {
                     continue outer;
                 }
             }
