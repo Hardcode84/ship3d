@@ -106,6 +106,7 @@ public:
 
     package void addAdjacent(Polygon* poly, int srci1, int srci2, int i1, int i2)
     {
+        assert(poly !is null);
         assert(!canFind(adjacentPolys, poly));
         mAdjacent ~= poly;
         mAdjacentSrcIndices ~= tuple(srci1,srci2);

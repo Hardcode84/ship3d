@@ -12,7 +12,7 @@ import game.topology.polygon;
 
 struct Point
 {
-    vec3_t pos;
+    //vec3_t pos;
     vec2_t tpos;
 }
 
@@ -47,7 +47,7 @@ Poly[] createTopology(Room[] rooms)
     app.reserve(rooms[].map!(a => a.polygons[]).joiner.filter!(a => !a.isPortal).count);
     foreach(room;rooms[])
     {
-        auto points = room.vertices[].map!(a => Point(a.pos,a.tpos)).array;
+        auto points = room.vertices[].map!(a => Point(/*a.pos,*/a.tpos)).array;
         app.put(room.polygons[].filter!(a => !a.isPortal).map!((ref a) => Poly(points,&a)));
     }
     auto ret = app.data;
@@ -74,6 +74,7 @@ Poly[] createTopology(Room[] rooms)
                 else
                 {
                     assert(adjPoly.adjacentIndices.length == adjPoly.connectionIndices.length);
+                    foreach(adjConPoly,adjSrcInd,adjInd;lockstep(adjPoly.connectionAdjacent,
                 }
                 break;
             }
