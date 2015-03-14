@@ -1,0 +1,3 @@
+[submodule "d-gamelib"]
+	path = d-gamelib
+	url = https://github.com/Hardcode84/d-gamelib.git
