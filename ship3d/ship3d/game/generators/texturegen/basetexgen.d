@@ -74,7 +74,7 @@ Poly[] createTopology(Room[] rooms)
                 else
                 {
                     assert(adjPoly.adjacentIndices.length == adjPoly.connectionIndices.length);
-                    foreach(adjConPoly,adjSrcInd,adjInd;lockstep(adjPoly.connectionAdjacent,
+                    //foreach(adjConPoly,adjSrcInd,adjInd;lockstep(adjPoly.connectionAdjacent,
                 }
                 break;
             }

@@ -54,7 +54,7 @@ private:
     {
         assert(mAdjacent.length == mAdjacentIndices.length);
         assert(mAdjacent.length == mAdjacentSrcIndices.length);
-        assert(mConnectionAdjacent.length == mConnectionIndices.length);
+        //assert(mConnectionAdjacent.length == mConnectionIndices.length);
         //assert(mConnection is null || (mAdjacent.length == mConnectionAdjacent.length && mAdjacentIndices == mConnectionIndices));
     }
 public:
@@ -149,8 +149,8 @@ public:
         poly.mConnectionOffset = (-pos) * mConnectionDir;
         poly.mConnectionDir    = dir.inverse.normalized;
         updateConnecionIndices();
-        poly.updateConnecionIndices();
         updateConnectionAdjacent();
+        poly.updateConnecionIndices();
         poly.updateConnectionAdjacent();
     }
 
