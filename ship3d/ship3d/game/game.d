@@ -160,7 +160,7 @@ private:
         mWindow = new Window("game", mWidth, mHeight, windowFlags);
         initWindowSurface();
         mControls = new Controls(cSettings, &mWorld.onInputEvent);
-        mixin SDL_CHECK!(`SDL_SetRelativeMouseMode(true)`);
+        sdlCheck!SDL_SetRelativeMouseMode(true);
     }
 
     void initWindowSurface()
