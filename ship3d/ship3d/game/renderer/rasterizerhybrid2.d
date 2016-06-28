@@ -648,8 +648,8 @@ private:
                     }
                     const x0 = findLeft();
                     const x1 = findRight();
-                    spanrange.spans[pt.curry].x0 = clamp(x0, leftBound, rightBound);
-                    spanrange.spans[pt.curry].x1 = clamp(x1, leftBound, rightBound);
+                    spanrange.spans[pt.curry].x0 = gamelib.math.clamp(x0, leftBound, rightBound);
+                    spanrange.spans[pt.curry].x1 = gamelib.math.clamp(x1, leftBound, rightBound);
                     return vec2i(x0, x1);
                 }
                 assert(false);
@@ -813,7 +813,7 @@ private:
                 @property x() const { return cast(int)(currX + 1.0f); }
             }
 
-            Edge edges[3] = void;
+            Edge[3] edges = void;
             bool revX = void;
             if(sortedPos[1].y < sortedPos[2].y)
             {

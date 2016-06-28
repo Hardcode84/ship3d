@@ -6,7 +6,7 @@ import std.array;
 import std.string;
 import std.functional;
 import std.range;
-import std.c.stdlib: alloca;
+import core.stdc.stdlib: alloca;
 
 import gamelib.util;
 import gamelib.graphics.graph;
@@ -698,7 +698,7 @@ private:
                 @property auto x() const { return cast(int)currX; }
             }
 
-            Edge edges[3] = void;
+            Edge[3] edges = void;
             if(sortedPos[1].y < sortedPos[2].y)
             {
                 edges[] = [

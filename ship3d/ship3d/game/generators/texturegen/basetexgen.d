@@ -3,6 +3,7 @@
 import std.array;
 import std.algorithm;
 import std.range;
+import std.typecons;
 
 import gamelib.range;
 

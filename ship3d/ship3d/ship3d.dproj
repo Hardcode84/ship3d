@@ -292,6 +292,9 @@
     <Compile Include="..\..\d-gamelib\gamelib\memory\utils.d">
       <Link>gamelib\memory\utils.d</Link>
     </Compile>
+    <Compile Include="..\..\..\tools\d-gamelib\gamelib\debugout.d">
+      <Link>gamelib\debugout.d</Link>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />

@@ -17,7 +17,7 @@ class Player : InertialEntity
 private:
     static assert(KeyActions.min >= 0);
     static assert(KeyActions.max < 0xff);
-    bool mActState[KeyActions.max + 1] = false;
+    bool[KeyActions.max + 1] mActState = false;
     pos_t mRollSpeed = 0.0f;
 
     IntrusiveList!(LightRef,"entityLink") mLightRefs;

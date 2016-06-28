@@ -6,7 +6,7 @@ import std.array;
 import std.string;
 import std.functional;
 import std.range;
-import std.c.stdlib: alloca;
+import core.stdc.stdlib: alloca;
 
 import gamelib.util;
 import gamelib.math;

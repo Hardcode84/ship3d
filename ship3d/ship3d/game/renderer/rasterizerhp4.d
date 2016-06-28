@@ -353,7 +353,7 @@ public:
         static if(HasColor)
         {
             alias ColT = Unqual!(typeof(VertT.color));
-            immutable ColT vcols[3] = [pverts[0].color,pverts[1].color,pverts[2].color];
+            immutable ColT[3] vcols = [pverts[0].color,pverts[1].color,pverts[2].color];
             auto calcColor(T)(in T[] bary) pure nothrow
                 in
             {

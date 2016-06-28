@@ -146,7 +146,7 @@ private:
                "sensx",                &cSettings.cursorSensX,
                "sensy",                &cSettings.cursorSensY);
         enforce(mWidth > 0 && mHeight > 0 && 0 == mWidth % 8 && 0 == mHeight % 8, "Invalid resolution");
-        mCore = new Core(true);
+        mCore = new Core();
         Uint32 windowFlags = 0;
         if(fullscreenDesktop)
         {
@@ -157,7 +157,7 @@ private:
             windowFlags |= SDL_WINDOW_FULLSCREEN;
         }
         mWorld = new World(Size(mWidth,mHeight),seed);
-        mWindow = new Window("game", mWidth, mHeight, windowFlags);
+        mWindow = new Window("game", Size(mWidth, mHeight), windowFlags);
         initWindowSurface();
         mControls = new Controls(cSettings, &mWorld.onInputEvent);
         sdlCheck!SDL_SetRelativeMouseMode(true);
@@ -166,7 +166,7 @@ private:
     void initWindowSurface()
     {
         assert(mWindow !is null);
-        mWindow.setSize(mWidth,mHeight);
+        mWindow.size = Size(mWidth,mHeight);
         if(mSurface !is null)
         {
             mSurface.dispose();
@@ -183,7 +183,7 @@ private:
             import std.stdio;
             writeln(e.msg);
             const s = mWindow.size;
-            mSurface = new FFSurface!ColorT(s.x, s.y);
+            mSurface = new FFSurface!ColorT(s.w, s.h);
         }
     }
 
@@ -242,3 +242,15 @@ private:
     mixin GenerateAutoDispose;
 }
 
+private class Core
+{
+    this()
+    {
+        initSDL(true, true);
+    }
+
+    void dispose()
+    {
+        deinitSDL();
+    }
+}
