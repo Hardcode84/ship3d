@@ -213,7 +213,7 @@ public:
         }
     }
 
-    void draw(bool DynLights, RT,AT,VT)(auto ref RT renderer, auto ref AT alloc, in VT[] transformedVerts, in vec3_t pos, in quat_t dir, in Entity srce, int depth)
+    void draw(bool DynLights, RT,AT,VT)(auto ref RT renderer, auto ref AT alloc, in VT[] transformedVerts, in vec3_t pos, in quat_t dir, in Entity srce, int depth) const
     {
         if(isPortal)
         {
@@ -225,16 +225,16 @@ public:
                 const pl = plane;
 
                 {
-                    renderer.getState().dstMask = SpanMask(renderer.getState().size, alloc);
-                    renderer.getState().dstMask.invalidate;
+                    renderer.state.dstMask = SpanMask(renderer.state.size, alloc);
+                    renderer.state.dstMask.invalidate;
                     //draw mask
                     struct Context1 {}
                     Context1 ctx;
                     alias RastT1 = RasterizerHybrid2!(false,true,true,false);
                     renderer.drawIndexedTriangle!RastT1(alloc, ctx, transformedVerts[], mTriangleIndices[]);
-                    if(!renderer.getState().dstMask.isEmpty)
+                    if(!renderer.state.dstMask.isEmpty)
                     {
-                        renderer.getState().mask = renderer.getState().dstMask;
+                        renderer.state.mask = renderer.state.dstMask;
                         drawPortal = true;
                     }
                 }

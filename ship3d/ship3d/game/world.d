@@ -1,6 +1,7 @@
 ﻿module game.world;
 
 import std.algorithm;
+import std.parallelism;
 
 import gamelib.graphics.surface;
 import gamelib.graphics.graph;
@@ -35,8 +36,14 @@ private:
     IntrusiveList!(Entity,"worldLink") mEntities;
     Player   mPlayer;
 
-    StackAlloc mAllocator;
+    TaskPool mTaskPool;
+    StackAlloc[] mAllocators;
     RefAllocator mRefAlloc;
+
+    enum ThreadTileSize = Size(320,240);
+    Rect[] mThreadTiles;
+
+    IntrusiveList!(Room,"worldUpdateLightsLink") mUpdateLightsList;
 
     struct OutContext
     {
@@ -48,22 +55,28 @@ private:
         SpanMask dstMask;
     }
     alias RendererT = Renderer!(OutContext,17);
-    RendererT mRenderer;
     LightController mLightController = null;
+    bool mMultithreadedRendering = false;
 
     alias InputListenerT = void delegate(in ref InputEvent);
     InputListenerT[] mInputListeners;
 public:
 //pure nothrow:
-    @property allocator()       inout { return mAllocator; }
-    @property refAllocator()    inout { return mRefAlloc; }
-    @property lightController() inout { return mLightController; }
-    @property lightPalette(light_palette_t pal) { mLightController = new LightController(pal); }
+    @property auto refAllocator()    inout { return mRefAlloc; }
+    @property auto lightController() inout { return mLightController; }
+    @property auto lightPalette(light_palette_t pal) { mLightController = new LightController(pal); }
+    @property auto ref updateLightslist() inout { return mUpdateLightsList; }
 
     alias SurfT  = FFSurface!ColorT;
     this(in Size sz, uint seed)
     {
-        mAllocator = new StackAlloc(0xFFFFFF);
+        mTaskPool = taskPool();
+        mAllocators.length = mTaskPool.size + 1;
+        foreach(ref alloc; mAllocators[])
+        {
+            alloc = new StackAlloc(0xFFFFFF);
+        }
+        createThreadTiles(sz);
         mRefAlloc =  new RefAllocator(0xFF);
         mSize = sz;
         mProjMat = mat4_t.perspective(sz.w,sz.h,90,0.1,1000);
@@ -157,6 +170,16 @@ public:
 
     void onInputEvent(in InputEvent evt)
     {
+        if(auto e = evt.peek!KeyEvent())
+        {
+            if(e.action == KeyActions.SWITCH_RENDERER && e.pressed)
+            {
+                mMultithreadedRendering = !mMultithreadedRendering;
+                import std.stdio;
+                writefln("Multithreaded rendering: %s", mMultithreadedRendering);
+            }
+        }
+
         foreach(l; mInputListeners[])
         {
             l(evt);
@@ -165,28 +188,76 @@ public:
 
     void draw(SurfT surf)
     {
-        auto allocState = mAllocator.state;
-        scope(exit) mAllocator.restoreState(allocState);
+        foreach(room; mUpdateLightsList)
+        {
+            room.updateLights();
+        }
+        mUpdateLightsList.clear();
 
         debug surf.fill(ColorBlue);
         surf.lock();
         scope(exit) surf.unlock();
 
-        const clipRect = Rect(0, 0, surf.width, surf.height);
-        const mat = mProjMat;
-        OutContext octx = {mSize, surf, clipRect, mat, SpanMask(mSize, mAllocator)};
-        mRenderer.getState() = octx;
-        drawPlayer(surf);
+        if(mMultithreadedRendering)
+        {
+            foreach(Rect tile; mTaskPool.parallel(mThreadTiles[], 1))
+            {
+                const workerIndex = mTaskPool.workerIndex;
+                assert(workerIndex >= 0);
+                assert(workerIndex < mAllocators.length);
+                auto allocator = mAllocators[workerIndex];
+                auto allocState = allocator.state;
+                scope(exit) allocator.restoreState(allocState);
+                const clipRect = tile;
+                const mat = mProjMat;
+                OutContext octx = {mSize, surf, clipRect, mat, SpanMask(mSize, allocator)};
+                RendererT renderer;
+                renderer.state = octx;
+                drawPlayer(renderer, allocator, surf);
+            }
+        }
+        else
+        {
+            auto allocator = mAllocators[0];
+            auto allocState = allocator.state;
+            scope(exit) allocator.restoreState(allocState);
+            const clipRect = Rect(0, 0, surf.width, surf.height);
+            const mat = mProjMat;
+            OutContext octx = {mSize, surf, clipRect, mat, SpanMask(mSize, allocator)};
+            RendererT renderer;
+            renderer.state = octx;
+            drawPlayer(renderer, allocator, surf);
+        }
     }
 
-    private void drawPlayer(SurfT surf)
+    private void drawPlayer(ref RendererT renderer, StackAlloc allocator, SurfT surf)
     {
         auto playerCon  = mPlayer.mainConnection;
         auto playerRoom = playerCon.room;
         auto playerPos  = playerCon.pos + playerCon.correction;
         auto playerDir  = playerCon.dir;
         enum MaxDepth = 16;
-        playerRoom.draw(mRenderer, allocator(), playerPos, playerDir, mPlayer, MaxDepth);
+        playerRoom.draw(renderer, allocator, playerPos, playerDir, mPlayer, MaxDepth);
+    }
+
+    private void createThreadTiles(in Size screenSize)
+    {
+        const w = (screenSize.w + ThreadTileSize.w - 1) / ThreadTileSize.w;
+        const h = (screenSize.h + ThreadTileSize.h - 1) / ThreadTileSize.h;
+        mThreadTiles.length = w * h;
+        foreach(y; 0..h)
+        {
+            foreach(x; 0..w)
+            {
+                const startx = x * ThreadTileSize.w;
+                const starty = y * ThreadTileSize.h;
+                const endx = min(startx + ThreadTileSize.w, screenSize.w);
+                const endy = min(starty + ThreadTileSize.h, screenSize.h);
+                assert(endx > startx);
+                assert(endy > starty);
+                mThreadTiles[x + y * w] = Rect(startx, starty, endx - startx, endy - starty);
+            }
+        }
     }
 }
 

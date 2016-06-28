@@ -32,9 +32,11 @@ private:
     Light[]         mStaticLights;
     Light[]         mLights;
     IntrusiveList!(LightRef,"roomLink") mLightRefs;
-    bool            mNeedUpdateLights = true;
+    bool            mNeedUpdateLights = false;
 public:
 //pure nothrow:
+    IntrusiveListLink   worldUpdateLightsLink;
+
     this(World w, Vertex[] vertices, Polygon[] polygons)
     {
         assert(w !is null);
@@ -47,10 +49,18 @@ public:
             p.calcPlanes();
         }
         calcAdjacent();
+        invalidateLights();
     }
 
     void invalidateEntities()                 { mNeedUdateEntities = true; }
-    void invalidateLights()                   { mNeedUpdateLights = true; }
+    void invalidateLights()
+    {
+        if(!mNeedUpdateLights)
+        {
+            mWorld.updateLightslist.insertBack(this);
+            mNeedUpdateLights = true;
+        }
+    }
     @property needUpdateEntities()      const { return mNeedUdateEntities; }
     @property vertices()                inout { return mVertices[]; }
     @property polygons()                inout { return mPolygons[]; }
@@ -59,15 +69,14 @@ public:
     @property lights()                  inout { return mLights[]; }
     @property ref staticLights()        inout { return mStaticLights; }
 
-    void draw(RT, AT)(auto ref RT renderer, auto ref AT alloc, in vec3_t pos, in quat_t dir, in Entity srce, int depth)
+    void draw(RT, AT)(auto ref RT renderer, auto ref AT alloc, in vec3_t pos, in quat_t dir, in Entity srce, int depth) const
     {
-        updateLights();//fuck const
         auto allocState = alloc.state;
         scope(exit) alloc.restoreState(allocState);
 
-        const srcMat = renderer.getState().matrix;
-        renderer.getState().matrix = srcMat * dir.inverse.to_matrix!(4,4)() * mat4_t.translation(-pos.x,-pos.y,-pos.z);
-        const mat = renderer.getState().matrix;
+        const srcMat = renderer.state.matrix;
+        renderer.state.matrix = srcMat * dir.inverse.to_matrix!(4,4)() * mat4_t.translation(-pos.x,-pos.y,-pos.z);
+        const mat = renderer.state.matrix;
 
         auto transformedVertices      = alloc.alloc!TransformedVertex(mVertices.length);
         auto transformedVerticesFlags = alloc.alloc!bool(mVertices.length);
@@ -100,7 +109,7 @@ public:
         foreach(const ref e; mEntities)
         {
             auto entity = e.ent;
-            renderer.getState().matrix = mat * mat4_t.translation(e.pos.x,e.pos.y,e.pos.z) * e.dir.to_matrix!(4,4)();
+            renderer.state.matrix = mat * mat4_t.translation(e.pos.x,e.pos.y,e.pos.z) * e.dir.to_matrix!(4,4)();
             entity.draw(renderer);
         }
     }

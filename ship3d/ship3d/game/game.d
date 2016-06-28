@@ -127,7 +127,8 @@ private:
                                               SDL_SCANCODE_A:KeyActions.STRAFE_LEFT,
                                               SDL_SCANCODE_D:KeyActions.STRAFE_RIGHT,
                                               SDL_SCANCODE_Q:KeyActions.ROLL_LEFT,
-                                              SDL_SCANCODE_E:KeyActions.ROLL_RIGHT]};
+                                              SDL_SCANCODE_E:KeyActions.ROLL_RIGHT,
+                                              SDL_SCANCODE_F1:KeyActions.SWITCH_RENDERER]};
 
         import std.getopt;
         uint seed = unpredictableSeed;

@@ -7,9 +7,6 @@ import gamelib.memory.stackalloc;
 
 import gamelib.types;
 
-//import game.units;
-import game.renderer.rasterizerhp5;
-
 struct Renderer(State, int MaxDepth)
 {
 private:
@@ -30,7 +27,7 @@ public:
         --mCurrentState;
     }
 
-    auto ref getState() inout
+    auto ref state() inout
     {
         assert(mCurrentState >= 0);
         assert(mCurrentState < mStateStack.length);
@@ -49,7 +46,7 @@ public:
         {
             const i0 = i * 3;
             const i1 = i0 + 3;
-            rast.drawIndexedTriangle(alloc, getState(), context, verts, indices[i0..i1]);
+            rast.drawIndexedTriangle(alloc, state, context, verts, indices[i0..i1]);
         }
     }
 }
