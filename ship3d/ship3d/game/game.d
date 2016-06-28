@@ -145,7 +145,7 @@ private:
                "height|h",             &mHeight,
                "sensx",                &cSettings.cursorSensX,
                "sensy",                &cSettings.cursorSensY);
-        enforce(mWidth > 0 && mHeight > 0 && 0 == mWidth % 8 && 0 == mHeight % 8, "Invalid resolution");
+        enforce(mWidth > 0 && mHeight > 0, "Invalid resolution");
         mCore = new Core();
         Uint32 windowFlags = 0;
         if(fullscreenDesktop)

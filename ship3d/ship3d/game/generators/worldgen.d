@@ -94,15 +94,15 @@ bool isCompatiblePolygons(Polygon* poly1, Polygon* poly2)
            (poly1.type == PolygonType.Right && poly2.type == PolygonType.Left);
 }
 
-bool checkNormals(Polygon* poly)
+bool checkNormals(Polygon* polyg)
 {
-    assert(poly !is null);
-    assert(poly.isPortal);
+    assert(polyg !is null);
+    assert(polyg.isPortal);
     enum eps = 0.001f;
     import std.math;
-    return zip(poly.adjacentPolys[],poly.connectionAdjacent[])
+    return zip(polyg.adjacentPolys[],polyg.connectionAdjacent[])
         .all!(a => !almost_equal(
-                (a[0].plane.normal * poly.connectionDir).normalized,
+                (a[0].plane.normal * polyg.connectionDir).normalized,
                 (-a[1].plane.normal),
                 eps));
 }
