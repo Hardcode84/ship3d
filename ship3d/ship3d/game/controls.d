@@ -43,19 +43,19 @@ struct ControlSettings
     }
 }
 
-final class Controls
+struct Controls
 {
 private:
-    immutable ControlSettings mSettings;
+    ControlSettings mSettings;
 
     alias ListenerT = void delegate(in InputEvent);
     ListenerT mListener;
 
 public:
-    this(in ControlSettings settings, ListenerT listener)
+    this(ControlSettings settings, ListenerT listener)
     {
         assert(listener !is null);
-        mSettings = cast(immutable(ControlSettings))settings;
+        mSettings = settings;
         mListener = listener;
     }
 

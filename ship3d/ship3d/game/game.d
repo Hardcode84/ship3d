@@ -159,7 +159,7 @@ private:
         mWorld = new World(Size(mWidth,mHeight),seed);
         mWindow = new Window("game", Size(mWidth, mHeight), windowFlags);
         initWindowSurface();
-        mControls = new Controls(cSettings, &mWorld.onInputEvent);
+        mControls = Controls(cSettings, &mWorld.onInputEvent);
         sdlCheck!SDL_SetRelativeMouseMode(true);
     }
 
