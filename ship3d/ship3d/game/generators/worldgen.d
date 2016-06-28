@@ -1,6 +1,7 @@
 ﻿module game.generators.worldgen;
 
 import std.stdio;
+import std.range;
 import std.array;
 import std.random;
 import std.algorithm;
@@ -98,6 +99,7 @@ bool checkNormals(Polygon* poly)
     assert(poly !is null);
     assert(poly.isPortal);
     enum eps = 0.001f;
+    import std.math;
     return zip(poly.adjacentPolys[],poly.connectionAdjacent[])
         .all!(a => !almost_equal(
                 (a[0].plane.normal * poly.connectionDir).normalized,

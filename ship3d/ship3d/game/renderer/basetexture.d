@@ -39,7 +39,7 @@ final:
             mLockBuffer.length = width * height;
         }
         ++mLockCount;
-        return SurfaceView!(ColT)(width,height,width * ColT.sizeof, mLockBuffer.ptr);
+        return SurfaceView!(ColT)(width,height,width * cast(int)ColT.sizeof, mLockBuffer.ptr);
     }
 
     void unlock() pure nothrow

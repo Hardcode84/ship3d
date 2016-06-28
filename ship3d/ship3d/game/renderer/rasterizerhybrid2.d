@@ -326,8 +326,8 @@ private:
             foreach(ty;lightData.low..lightData.high)
             {
                 const row = lightData[ty];
-                const y = ty * Len;
-                auto  x = row.low * Len;
+                const y = cast(int)ty * Len;
+                auto  x = cast(int)row.low * Len;
                 auto pos = vec4(pack.refXplane.get(x,y),pack.refYplane.get(x,y),pack.refZplane.get(x,y),pack.wplane.get(x,y));
                 foreach(tx;row.low..row.high)
                 {
@@ -648,6 +648,7 @@ private:
                     }
                     const x0 = findLeft();
                     const x1 = findRight();
+                    static import gamelib.math;
                     spanrange.spans[pt.curry].x0 = gamelib.math.clamp(x0, leftBound, rightBound);
                     spanrange.spans[pt.curry].x1 = gamelib.math.clamp(x1, leftBound, rightBound);
                     return vec2i(x0, x1);
@@ -769,7 +770,7 @@ private:
             Vec2[3] sortedPos = void;
             PosT upperY = PosT.max;
             int minElem;
-            foreach(i,const ref v; pverts[])
+            foreach(int i,const ref v; pverts[])
             {
                 const pos = (v.pos.xy / v.pos.w);
                 sortedPos[i] = Vec2(cast(PosT)((pos.x * size.w) + size.w / 2),
