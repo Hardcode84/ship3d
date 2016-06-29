@@ -138,6 +138,9 @@ private:
         bool fullscreenDesktop = false;
         mWidth  = 800;
         mHeight = 600;
+        import std.parallelism;
+        uint numThreads = totalCPUs;
+        scope(success) writeln("numThreads=",numThreads);
         getopt(args,
                "seed",                 &seed,
                "fullscreen|f",         &fullscreen,
@@ -145,8 +148,10 @@ private:
                "width|w",              &mWidth,
                "height|h",             &mHeight,
                "sensx",                &cSettings.cursorSensX,
-               "sensy",                &cSettings.cursorSensY);
+               "sensy",                &cSettings.cursorSensY,
+               "threads|th",           &numThreads);
         enforce(mWidth > 0 && mHeight > 0, "Invalid resolution");
+        enforce(numThreads > 0, "Invalid threads count");
         mCore = new Core();
         Uint32 windowFlags = 0;
         if(fullscreenDesktop)
@@ -157,7 +162,7 @@ private:
         {
             windowFlags |= SDL_WINDOW_FULLSCREEN;
         }
-        mWorld = new World(Size(mWidth,mHeight),seed);
+        mWorld = new World(Size(mWidth,mHeight),seed, numThreads);
         mWindow = new Window("game", Size(mWidth, mHeight), windowFlags);
         initWindowSurface();
         mControls = Controls(cSettings, &mWorld.onInputEvent);

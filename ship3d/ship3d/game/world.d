@@ -68,9 +68,11 @@ public:
     @property auto ref updateLightslist() inout { return mUpdateLightsList; }
 
     alias SurfT  = FFSurface!ColorT;
-    this(in Size sz, uint seed)
+    this(in Size sz, uint seed, uint numThreads)
     {
-        mTaskPool = taskPool();
+        assert(numThreads > 0);
+        mTaskPool = new TaskPool(max(1, numThreads - 1));
+        mTaskPool.isDaemon = true;
         mAllocators.length = mTaskPool.size + 1;
         foreach(ref alloc; mAllocators[])
         {
