@@ -9,7 +9,7 @@
     <UseDefaultCompiler>true</UseDefaultCompiler>
     <IncrementalLinking>true</IncrementalLinking>
     <PreferOneStepBuild>true</PreferOneStepBuild>
-    <Compiler>DMD2</Compiler>
+    <Compiler>ldc2</Compiler>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -88,7 +88,7 @@
     </Libs>
     <DebugLevel>0</DebugLevel>
     <ObjectsDirectory>obj\Release</ObjectsDirectory>
-    <ExtraCompilerArguments>-oq -singleobj -boundscheck=off</ExtraCompilerArguments>
+    <ExtraCompilerArguments>-oq -singleobj -boundscheck=off -d-version=NativeBlit</ExtraCompilerArguments>
     <Target>Executable</Target>
     <Externalconsole>true</Externalconsole>
     <UnittestMode>false</UnittestMode>
@@ -121,11 +121,43 @@
     </Libs>
     <DebugLevel>0</DebugLevel>
     <ObjectsDirectory>obj\Release</ObjectsDirectory>
-    <ExtraCompilerArguments>-oq -mcpu=i686 -mattr=+mmx,+sse -singleobj -boundscheck=off</ExtraCompilerArguments>
+    <ExtraCompilerArguments>-oq -mcpu=i686 -mattr=+mmx,+sse -singleobj -boundscheck=off -d-version=NativeBlit</ExtraCompilerArguments>
     <Target>Executable</Target>
     <Externalconsole>true</Externalconsole>
     <UnittestMode>false</UnittestMode>
     <OutputName>ship3d</OutputName>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release LDC AVX2|AnyCPU' ">
+    <OutputPath>bin\Release</OutputPath>
+    <Externalconsole>true</Externalconsole>
+    <Target>Executable</Target>
+    <OutputName>ship3d</OutputName>
+    <UnittestMode>false</UnittestMode>
+    <ExtraCompilerArguments>-oq -singleobj -boundscheck=off -mcpu=core2 -mattr=+avx2 -d-version=NativeBlit</ExtraCompilerArguments>
+    <Libs>
+      <Libs>
+        <Lib>gdi32.lib</Lib>
+      </Libs>
+    </Libs>
+    <LinkinThirdPartyLibraries>false</LinkinThirdPartyLibraries>
+    <ObjectsDirectory>obj\Release</ObjectsDirectory>
+    <DebugLevel>0</DebugLevel>
+  </PropertyGroup>
+  <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'RelWithDebugInfo LDC|AnyCPU' ">
+    <OutputPath>bin\Release</OutputPath>
+    <Externalconsole>true</Externalconsole>
+    <Target>Executable</Target>
+    <OutputName>ship3d</OutputName>
+    <UnittestMode>false</UnittestMode>
+    <ExtraCompilerArguments>-oq -singleobj -boundscheck=off -g -d-version=NativeBlit</ExtraCompilerArguments>
+    <Libs>
+      <Libs>
+        <Lib>gdi32.lib</Lib>
+      </Libs>
+    </Libs>
+    <LinkinThirdPartyLibraries>false</LinkinThirdPartyLibraries>
+    <ObjectsDirectory>obj\Release</ObjectsDirectory>
+    <DebugLevel>0</DebugLevel>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="main.d" />
