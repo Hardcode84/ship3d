@@ -102,7 +102,7 @@ public:
         mData.length = w * h;
     }
 
-    void getLine(int W, C, T)(in ref C context, T[] outLine) const pure nothrow
+    void getLine(int W, C, Range)(in ref C context, Range outLine) const pure nothrow
     {
         assert(outLine.length == W);
         static assert(W > 0);
@@ -137,7 +137,7 @@ public:
     }
 }
 
-void fillChess(T,C)(auto ref T surf, in C col1, in C col2)
+void fillChess(T,C)(auto ref T surf, in C col1, in C col2, uint wcell = 15, uint hcell = 15)
 {
     import gamelib.types;
     auto view = surf.lock();
@@ -146,7 +146,7 @@ void fillChess(T,C)(auto ref T surf, in C col1, in C col2)
     {
         foreach(x;0..surf.width)
         {
-            if((x / 15) % 2 == (y / 15) % 2)
+            if((x / wcell) % 2 == (y / hcell) % 2)
             {
                 view[y][x] = col1;
             }

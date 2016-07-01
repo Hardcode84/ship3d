@@ -126,7 +126,7 @@ private:
                 return;
             }
             degenerate = false;
-            const dw = 0.0001;
+            const dw = 0.0001f;
             const sizeLim = 10000;
             const bool big = max(max(abs(x1 / w1), abs(x2 / w2), abs(x3 / w3)) * size.w,
                                  max(abs(y1 / w1), abs(y2 / w2), abs(y3 / w3)) * size.h) > sizeLim;

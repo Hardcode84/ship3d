@@ -16,7 +16,6 @@ import game.entities.entity;
 
 import game.renderer.spanmask;
 import game.renderer.rasterizerhybrid2;
-import game.renderer.light;
 
 enum PolygonType
 {
@@ -247,6 +246,7 @@ public:
         }
         else
         {
+            import game.renderer.light;
             struct Context2
             {
                 const texture_t texture;

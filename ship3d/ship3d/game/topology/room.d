@@ -9,6 +9,7 @@ import gamelib.range;
 import gamelib.containers.intrusivelist;
 
 import game.units;
+import game.utils;
 import game.world;
 
 import game.entities.entity;
@@ -27,6 +28,7 @@ private:
     Polygon[]       mPolygons;
 
     IntrusiveList!(EntityRef,"roomLink") mEntities;
+    StaticEntityRef[] mStaticEntities;
     bool            mNeedUdateEntities = true;
 
     Light[]         mStaticLights;
@@ -68,19 +70,22 @@ public:
     @property lightController()         inout { return mWorld.lightController(); }
     @property lights()                  inout { return mLights[]; }
     @property ref staticLights()        inout { return mStaticLights; }
+    @property ref staticEntities()      inout { return mStaticEntities; };
 
     void draw(RT, AT)(auto ref RT renderer, auto ref AT alloc, in vec3_t pos, in quat_t dir, in Entity srce, int depth) const
     {
+        //debugOut("draw");
         auto allocState = alloc.state;
         scope(exit) alloc.restoreState(allocState);
 
         const srcMat = renderer.state.matrix;
-        renderer.state.matrix = srcMat * dir.inverse.to_matrix!(4,4)() * mat4_t.translation(-pos.x,-pos.y,-pos.z);
-        const mat = renderer.state.matrix;
+        const viewMat = dir.inverse.to_matrix!(4,4)() * mat4_t.translation(-pos.x,-pos.y,-pos.z);
+        const mat = srcMat * viewMat;
+        renderer.state.matrix = mat;
 
         auto transformedVertices      = alloc.alloc!TransformedVertex(mVertices.length);
-        auto transformedVerticesFlags = alloc.alloc!bool(mVertices.length);
-        transformedVerticesFlags[] = false;
+        auto transformedVerticesFlags = alloc.alloc!bool(mVertices.length, false);
+
         void drawPolygons(bool DynLights)()
         {
             foreach(ref p; mPolygons[])
@@ -96,21 +101,64 @@ public:
                 p.draw!DynLights(renderer, alloc, transformedVertices, pos, dir, srce, depth);
             }
         }
-        if(!lights.empty)
+
+        /*if(!lights.empty)
         {
             drawPolygons!true();
         }
         else
         {
             drawPolygons!false();
+        }*/
+
+        /*struct EntityStruct
+        {
+            Entity ent;
+            vec3_t pos;
+            quat_t dir;
         }
 
-        //sort entities
-        foreach(const ref e; mEntities)
+        auto sortedEnts = alloc.alloc!EntityStruct()[0..0];
+        int count = 0;
+        foreach(ref e; mEntities[])
+        {
+            if(e.ent !is srce)
+            {
+                *(sortedEnts.ptr + count) = EntityStruct(e.ent.fastCast!Entity, e.pos, e.dir);
+                ++count;
+            }
+        }
+        alloc.alloc!EntityStruct(count);
+
+        sortedEnts = sortedEnts.ptr[0..count + 0];
+
+        auto distSquared(in vec3_t vec)
+        {
+            return 
+                (vec.x - pos.x) * (vec.x - pos.x) + 
+                (vec.y - pos.y) * (vec.y - pos.y) +
+                (vec.z - pos.z) * (vec.z - pos.z);
+        }
+
+        bool myComp(in EntityStruct a, in EntityStruct b)
+        {
+            return distSquared(a.pos) > distSquared(b.pos);
+        }*/
+
+        //sortedEnts.sort!(myComp)();
+
+        foreach(const ref e; mEntities[])
         {
             auto entity = e.ent;
             renderer.state.matrix = mat * mat4_t.translation(e.pos.x,e.pos.y,e.pos.z) * e.dir.to_matrix!(4,4)();
-            entity.draw(renderer);
+            entity.draw(renderer, Entity.DrawParams(this, alloc));
+        }
+
+        foreach(const ref e; mStaticEntities[])
+        {
+            auto entity = e.ent;
+            renderer.state.matrix = mat * mat4_t.translation(e.pos.x,e.pos.y,e.pos.z) * e.dir.to_matrix!(4,4)();
+            entity.draw(renderer, Entity.DrawParams(this, alloc));
         }
     }
 
@@ -131,6 +179,11 @@ public:
         mEntities.insertBack(r);
         e.onAddedToRoom(r);
         mNeedUdateEntities = true;
+    }
+
+    void addStaticEntity(Entity e, in vec3_t epos, in quat_t edir)
+    {
+        mStaticEntities ~= StaticEntityRef(e, epos, edir);
     }
 
     void updateEntities()

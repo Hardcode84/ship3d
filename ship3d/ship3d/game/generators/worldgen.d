@@ -24,8 +24,8 @@ Room[] generateWorld(World world, uint seed)
     TextureGen texgen = seed;
     world.lightPalette = texgen.lightPalette;
 
-    enum numGenerations = 7;
-    enum numRooms = 10;
+    enum numGenerations = 1;//7;
+    enum numRooms = 1;//10;
 
     writeln("rooms");
     auto ret = appender!(Room[])();
@@ -41,10 +41,11 @@ Room[] generateWorld(World world, uint seed)
     {
         foreach(r;0..numRooms)
         {
-            const size = vec3i(
+            /*const size = vec3i(
                 uniform(1,5,rnd),
                 uniform(1,5,rnd),
-                uniform(1,5,rnd));
+                uniform(1,5,rnd));*/
+            const size = vec3i(7,7,7);
             auto room = generateRoom(rnd, world, size, 50);
             foreach(ref p; room.polygons)
             {

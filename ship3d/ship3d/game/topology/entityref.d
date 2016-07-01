@@ -8,6 +8,13 @@ import game.units;
 import game.topology.room;
 import game.entities.entity;
 
+struct StaticEntityRef
+{
+    Entity ent;
+    vec3_t pos = vec3_t(0,0,0);
+    quat_t dir = quat_t.identity;
+}
+
 struct EntityRef
 {
 //pure nothrow:

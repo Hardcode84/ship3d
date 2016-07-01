@@ -88,7 +88,7 @@
     </Libs>
     <DebugLevel>0</DebugLevel>
     <ObjectsDirectory>obj\Release</ObjectsDirectory>
-    <ExtraCompilerArguments>-oq -singleobj -boundscheck=off -d-version=NativeBlit</ExtraCompilerArguments>
+    <ExtraCompilerArguments>-oq -singleobj -boundscheck=off -d-version=NativeBlit -mattr=+mmx,+sse,+sse2</ExtraCompilerArguments>
     <Target>Executable</Target>
     <Externalconsole>true</Externalconsole>
     <UnittestMode>false</UnittestMode>
@@ -327,6 +327,9 @@
     <Compile Include="..\..\..\tools\d-gamelib\gamelib\debugout.d">
       <Link>gamelib\debugout.d</Link>
     </Compile>
+    <Compile Include="game\topology\mesh.d" />
+    <Compile Include="game\entities\staticmesh.d" />
+    <Compile Include="game\utils.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />

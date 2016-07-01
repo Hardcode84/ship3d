@@ -3,6 +3,7 @@
 import std.algorithm;
 
 import gamelib.containers.intrusivelist;
+public import gamelib.memory.stackalloc;
 
 public import game.units;
 public import game.topology.room;
@@ -24,6 +25,9 @@ private:
     quat_t       mRefDir = quat_t.identity;
     IntrusiveList!(EntityRef,"entityLink") mConnections;
 public:
+    import game.world;
+    alias RendererT = World.RendererT;
+
     IntrusiveListLink   worldLink;
 //pure nothrow:
     this(World w, in pos_t radius = 5)
@@ -55,7 +59,16 @@ public:
         return connections[].find!(a => a.inside).front;
     }
 
-    void draw(T)(in auto ref T renderer) const {}
+    struct DrawParams
+    {
+        const(Room) room;
+        StackAlloc alloc;
+    }
+
+    void draw(ref RendererT renderer, DrawParams params) const
+    {
+
+    }
 
     void update() {}
 

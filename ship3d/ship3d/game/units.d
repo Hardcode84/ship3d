@@ -36,7 +36,6 @@ alias lightmap_t = Texture!(BaseTextureRGB!byte);
 //enum LightUnitDist = 10;
 enum MaxLightDist = 200;
 
-
 struct Vertex
 {
     vec3_t pos;
@@ -48,13 +47,4 @@ struct TransformedVertex
     vec3_t refPos;
     vec2_t tpos;
     vec4_t pos;
-}
-
-@nogc TransformedVertex transformVertex(in Vertex v, in mat4_t mat) pure nothrow
-{
-    TransformedVertex ret = void;
-    ret.refPos = v.pos;
-    ret.pos    = mat * vec4_t(v.pos, 1);
-    ret.tpos   = v.tpos;
-    return ret;
 }

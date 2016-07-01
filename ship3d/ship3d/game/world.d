@@ -21,6 +21,7 @@ import game.renderer.light;
 import game.topology.room;
 import game.topology.refalloc;
 import game.entities.player;
+import game.entities.staticmesh;
 import game.generators.worldgen;
 
 import gamelib.memory.stackalloc;
@@ -35,6 +36,7 @@ private:
     Room[]   mRooms;
     IntrusiveList!(Entity,"worldLink") mEntities;
     Player   mPlayer;
+    StaticMesh[] mCubes;
 
     TaskPool mTaskPool;
     StackAlloc[] mAllocators;
@@ -54,13 +56,14 @@ private:
         SpanMask mask;
         SpanMask dstMask;
     }
-    alias RendererT = Renderer!(OutContext,17);
+
     LightController mLightController = null;
     bool mMultithreadedRendering = false;
 
     alias InputListenerT = void delegate(in ref InputEvent);
     InputListenerT[] mInputListeners;
 public:
+    alias RendererT = Renderer!(OutContext,17);
 //pure nothrow:
     @property auto refAllocator()    inout { return mRefAlloc; }
     @property auto lightController() inout { return mLightController; }
@@ -83,7 +86,8 @@ public:
         mSize = sz;
         mProjMat = mat4_t.perspective(sz.w,sz.h,90,0.1,1000);
         mRooms = generateWorld(this, seed);
-        mPlayer = createEntity!Player(mRooms[0], vec3_t(0,0,0), quat_t.identity);
+        mPlayer = createEntity!Player(mRooms[0], vec3_t(0,0,-65), quat_t.identity);
+        generateCubes(seed);
     }
 
     auto createEntity(E)(Room room, in vec3_t pos, in quat_t dir)
@@ -196,7 +200,9 @@ public:
         }
         mUpdateLightsList.clear();
 
-        debug surf.fill(ColorBlue);
+        sortEntities();
+
+        /*debug*/ surf.fill(ColorBlue);
         surf.lock();
         scope(exit) surf.unlock();
 
@@ -230,9 +236,11 @@ public:
             renderer.state = octx;
             drawPlayer(renderer, allocator, surf);
         }
+        //debugOut("present");
     }
 
-    private void drawPlayer(ref RendererT renderer, StackAlloc allocator, SurfT surf)
+private:
+    void drawPlayer(ref RendererT renderer, StackAlloc allocator, SurfT surf)
     {
         auto playerCon  = mPlayer.mainConnection;
         auto playerRoom = playerCon.room;
@@ -242,7 +250,7 @@ public:
         playerRoom.draw(renderer, allocator, playerPos, playerDir, mPlayer, MaxDepth);
     }
 
-    private void createThreadTiles(in Size screenSize)
+    void createThreadTiles(in Size screenSize)
     {
         const w = (screenSize.w + ThreadTileSize.w - 1) / ThreadTileSize.w;
         const h = (screenSize.h + ThreadTileSize.h - 1) / ThreadTileSize.h;
@@ -260,6 +268,138 @@ public:
                 mThreadTiles[x + y * w] = Rect(startx, starty, endx - startx, endy - starty);
             }
         }
+    }
+
+    void generateCubes(uint seed)
+    {
+        enum GradNum = 1 << LightBrightnessBits;
+        const ColorT[] colors1 = [
+            ColorWhite,
+            ColorRed,
+            ColorGreen,
+            ColorBlue,
+            ColorYellow,
+            ColorCyan,
+            ColorMagenta];
+        ColorT[256] data1= ColorBlack;
+        foreach(i,c; colors1[])
+        {
+            const startInd = i * GradNum;
+            const endInd = startInd + GradNum;
+            auto line = data1[startInd..endInd];
+            ColorT.interpolateLine!GradNum(line, ColorWhite, c);
+        }
+        auto lpalette = new light_palette_t(data1[0..(1 << LightPaletteBits)]);
+
+        const ColorT[] colors2 = [
+            ColorYellow,
+            ColorCyan,
+            ColorRed,
+            ColorBlue,
+            ColorGreen,
+            ColorMagenta,
+            ColorWhite];
+        ColorT[256] data2 = ColorBlack;
+        foreach(i,c; colors2[])
+        {
+            data2[i] = c;
+        }
+        import game.renderer.texture;
+        texture_t[] textures;
+        textures.length = colors2.length;
+
+        foreach(i,ref tex; textures)
+        {
+            tex = new texture_t(16,16);
+            tex.palette = new palette_t(data2[0..(1 << PaletteBits)], lpalette[]);
+            tex.fillChess(cast(ubyte)((1 << PaletteBits) - 1), cast(ubyte)(i), 2, 2);
+        }
+        import std.algorithm;
+        import std.array;
+        enum Scale = 10.0f;
+        enum CubeScale = 2.5f;
+        foreach(z; 0..10)
+        {
+            foreach(y; 0..10)
+            {
+                foreach(x; 0..10)
+                {
+                    import game.topology.mesh;
+                    Mesh mesh;
+                    import std.random;
+                    mesh.texture = textures[uniform(0,textures.length)];
+                    mesh.addTriangles([
+                            Vertex(vec3_t(-1,-1, 1),vec2_t(0,0)),
+                            Vertex(vec3_t( 1,-1, 1),vec2_t(1,0)),
+                            Vertex(vec3_t(-1, 1, 1),vec2_t(0,1)),
+                            Vertex(vec3_t( 1, 1, 1),vec2_t(1,1))].map!(a => Vertex(a.pos * CubeScale, a.tpos)).array,
+                        [[0,1,2],[2,1,3]]);
+
+                    mesh.addTriangles([
+                            Vertex(vec3_t(-1,-1, -1),vec2_t(0,0)),
+                            Vertex(vec3_t( 1,-1, -1),vec2_t(1,0)),
+                            Vertex(vec3_t(-1, 1, -1),vec2_t(0,1)),
+                            Vertex(vec3_t( 1, 1, -1),vec2_t(1,1))].map!(a => Vertex(a.pos * CubeScale, a.tpos)).array,
+                        [[2,1,0],[3,1,2]]);
+
+                    mesh.addTriangles([
+                            Vertex(vec3_t(-1,-1,-1),vec2_t(0,0)),
+                            Vertex(vec3_t( 1,-1,-1),vec2_t(1,0)),
+                            Vertex(vec3_t(-1,-1, 1),vec2_t(0,1)),
+                            Vertex(vec3_t( 1,-1, 1),vec2_t(1,1))].map!(a => Vertex(a.pos * CubeScale, a.tpos)).array,
+                        [[0,1,2],[2,1,3]]);
+
+                    mesh.addTriangles([
+                            Vertex(vec3_t(-1, 1,-1),vec2_t(0,0)),
+                            Vertex(vec3_t( 1, 1,-1),vec2_t(1,0)),
+                            Vertex(vec3_t(-1, 1, 1),vec2_t(0,1)),
+                            Vertex(vec3_t( 1, 1, 1),vec2_t(1,1))].map!(a => Vertex(a.pos * CubeScale, a.tpos)).array,
+                        [[2,1,0],[3,1,2]]);
+
+                    mesh.addTriangles([
+                            Vertex(vec3_t( 1,-1,-1),vec2_t(0,0)),
+                            Vertex(vec3_t( 1, 1,-1),vec2_t(1,0)),
+                            Vertex(vec3_t( 1,-1, 1),vec2_t(0,1)),
+                            Vertex(vec3_t( 1, 1, 1),vec2_t(1,1))].map!(a => Vertex(a.pos * CubeScale, a.tpos)).array,
+                        [[0,1,2],[2,1,3]]);
+
+                    mesh.addTriangles([
+                            Vertex(vec3_t(-1,-1,-1),vec2_t(0,0)),
+                            Vertex(vec3_t(-1, 1,-1),vec2_t(1,0)),
+                            Vertex(vec3_t(-1,-1, 1),vec2_t(0,1)),
+                            Vertex(vec3_t(-1, 1, 1),vec2_t(1,1))].map!(a => Vertex(a.pos * CubeScale, a.tpos)).array,
+                        [[2,1,0],[3,1,2]]);
+
+                    auto ent = new StaticMesh(this, mesh);
+
+                    enum offset = 4.5f;
+                    //addEntity(ent, mRooms[0], vec3_t((x - offset) * Scale, (y - offset) * Scale, (z - offset) * Scale), quat_t.identity);
+
+                    mRooms[0].addStaticEntity(ent, vec3_t((x - offset) * Scale, (y - offset) * Scale, (z - offset) * Scale), quat_t.identity);
+                }
+            }
+        }
+    }
+
+    void sortEntities()
+    {
+        auto playerCon  = mPlayer.mainConnection;
+        auto playerPos  = playerCon.pos + playerCon.correction;
+        
+        auto distSquared(in vec3_t vec)
+        {
+            return 
+                (vec.x - playerPos.x) * (vec.x - playerPos.x) + 
+                    (vec.y - playerPos.y) * (vec.y - playerPos.y) +
+                    (vec.z - playerPos.z) * (vec.z - playerPos.z);
+        }
+        
+        bool myComp(in StaticEntityRef a, in StaticEntityRef b)
+        {
+            return distSquared(a.pos) > distSquared(b.pos);
+        }
+        
+        mRooms[0].staticEntities.sort!(myComp)();
     }
 }
 

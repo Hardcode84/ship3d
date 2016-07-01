@@ -6,7 +6,11 @@ import game.renderer.palette;
 
 struct TextureDesc
 {
-    ubyte i;
+    ubyte i = 0;
+    uint width = 256;
+    uint height = 256;
+    uint wcell = 15;
+    uint hcell = 15;
 }
 
 struct TextureGen
@@ -63,9 +67,9 @@ private:
 
     auto generateTexture(in ref TextureDesc desc)
     {
-        auto ret = new texture_t(256, 256);
+        auto ret = new texture_t(desc.width, desc.height);
         ret.palette = mPalette;
-        ret.fillChess(cast(ubyte)((1 << PaletteBits) - 1), cast(ubyte)(desc.i));
+        ret.fillChess(cast(ubyte)((1 << PaletteBits) - 1), cast(ubyte)(desc.i), desc.wcell, desc.hcell);
         //ret.fill(cast(ubyte)(desc.i));
         return ret;
     }

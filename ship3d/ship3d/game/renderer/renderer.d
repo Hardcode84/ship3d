@@ -36,7 +36,6 @@ public:
 
     void drawIndexedTriangle(RasterizerT,AllocT,CtxT,VertexT,IndexT)(auto ref AllocT alloc, in auto ref CtxT context, in VertexT[] verts, in IndexT[] indices)
     {
-        //debugOut("Renderer.drawIndexedTriangle");
         static assert(isIntegral!IndexT);
         assert(indices.length % 3 == 0);
         auto allocState = alloc.state;
