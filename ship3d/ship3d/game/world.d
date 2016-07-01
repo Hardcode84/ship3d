@@ -84,9 +84,9 @@ public:
         createThreadTiles(sz);
         mRefAlloc =  new RefAllocator(0xFF);
         mSize = sz;
-        mProjMat = mat4_t.perspective(sz.w,sz.h,90,0.1,1000);
+        mProjMat = mat4_t.perspective(sz.w,sz.h,155,0.1,1000);
         mRooms = generateWorld(this, seed);
-        mPlayer = createEntity!Player(mRooms[0], vec3_t(0,0,-65), quat_t.identity);
+        mPlayer = createEntity!Player(mRooms[0], vec3_t(0,0,-50.8), quat_t.identity);
         generateCubes(seed);
     }
 
@@ -312,7 +312,7 @@ private:
         {
             tex = new texture_t(16,16);
             tex.palette = new palette_t(data2[0..(1 << PaletteBits)], lpalette[]);
-            tex.fillChess(cast(ubyte)((1 << PaletteBits) - 1), cast(ubyte)(i), 2, 2);
+            tex.fillChess(cast(ubyte)((1 << PaletteBits) - 1), cast(ubyte)(i), 1, 1);
         }
         import std.algorithm;
         import std.array;
@@ -375,7 +375,10 @@ private:
                     enum offset = 4.5f;
                     //addEntity(ent, mRooms[0], vec3_t((x - offset) * Scale, (y - offset) * Scale, (z - offset) * Scale), quat_t.identity);
 
-                    mRooms[0].addStaticEntity(ent, vec3_t((x - offset) * Scale, (y - offset) * Scale, (z - offset) * Scale), quat_t.identity);
+                    //if(z == 9)
+                    {
+                        mRooms[0].addStaticEntity(ent, vec3_t((x - offset) * Scale, (y - offset) * Scale, (z - offset) * Scale), quat_t.identity);
+                    }
                 }
             }
         }
