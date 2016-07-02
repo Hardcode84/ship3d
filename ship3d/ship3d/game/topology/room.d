@@ -111,42 +111,6 @@ public:
             drawPolygons!false();
         }*/
 
-        /*struct EntityStruct
-        {
-            Entity ent;
-            vec3_t pos;
-            quat_t dir;
-        }
-
-        auto sortedEnts = alloc.alloc!EntityStruct()[0..0];
-        int count = 0;
-        foreach(ref e; mEntities[])
-        {
-            if(e.ent !is srce)
-            {
-                *(sortedEnts.ptr + count) = EntityStruct(e.ent.fastCast!Entity, e.pos, e.dir);
-                ++count;
-            }
-        }
-        alloc.alloc!EntityStruct(count);
-
-        sortedEnts = sortedEnts.ptr[0..count + 0];
-
-        auto distSquared(in vec3_t vec)
-        {
-            return 
-                (vec.x - pos.x) * (vec.x - pos.x) + 
-                (vec.y - pos.y) * (vec.y - pos.y) +
-                (vec.z - pos.z) * (vec.z - pos.z);
-        }
-
-        bool myComp(in EntityStruct a, in EntityStruct b)
-        {
-            return distSquared(a.pos) > distSquared(b.pos);
-        }*/
-
-        //sortedEnts.sort!(myComp)();
-
         foreach(const ref e; mEntities[])
         {
             auto entity = e.ent;
