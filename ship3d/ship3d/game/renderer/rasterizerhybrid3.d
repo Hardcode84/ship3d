@@ -16,7 +16,7 @@ import game.units;
 
 @nogc:
 
-struct RasterizerHybrid3(bool HasTextures, bool WriteMask, bool ReadMask, bool HasLight)
+struct RasterizerHybrid3(bool HasTextures, bool WriteMask, bool ReadMask, bool HasLight, bool UseCache = true)
 {
     version(LDC)
     {
@@ -80,34 +80,38 @@ private:
         }
     }
 
-    struct LinesPack(PosT,TextT,LineT)
+    struct LinesPack(PosT,TextT,LineT,VertT)
     {
     @nogc:
-        immutable bool degenerate;
-        immutable bool external;
+        alias pos_t = PosT;
+        immutable bool degenerate = void;
+        immutable bool external = void;
         enum HasTexture = !is(TextT : void);
         alias vec2 = Vector!(PosT,2);
         alias vec3 = Vector!(PosT,3);
         alias PlaneT = Plane!(PosT);
         enum NumLines = 3;
-        immutable LineT[NumLines] lines;
+        immutable LineT[NumLines] lines = void;
 
-        immutable PlaneT wplane;
+        immutable PlaneT wplane = void;
+        immutable typeof(*VertT)[3] verts;
 
         static if(HasTexture)
         {
             alias vec3tex = Vector!(TextT,3);
             alias PlaneTtex = Plane!(TextT);
-            immutable PlaneTtex uplane;
-            immutable PlaneTtex vplane;
+            immutable PlaneTtex uplane = void;
+            immutable PlaneTtex vplane = void;
         }
         static if(HasLight)
         {
-            immutable PlaneT refXplane, refYplane, refZplane;
-            immutable vec3 normal;
+            immutable PlaneT refXplane = void, refYplane = void, refZplane = void;
+            immutable vec3 normal = void;
         }
+
         this(VT,ST)(in VT v1, in VT v2, in VT v3, in ST size) pure nothrow
         {
+            verts = [*v1,*v2,*v3];
             lines = [
                 LineT(v1, v2, v3, size),
                 LineT(v2, v3, v1, size),
@@ -122,7 +126,8 @@ private:
             const y1 = v1.pos.y;
             const y2 = v2.pos.y;
             const y3 = v3.pos.y;
-            const mat = Matrix!(PosT,3,3)(x1, y1, w1,
+            const mat = Matrix!(PosT,3,3)(
+                x1, y1, w1,
                 x2, y2, w2,
                 x3, y3, w3);
             const d = mat.det;
@@ -211,8 +216,8 @@ private:
         uint vals() const
         {
             return (cast(uint)(cx[0] > 0) << 0) |
-                (cast(uint)(cx[1] > 0) << 1) |
-                    (cast(uint)(cx[2] > 0) << 2);
+                   (cast(uint)(cx[1] > 0) << 1) |
+                   (cast(uint)(cx[2] > 0) << 2);
         }
 
         auto val(int i) const
@@ -383,10 +388,10 @@ private:
         Span[] spans;
     }
 
-    struct PreparedData(PosT,TextT,LineT)
+    struct PreparedData(PosT,TextT,LineT,VertT)
     {
         bool valid = true;
-        alias PackT   = LinesPack!(PosT,TextT,LineT);
+        alias PackT   = LinesPack!(PosT,TextT,LineT,VertT);
         immutable PackT pack;
         SpanRange spanrange;
 
@@ -411,9 +416,27 @@ private:
             alias TextT = void;
         }
         alias LineT   = Line!(PosT);
-        alias PackT   = LinesPack!(PosT,TextT,LineT);
+        alias PackT   = LinesPack!(PosT,TextT,LineT,VertT);
+        alias PrepDataT = PreparedData!(PosT,TextT,LineT,VertT);
+
+        const size = outContext.size;
+
+        PrepDataT ret = PrepDataT(pverts[0], pverts[1], pverts[2], size);
+        if(ret.pack.degenerate)
+        {
+            ret.valid = false;
+            return ret;
+        }
+
+        return ret;
+    }
+
+    static void createTriangleSpans(AllocT,CtxT1,CtxT2,PrepT)
+        (auto ref AllocT alloc, auto ref CtxT1 outContext, auto ref CtxT2 extContext, ref PrepT prepared)
+    {
+        alias PosT    = prepared.pack.pos_t;
+        alias LineT   = Line!(PosT);
         alias PointT  = Point!(PosT);
-        alias PrepDataT = PreparedData!(PosT,TextT,LineT);
 
         const clipRect = outContext.clipRect;
         const size = outContext.size;
@@ -446,27 +469,19 @@ private:
 
         if(minX >= maxX || minY >= maxY)
         {
-            PrepDataT invalid;
-            invalid.valid = false;
-            return invalid;
+            prepared.valid = false;
+            return;
         }
 
-        PrepDataT ret = PrepDataT(pverts[0], pverts[1], pverts[2], size);
-        if(ret.pack.degenerate)
-        {
-            ret.valid = false;
-            return ret;
-        }
+        prepared.spanrange.spans = alloc.alloc!(SpanRange.Span)(size.h);
 
-        ret.spanrange.spans = alloc.alloc!(SpanRange.Span)(size.h);
-
-        if(PointT(ret.pack, minX, minY).check() &&
-           PointT(ret.pack, maxX, minY).check() &&
-           PointT(ret.pack, minX, maxY).check() &&
-           PointT(ret.pack, maxX, maxY).check())
+        if(PointT(prepared.pack, minX, minY).check() &&
+           PointT(prepared.pack, maxX, minY).check() &&
+           PointT(prepared.pack, minX, maxY).check() &&
+           PointT(prepared.pack, maxX, maxY).check())
         {
-            ret.spanrange.y0 = minY;
-            ret.spanrange.y1 = maxY;
+            prepared.spanrange.y0 = minY;
+            prepared.spanrange.y1 = maxY;
             foreach(y;minY..maxY)
             {
                 static if(ReadMask)
@@ -479,11 +494,11 @@ private:
                     const xc0 = minX;
                     const xc1 = maxX;
                 }
-                ret.spanrange.spans[y].x0 = xc0;
-                ret.spanrange.spans[y].x1 = xc1;
+                prepared.spanrange.spans[y].x0 = xc0;
+                prepared.spanrange.spans[y].x1 = xc1;
             }
         }
-        else if(ret.pack.external)
+        else if(prepared.pack.external)
         {
             //find first valid point
             bool findStart(int x0, int y0, int x1, int y1, ref PointT start)
@@ -506,7 +521,7 @@ private:
                         const xs = x0;
                         const xe = x1;
                     }
-                    auto pt = PointT(ret.pack, xs, y);
+                    auto pt = PointT(prepared.pack, xs, y);
                     int count = 0;
                     foreach(x;xs..xe)
                     {
@@ -527,7 +542,7 @@ private:
             PointT startPoint = void;
             do
             {
-                foreach(const ref v; pverts)
+                foreach(const ref v; prepared.pack.verts[])
                 {
                     const w = v.pos.w;
                     const x = cast(int)((v.pos.x / w) * size.w) + size.w / 2;
@@ -568,33 +583,33 @@ private:
                     }
 
                     if((x1 - x0) <= 8 ||
-                       (y1 - y0) <= 8)
+                        (y1 - y0) <= 8)
                     {
                         return findStart(x0, y0, x1, y1, startPoint);
                     }
                     const cx = x0 + (x1 - x0) / 2;
                     const cy = y0 + (y1 - y0) / 2;
                     //outContext.surface[cy][cx] = ColorRed;
-                    auto ptc0 = PointT(ret.pack, cx, y0);
-                    auto pt0c = PointT(ret.pack, x0, cy);
-                    auto ptcc = PointT(ret.pack, cx, cy);
-                    auto pt1c = PointT(ret.pack, x1, cy);
-                    auto ptc1 = PointT(ret.pack, cx, y1);
+                    auto ptc0 = PointT(prepared.pack, cx, y0);
+                    auto pt0c = PointT(prepared.pack, x0, cy);
+                    auto ptcc = PointT(prepared.pack, cx, cy);
+                    auto pt1c = PointT(prepared.pack, x1, cy);
+                    auto ptc1 = PointT(prepared.pack, cx, y1);
                     return checkQuad(pt00, ptc0, pt0c, ptcc) ||
                         checkQuad(ptc0, pt10, ptcc, pt1c) ||
                             checkQuad(pt0c, ptcc, pt01, ptc1) ||
                             checkQuad(ptcc, pt1c, ptc1, pt11);
                 }
-                if(checkQuad(PointT(ret.pack, minX, minY),
-                             PointT(ret.pack, maxX, minY),
-                             PointT(ret.pack, minX, maxY),
-                             PointT(ret.pack, maxX, maxY)))
+                if(checkQuad(PointT(prepared.pack, minX, minY),
+                        PointT(prepared.pack, maxX, minY),
+                        PointT(prepared.pack, minX, maxY),
+                        PointT(prepared.pack, maxX, maxY)))
                 {
                     goto found;
                 }
                 //nothing found
-                ret.valid = false;
-                return ret;
+                prepared.valid = false;
+                return;
             }
             while(false);
         found:
@@ -663,8 +678,8 @@ private:
                     const x0 = findLeft();
                     const x1 = findRight();
                     static import gamelib.math;
-                    ret.spanrange.spans[pt.curry].x0 = gamelib.math.clamp(x0, leftBound, rightBound);
-                    ret.spanrange.spans[pt.curry].x1 = gamelib.math.clamp(x1, leftBound, rightBound);
+                    prepared.spanrange.spans[pt.curry].x0 = gamelib.math.clamp(x0, leftBound, rightBound);
+                    prepared.spanrange.spans[pt.curry].x1 = gamelib.math.clamp(x1, leftBound, rightBound);
                     return vec2i(x0, x1);
                 }
                 assert(false);
@@ -686,11 +701,11 @@ private:
                 auto none(in uint val) pure nothrow
                 {
                     return 0x0 == (val & 0b001_001) ||
-                        0x0 == (val & 0b010_010) ||
-                            0x0 == (val & 0b100_100);
+                           0x0 == (val & 0b010_010) ||
+                           0x0 == (val & 0b100_100);
                 }
-                const pt0 = PointT(ret.pack, x0, y);
-                const pt1 = PointT(ret.pack, x1, y);
+                const pt0 = PointT(prepared.pack, x0, y);
+                const pt1 = PointT(prepared.pack, x1, y);
                 if(none(pt0.vals() | (pt1.vals() << 3)))
                 {
                     return false;
@@ -700,7 +715,7 @@ private:
                 {
                     foreach(i;0..Step)
                     {
-                        auto pt = PointT(ret.pack, x0 + i, y);
+                        auto pt = PointT(prepared.pack, x0 + i, y);
                         while(pt.currx < x1)
                         {
                             if(pt.check())
@@ -713,7 +728,7 @@ private:
                     }
                 }
                 const e = x0 + ((x1 - x0) / Step) * Step;
-                auto pt = PointT(ret.pack, e, y);
+                auto pt = PointT(prepared.pack, e, y);
                 while(pt.currx < x1)
                 {
                     //debugOut("check");
@@ -737,7 +752,7 @@ private:
                         x = p0.currx;
                         return true;
                     }
-                    const cp = PointT(ret.pack, p0.currx + d / 2, y);
+                    const cp = PointT(prepared.pack, p0.currx + d / 2, y);
                     if(!findP(p0,cp))
                     {
                         findP(cp,p1);
@@ -766,7 +781,7 @@ private:
                 }
                 while(check() && findPoint(y, bounds, x))
                 {
-                    const pt = PointT(ret.pack, x, y);
+                    const pt = PointT(prepared.pack, x, y);
                     bounds = fillLine(pt);
                     //outContext.surface[y][x] = ColorBlue;
                     y += Inc;
@@ -775,8 +790,8 @@ private:
             }
             const sy = startPoint.curry;
             const bounds = fillLine(startPoint);
-            ret.spanrange.y1 = search!true(bounds, sy);
-            ret.spanrange.y0 = search!false(bounds, sy) + 1;
+            prepared.spanrange.y1 = search!true(bounds, sy);
+            prepared.spanrange.y0 = search!false(bounds, sy) + 1;
         }
         else //external
         {
@@ -784,7 +799,7 @@ private:
             Vec2[3] sortedPos = void;
             PosT upperY = PosT.max;
             int minElem;
-            foreach(int i,const ref v; pverts[])
+            foreach(int i,const ref v; prepared.pack.verts[])
             {
                 const pos = (v.pos.xy / v.pos.w);
                 sortedPos[i] = Vec2(cast(PosT)((pos.x * size.w) + size.w / 2),
@@ -916,9 +931,9 @@ private:
                                     {
                                         return false;
                                     }
-                                    ret.spanrange.spans[y].x0 = xc0;
+                                    prepared.spanrange.spans[y].x0 = xc0;
                                 }
-                                ret.spanrange.spans[y].x1 = xc1;
+                                prepared.spanrange.spans[y].x1 = xc1;
                                 //outContext.surface[y][xc0..xc1] = ColorBlue;
                             }
                             ++y;
@@ -930,9 +945,9 @@ private:
                 } //iterate
                 if(iterate!false())
                 {
-                    ret.spanrange.y0 = y;
+                    prepared.spanrange.y0 = y;
                     iterate!true();
-                    ret.spanrange.y1 = y;
+                    prepared.spanrange.y1 = y;
                 }
             } //fillspans
             if(revX)
@@ -945,24 +960,13 @@ private:
             }
         } //external
 
-        if(ret.spanrange.y0 >= ret.spanrange.y1) ret.valid = false;
-
-        return ret;
+        if(prepared.spanrange.y0 >= prepared.spanrange.y1) prepared.valid = false;
     }
 
-    static void drawTriangle(AllocT,CtxT1,CtxT2,VertT)
-        (auto ref AllocT alloc, auto ref CtxT1 outContext, auto ref CtxT2 extContext, in VertT[] pverts)
+    static void drawPreparedTriangle(AllocT,CtxT1,CtxT2,PrepT)
+        (auto ref AllocT alloc, auto ref CtxT1 outContext, auto ref CtxT2 extContext, in ref PrepT prepared)
     {
-        assert(pverts.length == 3);
-        alias PosT = Unqual!(typeof(VertT.pos.x));
-
-        const prepared = prepareTriangle(alloc, outContext, extContext, pverts);
-        if(!prepared.valid)
-        {
-            return;
-        }
-
-        alias SpanT   = Span!(PosT);
+        alias SpanT   = Span!(prepared.pack.pos_t);
         static if(HasLight)
         {
             alias LightProxT = LightProxy!(AffineLength, PosT);
@@ -1157,6 +1161,29 @@ private:
             else                writeMask!false();
         }
         //end
+    }
+
+    static void drawTriangle(AllocT,CtxT1,CtxT2,VertT)
+        (auto ref AllocT alloc, auto ref CtxT1 outContext, auto ref CtxT2 extContext, in VertT[] pverts)
+    {
+        assert(pverts.length == 3);
+        alias PosT = Unqual!(typeof(VertT.pos.x));
+
+        auto prepared = prepareTriangle(alloc, outContext, extContext, pverts);
+
+        if(!prepared.valid)
+        {
+            return;
+        }
+
+        createTriangleSpans(alloc, outContext, extContext, prepared);
+
+        if(!prepared.valid)
+        {
+            return;
+        }
+
+        drawPreparedTriangle(alloc, outContext, extContext, prepared);
     }
 
 }
