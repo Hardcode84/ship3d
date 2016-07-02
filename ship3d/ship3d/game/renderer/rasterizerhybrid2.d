@@ -18,8 +18,11 @@ import game.units;
 
 struct RasterizerHybrid2(bool HasTextures, bool WriteMask, bool ReadMask, bool HasLight)
 {
+    version(LDC)
+    {
     import ldc.attributes;
 @llvmAttr("unsafe-fp-math", "true"):
+    }
 
     static void drawIndexedTriangle(AllocT,CtxT1,CtxT2,VertT,IndT)
         (auto ref AllocT alloc, auto ref CtxT1 outputContext, auto ref CtxT2 extContext, in VertT[] verts, in IndT[] indices) if(isIntegral!IndT)
@@ -1119,8 +1122,11 @@ private:
 private:
 
 pure nothrow @nogc:
+version(LDC)
+{
 pragma(LDC_inline_ir)
     R inlineIR(string s, R, P...)(P);
+}
 
 struct NtsRange(T)
 {

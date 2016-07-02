@@ -18,9 +18,12 @@ import game.units;
 
 struct RasterizerHybrid3(bool HasTextures, bool WriteMask, bool ReadMask, bool HasLight)
 {
+    version(LDC)
+    {
     import ldc.attributes;
 @llvmAttr("unsafe-fp-math", "true"):
-    
+    }
+
     static void drawIndexedTriangle(AllocT,CtxT1,CtxT2,VertT,IndT)
         (auto ref AllocT alloc, auto ref CtxT1 outputContext, auto ref CtxT2 extContext, in VertT[] verts, in IndT[] indices) if(isIntegral!IndT)
     {
@@ -29,7 +32,7 @@ struct RasterizerHybrid3(bool HasTextures, bool WriteMask, bool ReadMask, bool H
         foreach(i,ind; indices) pverts[i] = verts.ptr + ind;
         drawTriangle(alloc, outputContext, extContext, pverts);
     }
-    
+
 private:
     enum AffineLength = 16;
     struct Line(PosT)
@@ -37,7 +40,7 @@ private:
         pure nothrow:
     @nogc:
         immutable PosT dx, dy, c;
-        
+
         this(VT,ST)(in VT v1, in VT v2, in VT v3, in ST size)
         {
             const x1 = v1.pos.x;
@@ -50,13 +53,13 @@ private:
             dy = (x1 * w2 - x2 * w1) / (size.h);
             c  = (x2 * y1 - x1 * y2) - dy * (size.h / 2) + dx * (size.w / 2);
         }
-        
+
         auto val(int x, int y) const
         {
             return c + dy * y - dx * x;
         }
     }
-    
+
     struct Plane(PosT)
     {
         pure nothrow:
@@ -70,13 +73,13 @@ private:
             dy = vec.y / size.h;
             c = vec.z - dx * (size.w / 2) - dy * (size.h / 2);
         }
-        
+
         auto get(int x, int y) const
         {
             return c + dx * x + dy * y;
         }
     }
-    
+
     struct LinesPack(PosT,TextT,LineT)
     {
     @nogc:
@@ -88,9 +91,9 @@ private:
         alias PlaneT = Plane!(PosT);
         enum NumLines = 3;
         immutable LineT[NumLines] lines;
-        
+
         immutable PlaneT wplane;
-        
+
         static if(HasTexture)
         {
             alias vec3tex = Vector!(TextT,3);
@@ -109,7 +112,7 @@ private:
                 LineT(v1, v2, v3, size),
                 LineT(v2, v3, v1, size),
                 LineT(v3, v1, v2, size)];
-            
+
             const w1 = v1.pos.w;
             const w2 = v2.pos.w;
             const w3 = v3.pos.w;
@@ -159,7 +162,7 @@ private:
             }
         }
     }
-    
+
     struct Point(PosT)
     {
         pure nothrow:
@@ -181,7 +184,7 @@ private:
             currx = x;
             curry = y;
         }
-        
+
         void incX(int val)
         {
             foreach(i;TupleRange!(0,NumLines))
@@ -190,7 +193,7 @@ private:
             }
             currx += val;
         }
-        
+
         void incY(int val)
         {
             foreach(i;TupleRange!(0,NumLines))
@@ -199,31 +202,31 @@ private:
             }
             curry += val;
         }
-        
+
         bool check() const
         {
             return cx[0] > 0 && cx[1] > 0 && cx[2] > 0;
         }
-        
+
         uint vals() const
         {
             return (cast(uint)(cx[0] > 0) << 0) |
                 (cast(uint)(cx[1] > 0) << 1) |
                     (cast(uint)(cx[2] > 0) << 2);
         }
-        
+
         auto val(int i) const
         {
             return cx[i];
         }
     }
-    
+
     struct Span(PosT)
     {
         pure nothrow:
         PosT wStart = void, wCurr = void;
         immutable PosT dwx, dwy;
-        
+
         PosT suStart = void, svStart = void;
         PosT suCurr  = void, svCurr  = void;
         immutable PosT dsux, dsuy;
@@ -238,18 +241,18 @@ private:
             suCurr  = suStart;
             dsux    = pack.uplane.dx;
             dsuy    = pack.uplane.dy;
-            
+
             svStart = pack.vplane.get(x, y);
             svCurr  = svStart;
             dsvx    = pack.vplane.dx;
             dsvy    = pack.vplane.dy;
-            
+
             wStart = pack.wplane.get(x, y);
             wCurr  = wStart;
             dwx    = pack.wplane.dx;
             dwy    = pack.wplane.dy;
         }
-        
+
         void incX(int dx)
         {
             suCurr += dsux * dx;
@@ -262,19 +265,19 @@ private:
             dux = (u1 - u) / dx;
             dvx = (v1 - v) / dx;
         }
-        
+
         void incY()
         {
             wStart += dwy;
             wCurr  = wStart;
-            
+
             suStart += dsuy;
             suCurr  = suStart;
             svStart += dsvy;
             svCurr  = svStart;
         }
     }
-    
+
     struct LightProxy(int Len, PosT)
     {
         pure nothrow:
@@ -289,7 +292,7 @@ private:
         DataT lightData;
         LightT[Len] buff = void;
         LightT l1,l2;
-        
+
         this(AllocT,PackT,SpansT,CtxT)(
             auto ref AllocT alloc,
             in ref PackT pack,
@@ -339,14 +342,14 @@ private:
                 }
             }
         }
-        
+
         void setXY(int x, int y)
         {
             currX = x / Len;
             currY = y;
             l2 = get();
         }
-        
+
         void incX()
         {
             ++currX;
@@ -357,9 +360,9 @@ private:
                 buff[i] = (i + currY) % 2 ? l1 : l2;
             }
         }
-        
+
         @property x() const { return (currX - 1) * Len; }
-        
+
         private auto get() const
         {
             const ty = currY / Len;
@@ -368,7 +371,7 @@ private:
             return currY % 2 ? row1[currX] : row2[currX];
         }
     }
-    
+
     struct SpanRange
     {
         struct Span
@@ -379,14 +382,14 @@ private:
         int y1;
         Span[] spans;
     }
-    
+
     static void drawTriangle(AllocT,CtxT1,CtxT2,VertT)
         (auto ref AllocT alloc, auto ref CtxT1 outContext, auto ref CtxT2 extContext, in VertT[] pverts)
     {
         assert(pverts.length == 3);
         //alias PosT = FixedPoint!(16,16,int);
         alias PosT = Unqual!(typeof(VertT.pos.x));
-        
+
         static if(HasTextures)
         {
             alias TextT = PosT;
@@ -403,10 +406,10 @@ private:
         {
             alias LightProxT = LightProxy!(AffineLength, PosT);
         }
-        
+
         const clipRect = outContext.clipRect;
         const size = outContext.size;
-        
+
         static if(ReadMask)
         {
             const srcMask = &outContext.mask;
@@ -419,7 +422,7 @@ private:
         {
             auto  dstMask = &outContext.dstMask;
         }
-        
+
         static if(ReadMask)
         {
             const minX = max(clipRect.x, srcMask.x0);
@@ -434,21 +437,21 @@ private:
             const minY = clipRect.y;
             const maxY = clipRect.y + clipRect.h;
         }
-        
+
         if(minX >= maxX || minY >= maxY)
         {
             return;
         }
-        
+
         immutable pack = PackT(pverts[0], pverts[1], pverts[2], size);
         if(pack.degenerate)
         {
             return;
         }
-        
+
         SpanRange spanrange;
         spanrange.spans = alloc.alloc!(SpanRange.Span)(size.h);
-        
+
         if(PointT(pack, minX, minY).check() &&
             PointT(pack, maxX, minY).check() &&
             PointT(pack, minX, maxY).check() &&
@@ -512,7 +515,7 @@ private:
                 }
                 return false;
             }
-            
+
             PointT startPoint = void;
             do
             {
@@ -521,8 +524,8 @@ private:
                     const w = v.pos.w;
                     const x = cast(int)((v.pos.x / w) * size.w) + size.w / 2;
                     const y = cast(int)((v.pos.y / w) * size.h) + size.h / 2;
-                    
-                    
+
+
                     if(x >= minX && x < maxX &&
                         y >= minY && y < maxY &&
                         findStart(max(x - 2, minX), max(y - 2, minY), min(x + 3, maxX), min(y + 3, maxY), startPoint))
@@ -530,7 +533,7 @@ private:
                         goto found;
                     }
                 }
-                
+
                 bool checkQuad(in PointT pt00, in PointT pt10, in PointT pt01, in PointT pt11)
                 {
                     const x0 = pt00.currx;
@@ -556,7 +559,7 @@ private:
                     {
                         return false;
                     }
-                    
+
                     if((x1 - x0) <= 8 ||
                         (y1 - y0) <= 8)
                     {
@@ -587,7 +590,7 @@ private:
             }
             while(false);
         found:
-            
+
             auto fillLine(in ref PointT pt)
             {
                 enum Step = 16;
@@ -658,7 +661,7 @@ private:
                 }
                 assert(false);
             }
-            
+
             bool findPoint(T)(int y, in T bounds, out int x)
             {
                 //debugOut("find point");
@@ -807,16 +810,16 @@ private:
                     dx = (x2 - x1) / (y2 - y1);
                     incY(y.ceil - y);
                 }
-                
+
                 void incY(PosT val)
                 {
                     y += val;
                     currX += dx * val;
                 }
-                
+
                 @property x() const { return cast(int)(currX + 1.0f); }
             }
-            
+
             Edge[3] edges = void;
             bool revX = void;
             if(sortedPos[1].y < sortedPos[2].y)
@@ -835,7 +838,7 @@ private:
                     Edge(sortedPos[0],sortedPos[2]),
                     Edge(sortedPos[2],sortedPos[1])];
             }
-            
+
             void fillSpans(bool ReverseX)()
             {
                 int y = cast(int)edges[0].y;
@@ -891,7 +894,7 @@ private:
                                     const xc0 = max(x0, minX);
                                     const xc1 = min(x1, maxX);
                                 }
-                                
+
                                 static if(!Fill)
                                 {
                                     if(xc1 > xc0)
@@ -934,7 +937,7 @@ private:
             }
         } //external
         if(spanrange.y0 >= spanrange.y1) return;
-        
+
         static if(HasTextures)
         {
             static if(HasLight)
@@ -984,7 +987,7 @@ private:
                     {
                         ctx.colorProxy.view.assign(lightProx.buff[],lightProx.x);
                     }
-                    
+
                     static if(FixedLen)
                     {
                         //extContext.texture.getLine!AffineLength(ctx,line[x1..x2]);
@@ -1010,10 +1013,10 @@ private:
                     }
                 }
             }
-            
+
             const sx = spanrange.spans[spanrange.y0].x0;
             auto span = SpanT(pack, sx, spanrange.y0);
-            
+
             auto line = outContext.surface[spanrange.y0];
             foreach(y;spanrange.y0..spanrange.y1)
             {
@@ -1061,7 +1064,7 @@ private:
                 ++line;
             }
         }
-        
+
         static if(WriteMask)
         {
             void writeMask(bool Empty)()
@@ -1076,7 +1079,7 @@ private:
                     assert(x0 >= minX);
                     assert(x1 <= maxX);
                     assert(x1 >= x0);
-                    
+
                     if(Empty || y < dstMask.y0 || y >= dstMask.y1)
                     {
                         dstMask.spans[y].x0 = x0;
@@ -1088,7 +1091,7 @@ private:
                         dstMask.spans[y].x1 = max(x1, dstMask.spans[y].x1);
                     }
                     //outContext.surface[y][dstMask.spans[y].x0..dstMask.spans[y].x1] = ColorBlue;
-                    
+
                     mskMinX = min(mskMinX, x0);
                     mskMaxX = max(mskMaxX, x1);
                 }
@@ -1107,33 +1110,36 @@ private:
                     dstMask.y1 = max(spanrange.y1, dstMask.y1);
                 }
             }
-            
+
             if(dstMask.isEmpty) writeMask!true();
             else                writeMask!false();
         }
         //end
     }
-    
+
 }
 
 private:
 
 pure nothrow @nogc:
+version(LDC)
+{
 pragma(LDC_inline_ir)
     R inlineIR(string s, R, P...)(P);
+}
 
 struct NtsRange(T)
 {
     pure nothrow @nogc:
     T[] dstRange;
-    
+
     void opIndexAssign(in T val, size_t ind)
     {
         static assert(T.sizeof == 4);
         dstRange[ind] = val;
         //inlineIR!(`store i32 %0, i32* %1, align 4, !nontemporal !0`, void)(*(cast(int*)&val), cast(int*)dstRange.ptr + ind);
     }
-    
+
     auto length() const { return dstRange.length; }
 }
 
