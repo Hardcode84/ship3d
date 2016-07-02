@@ -29,7 +29,7 @@ public:
         mData.length = w * h;
     }
 
-    void getLine(int W, C, T)(in ref C context, T[] outLine) const pure nothrow
+    void getLine(int W, C, Range)(in ref C context, Range outLine) const pure nothrow
     {
         assert(outLine.length == W);
         static assert(W > 0);
@@ -43,15 +43,13 @@ public:
         TextT v = context.v;
         const TextT dux = context.dux;
         const TextT dvx = context.dvx;
-        auto dstPtr = outLine.ptr;
         foreach(i;TupleRange!(0,W))
         {
             const x = cast(int)(u * w) & wmask;
             const y = cast(int)(v * h) & hmask;
-            *dstPtr = getColor(context.colorProxy(mData[x + y * width],context.x + i));
+            outLine[i] = getColor(context.colorProxy(mData[x + y * width],context.x + i));
             u += dux;
             v += dvx;
-            ++dstPtr;
         }
     }
 }
@@ -118,7 +116,6 @@ public:
 
         enum TileDataSize = TileSize * TileSize;
         const tilePitch = TileDataSize * (width / TileSize);
-        auto dstPtr = outLine.ptr;
         foreach(i;TupleRange!(0,W))
         {
             const x = cast(int)(u * w) & wmask;
@@ -129,10 +126,9 @@ public:
             const tile = mData[offset..offset + TileDataSize];
             const x1 = x - tx * TileSize;
             const y1 = y - ty * TileSize;
-            *dstPtr = getColor(tile[x1 + y1 * TileSize]);
+            outLine[i] = getColor(tile[x1 + y1 * TileSize]);
             u += dux;
             v += dvx;
-            ++dstPtr;
         }
     }
 }
