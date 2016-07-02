@@ -39,7 +39,7 @@ private:
     {
         pure nothrow:
     @nogc:
-        immutable PosT dx, dy, c;
+        Unqual!PosT dx, dy, c;
 
         this(VT,ST)(in VT v1, in VT v2, in VT v3, in ST size)
         {
@@ -64,9 +64,9 @@ private:
     {
         pure nothrow:
     @nogc:
-        immutable PosT dx;
-        immutable PosT dy;
-        immutable PosT c;
+        Unqual!PosT dx;
+        Unqual!PosT dy;
+        Unqual!PosT c;
         this(V,S)(in V vec, in S size)
         {
             dx = vec.x / size.w;
@@ -80,7 +80,7 @@ private:
         }
     }
 
-    struct LinesPack(PosT,TextT,LineT,VertT)
+    struct LinesPack(PosT,TextT,LineT)
     {
     @nogc:
         alias pos_t = PosT;
@@ -89,22 +89,22 @@ private:
         alias vec3 = Vector!(PosT,3);
         alias PlaneT = Plane!(PosT);
 
-        immutable PlaneT wplane = void;
-        immutable vec3[3] verts;
+        PlaneT wplane = void;
+        vec3[3] verts;
 
         static if(HasTexture)
         {
             alias vec3tex = Vector!(TextT,3);
             alias PlaneTtex = Plane!(TextT);
-            immutable PlaneTtex uplane = void;
-            immutable PlaneTtex vplane = void;
+            PlaneTtex uplane = void;
+            PlaneTtex vplane = void;
         }
         static if(HasLight)
         {
-            immutable PlaneT refXplane = void, refYplane = void, refZplane = void;
-            immutable vec3 normal = void;
+            PlaneT refXplane = void, refYplane = void, refZplane = void;
+            vec3 normal = void;
         }
-        immutable bool external = void;
+        bool external = void;
 
         this(VT,ST)(in VT v1, in VT v2, in VT v3, in ST size, ref bool degenerate) pure nothrow
         {
@@ -382,12 +382,17 @@ private:
         Span[] spans;
     }
 
-    struct PreparedData(PosT,TextT,LineT,VertT)
+    struct PreparedData(PosT,TextT,LineT)
     {
         bool valid = true;
-        alias PackT   = LinesPack!(PosT,TextT,LineT,VertT);
-        immutable PackT pack;
+        alias PackT   = LinesPack!(PosT,TextT,LineT);
+        PackT pack;
         SpanRange spanrange;
+
+        this(PackT pack_)
+        {
+            pack = pack_;
+        }
 
         this(VT,ST)(in VT v1, in VT v2, in VT v3, in ST size, ref bool degenerate) pure nothrow
         {
@@ -410,8 +415,8 @@ private:
             alias TextT = void;
         }
         alias LineT   = Line!(PosT);
-        alias PackT   = LinesPack!(PosT,TextT,LineT,VertT);
-        alias PrepDataT = PreparedData!(PosT,TextT,LineT,VertT);
+        alias PackT   = LinesPack!(PosT,TextT,LineT);
+        alias PrepDataT = PreparedData!(PosT,TextT,LineT);
 
         const size = outContext.size;
 
@@ -1162,6 +1167,40 @@ private:
         //end
     }
 
+    struct CacheElem(PackT,ContextT)
+    {
+        PackT pack;
+        ContextT extContext;
+    }
+
+    struct FlushParam(Alloc, Context)
+    {
+        Alloc alloc;
+        Context* context;
+    }
+
+    static void flushData(PreparedT,FlushParam,CacheElem)(void[] data)
+    {
+        assert(data.length > FlushParam.sizeof);
+        assert(0 == (data.length - FlushParam.sizeof) % CacheElem.sizeof);
+        FlushParam* param = (cast(FlushParam*)data.ptr);
+        const(CacheElem)[] cache = (cast(const(CacheElem)*)(data.ptr + FlushParam.sizeof))[0..(data.length - FlushParam.sizeof) / CacheElem.sizeof];
+        foreach(ref elem; cache)
+        {
+            auto allocState = param.alloc.state;
+            scope(exit) param.alloc.restoreState(allocState);
+            auto prepared = PreparedT(elem.pack);
+            createTriangleSpans(param.alloc, param.context, elem.extContext, prepared);
+
+            if(!prepared.valid)
+            {
+                continue;
+            }
+
+            drawPreparedTriangle(param.alloc, param.context, elem.extContext, prepared);
+        }
+    }
+
     static void drawTriangle(AllocT,CtxT1,CtxT2,VertT)
         (auto ref AllocT alloc, auto ref CtxT1 outContext, auto ref CtxT2 extContext, in VertT[] pverts)
     {
@@ -1169,21 +1208,48 @@ private:
         alias PosT = Unqual!(typeof(VertT.pos.x));
 
         auto prepared = prepareTriangle(alloc, outContext, extContext, pverts);
-        pragma(msg, prepared.pack.sizeof);
+        alias PreparedT = Unqual!(typeof(prepared));
 
         if(!prepared.valid)
         {
             return;
         }
 
-        createTriangleSpans(alloc, outContext, extContext, prepared);
-
-        if(!prepared.valid)
+        if(UseCache)
         {
-            return;
-        }
+            alias CacheElemT = CacheElem!(Unqual!(typeof(prepared.pack)), Unqual!CtxT2);
+            enum CacheElemSize = CacheElemT.sizeof;
+            alias FlushParamT = FlushParam!(Unqual!AllocT,Unqual!CtxT1);
+            assert(outContext.rasterizerCache.length <= CacheElemSize);
 
-        drawPreparedTriangle(alloc, outContext, extContext, prepared);
+            auto ownFunc = &flushData!(PreparedT,FlushParamT,CacheElemT);
+            if((outContext.rasterizerCache.length - outContext.rasterizerCacheUsed) > CacheElemSize ||
+                    outContext.flushFunc != ownFunc)
+            {
+                if(outContext.flushFunc !is null)
+                {
+                    outContext.flushFunc(outContext.rasterizerCache[0..outContext.rasterizerCacheUsed]);
+                }
+                outContext.rasterizerCacheUsed = FlushParamT.sizeof;
+                *(cast(FlushParamT*)outContext.rasterizerCache.ptr) = FlushParamT(alloc,&outContext);
+                outContext.flushFunc = ownFunc;
+            }
+
+            auto newElem = CacheElemT(prepared.pack, extContext);
+            (outContext.rasterizerCache.ptr + outContext.rasterizerCacheUsed)[0..CacheElemT.sizeof] = (cast(void*)&newElem)[0..CacheElemT.sizeof];
+            outContext.rasterizerCacheUsed += CacheElemSize;
+        }
+        else
+        {
+            createTriangleSpans(alloc, outContext, extContext, prepared);
+
+            if(!prepared.valid)
+            {
+                return;
+            }
+
+            drawPreparedTriangle(alloc, outContext, extContext, prepared);
+        }
     }
 
 }

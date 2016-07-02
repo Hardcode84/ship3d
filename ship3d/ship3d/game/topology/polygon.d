@@ -248,12 +248,12 @@ public:
             import game.renderer.light;
             struct Context2
             {
-                const texture_t texture;
+                const(texture_t) texture;
                 static if(DynLights)
                 {
-                    const Light[] lights;
+                    const(Light)[] lights;
                 }
-                const LightController lightController;
+                const(LightController) lightController;
             }
             assert(mTexture !is null);
             static if(DynLights)

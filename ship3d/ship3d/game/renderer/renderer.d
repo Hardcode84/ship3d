@@ -48,5 +48,17 @@ public:
             rast.drawIndexedTriangle(alloc, state, context, verts, indices[i0..i1]);
         }
     }
+
+    void flushContext()
+    {
+        if(state.flushFunc !is null)
+        {
+            state.flushFunc(state.rasterizerCache[0..state.rasterizerCacheUsed]);
+        }
+        state.rasterizerCacheUsed = 0;
+        state.flushFunc = null;
+    }
 }
+
+
 

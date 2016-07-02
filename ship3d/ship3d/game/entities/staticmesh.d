@@ -32,12 +32,12 @@ public:
         enum DynLights = false;
         struct Context2
         {
-            const texture_t texture;
+            const(texture_t) texture;
             static if(DynLights)
             {
-                const Light[] lights;
+                const(Light)[] lights;
             }
-            const LightController lightController;
+            const(LightController) lightController;
         }
 
         static if(DynLights)

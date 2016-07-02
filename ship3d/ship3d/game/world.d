@@ -55,6 +55,10 @@ private:
         mat4_t matrix;
         SpanMask mask;
         SpanMask dstMask;
+
+        void[] rasterizerCache;
+        uint rasterizerCacheUsed = 0;
+        void function(void[]) flushFunc = null;
     }
 
     LightController mLightController = null;
@@ -219,6 +223,7 @@ public:
                 const clipRect = tile;
                 const mat = mProjMat;
                 OutContext octx = {mSize, surf, clipRect, mat, SpanMask(mSize, allocator)};
+                octx.rasterizerCache = allocator.alloc!void(1024 * 100);
                 RendererT renderer;
                 renderer.state = octx;
                 drawPlayer(renderer, allocator, surf);
@@ -232,6 +237,7 @@ public:
             const clipRect = Rect(0, 0, surf.width, surf.height);
             const mat = mProjMat;
             OutContext octx = {mSize, surf, clipRect, mat, SpanMask(mSize, allocator)};
+            octx.rasterizerCache = allocator.alloc!void(1024 * 100);
             RendererT renderer;
             renderer.state = octx;
             drawPlayer(renderer, allocator, surf);

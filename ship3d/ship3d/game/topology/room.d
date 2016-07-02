@@ -124,6 +124,7 @@ public:
             renderer.state.matrix = mat * mat4_t.translation(e.pos.x,e.pos.y,e.pos.z) * e.dir.to_matrix!(4,4)();
             entity.draw(renderer, Entity.DrawParams(this, alloc));
         }
+        renderer.flushContext();
     }
 
     void addEntity(Entity e, in vec3_t epos, in quat_t edir)
