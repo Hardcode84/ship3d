@@ -43,12 +43,12 @@ private:
 
         this(VT,ST)(in VT v1, in VT v2, in VT v3, in ST size)
         {
-            const x1 = v1.pos.x;
-            const x2 = v2.pos.x;
-            const y1 = v1.pos.y;
-            const y2 = v2.pos.y;
-            const w1 = v1.pos.w;
-            const w2 = v2.pos.w;
+            const x1 = v1.x;
+            const x2 = v2.x;
+            const y1 = v1.y;
+            const y2 = v2.y;
+            const w1 = v1.z;
+            const w2 = v2.z;
             dx = (y1 * w2 - y2 * w1) / (size.w);
             dy = (x1 * w2 - x2 * w1) / (size.h);
             c  = (x2 * y1 - x1 * y2) - dy * (size.h / 2) + dx * (size.w / 2);
@@ -84,17 +84,13 @@ private:
     {
     @nogc:
         alias pos_t = PosT;
-        immutable bool degenerate = void;
-        immutable bool external = void;
         enum HasTexture = !is(TextT : void);
         alias vec2 = Vector!(PosT,2);
         alias vec3 = Vector!(PosT,3);
         alias PlaneT = Plane!(PosT);
-        enum NumLines = 3;
-        immutable LineT[NumLines] lines = void;
 
         immutable PlaneT wplane = void;
-        immutable typeof(*VertT)[3] verts;
+        immutable vec3[3] verts;
 
         static if(HasTexture)
         {
@@ -108,14 +104,11 @@ private:
             immutable PlaneT refXplane = void, refYplane = void, refZplane = void;
             immutable vec3 normal = void;
         }
+        immutable bool external = void;
 
-        this(VT,ST)(in VT v1, in VT v2, in VT v3, in ST size) pure nothrow
+        this(VT,ST)(in VT v1, in VT v2, in VT v3, in ST size, ref bool degenerate) pure nothrow
         {
-            verts = [*v1,*v2,*v3];
-            lines = [
-                LineT(v1, v2, v3, size),
-                LineT(v2, v3, v1, size),
-                LineT(v3, v1, v2, size)];
+            verts = [v1.pos.xyw,v2.pos.xyw,v3.pos.xyw];
 
             const w1 = v1.pos.w;
             const w2 = v2.pos.w;
@@ -137,11 +130,13 @@ private:
                 return;
             }
             degenerate = false;
+
             const dw = 0.0001f;
             const sizeLim = 10000;
             const bool big = max(max(abs(x1 / w1), abs(x2 / w2), abs(x3 / w3)) * size.w,
                 max(abs(y1 / w1), abs(y2 / w2), abs(y3 / w3)) * size.h) > sizeLim;
             external = big || almost_equal(w1, 0, dw) || almost_equal(w2, 0, dw) || almost_equal(w3, 0, dw) || (w1 * w2 < 0) || (w1 * w3 < 0);
+
             const invMat = mat.inverse;
             wplane = PlaneT(invMat * vec3(1,1,1), size);
             static if(HasTexture)
@@ -170,21 +165,21 @@ private:
 
     struct Point(PosT)
     {
-        pure nothrow:
+    pure nothrow @nogc:
         enum NumLines = 3;
         int currx = void;
         int curry = void;
         PosT[NumLines] cx = void;
         PosT[NumLines] dx = void;
         PosT[NumLines] dy = void;
-        this(PackT)(in ref PackT p, int x, int y)
+        this(PackT,LineT)(in ref PackT p, int x, int y, in ref LineT lines)
         {
             foreach(i;TupleRange!(0,NumLines))
             {
-                const val = p.lines[i].val(x, y);
+                const val = lines[i].val(x, y);
                 cx[i] = val;
-                dx[i] = -p.lines[i].dx;
-                dy[i] =  p.lines[i].dy;
+                dx[i] = -lines[i].dx;
+                dy[i] =  lines[i].dy;
             }
             currx = x;
             curry = y;
@@ -228,7 +223,7 @@ private:
 
     struct Span(PosT)
     {
-        pure nothrow:
+    pure nothrow @nogc:
         PosT wStart = void, wCurr = void;
         immutable PosT dwx, dwy;
 
@@ -285,8 +280,7 @@ private:
 
     struct LightProxy(int Len, PosT)
     {
-        pure nothrow:
-    @nogc:
+    pure nothrow @nogc:
         int currX, currY;
         ubyte[Len] buffer;
         alias vec3 = Vector!(PosT,3);
@@ -395,9 +389,9 @@ private:
         immutable PackT pack;
         SpanRange spanrange;
 
-        this(VT,ST)(in VT v1, in VT v2, in VT v3, in ST size) pure nothrow
+        this(VT,ST)(in VT v1, in VT v2, in VT v3, in ST size, ref bool degenerate) pure nothrow
         {
-            pack = PackT(v1,v2,v3,size);
+            pack = PackT(v1,v2,v3,size, degenerate);
         }
     }
 
@@ -421,8 +415,9 @@ private:
 
         const size = outContext.size;
 
-        PrepDataT ret = PrepDataT(pverts[0], pverts[1], pverts[2], size);
-        if(ret.pack.degenerate)
+        bool degenerate = void;
+        PrepDataT ret = PrepDataT(pverts[0], pverts[1], pverts[2], size, degenerate);
+        if(degenerate)
         {
             ret.valid = false;
             return ret;
@@ -474,11 +469,15 @@ private:
         }
 
         prepared.spanrange.spans = alloc.alloc!(SpanRange.Span)(size.h);
+        const LineT[3] lines = [
+            LineT(prepared.pack.verts[0], prepared.pack.verts[1], prepared.pack.verts[2], size),
+            LineT(prepared.pack.verts[1], prepared.pack.verts[2], prepared.pack.verts[0], size),
+            LineT(prepared.pack.verts[2], prepared.pack.verts[0], prepared.pack.verts[1], size)];
 
-        if(PointT(prepared.pack, minX, minY).check() &&
-           PointT(prepared.pack, maxX, minY).check() &&
-           PointT(prepared.pack, minX, maxY).check() &&
-           PointT(prepared.pack, maxX, maxY).check())
+        if(PointT(prepared.pack, minX, minY, lines).check() &&
+           PointT(prepared.pack, maxX, minY, lines).check() &&
+           PointT(prepared.pack, minX, maxY, lines).check() &&
+           PointT(prepared.pack, maxX, maxY, lines).check())
         {
             prepared.spanrange.y0 = minY;
             prepared.spanrange.y1 = maxY;
@@ -521,7 +520,7 @@ private:
                         const xs = x0;
                         const xe = x1;
                     }
-                    auto pt = PointT(prepared.pack, xs, y);
+                    auto pt = PointT(prepared.pack, xs, y, lines);
                     int count = 0;
                     foreach(x;xs..xe)
                     {
@@ -544,9 +543,9 @@ private:
             {
                 foreach(const ref v; prepared.pack.verts[])
                 {
-                    const w = v.pos.w;
-                    const x = cast(int)((v.pos.x / w) * size.w) + size.w / 2;
-                    const y = cast(int)((v.pos.y / w) * size.h) + size.h / 2;
+                    const w = v.z;
+                    const x = cast(int)((v.x / w) * size.w) + size.w / 2;
+                    const y = cast(int)((v.y / w) * size.h) + size.h / 2;
 
                     if(x >= minX && x < maxX &&
                        y >= minY && y < maxY &&
@@ -590,20 +589,20 @@ private:
                     const cx = x0 + (x1 - x0) / 2;
                     const cy = y0 + (y1 - y0) / 2;
                     //outContext.surface[cy][cx] = ColorRed;
-                    auto ptc0 = PointT(prepared.pack, cx, y0);
-                    auto pt0c = PointT(prepared.pack, x0, cy);
-                    auto ptcc = PointT(prepared.pack, cx, cy);
-                    auto pt1c = PointT(prepared.pack, x1, cy);
-                    auto ptc1 = PointT(prepared.pack, cx, y1);
+                    auto ptc0 = PointT(prepared.pack, cx, y0, lines);
+                    auto pt0c = PointT(prepared.pack, x0, cy, lines);
+                    auto ptcc = PointT(prepared.pack, cx, cy, lines);
+                    auto pt1c = PointT(prepared.pack, x1, cy, lines);
+                    auto ptc1 = PointT(prepared.pack, cx, y1, lines);
                     return checkQuad(pt00, ptc0, pt0c, ptcc) ||
                         checkQuad(ptc0, pt10, ptcc, pt1c) ||
                             checkQuad(pt0c, ptcc, pt01, ptc1) ||
                             checkQuad(ptcc, pt1c, ptc1, pt11);
                 }
-                if(checkQuad(PointT(prepared.pack, minX, minY),
-                        PointT(prepared.pack, maxX, minY),
-                        PointT(prepared.pack, minX, maxY),
-                        PointT(prepared.pack, maxX, maxY)))
+                if(checkQuad(PointT(prepared.pack, minX, minY, lines),
+                             PointT(prepared.pack, maxX, minY, lines),
+                             PointT(prepared.pack, minX, maxY, lines),
+                             PointT(prepared.pack, maxX, maxY, lines)))
                 {
                     goto found;
                 }
@@ -704,8 +703,8 @@ private:
                            0x0 == (val & 0b010_010) ||
                            0x0 == (val & 0b100_100);
                 }
-                const pt0 = PointT(prepared.pack, x0, y);
-                const pt1 = PointT(prepared.pack, x1, y);
+                const pt0 = PointT(prepared.pack, x0, y, lines);
+                const pt1 = PointT(prepared.pack, x1, y, lines);
                 if(none(pt0.vals() | (pt1.vals() << 3)))
                 {
                     return false;
@@ -715,7 +714,7 @@ private:
                 {
                     foreach(i;0..Step)
                     {
-                        auto pt = PointT(prepared.pack, x0 + i, y);
+                        auto pt = PointT(prepared.pack, x0 + i, y, lines);
                         while(pt.currx < x1)
                         {
                             if(pt.check())
@@ -728,7 +727,7 @@ private:
                     }
                 }
                 const e = x0 + ((x1 - x0) / Step) * Step;
-                auto pt = PointT(prepared.pack, e, y);
+                auto pt = PointT(prepared.pack, e, y, lines);
                 while(pt.currx < x1)
                 {
                     //debugOut("check");
@@ -752,7 +751,7 @@ private:
                         x = p0.currx;
                         return true;
                     }
-                    const cp = PointT(prepared.pack, p0.currx + d / 2, y);
+                    const cp = PointT(prepared.pack, p0.currx + d / 2, y, lines);
                     if(!findP(p0,cp))
                     {
                         findP(cp,p1);
@@ -781,7 +780,7 @@ private:
                 }
                 while(check() && findPoint(y, bounds, x))
                 {
-                    const pt = PointT(prepared.pack, x, y);
+                    const pt = PointT(prepared.pack, x, y, lines);
                     bounds = fillLine(pt);
                     //outContext.surface[y][x] = ColorBlue;
                     y += Inc;
@@ -801,7 +800,7 @@ private:
             int minElem;
             foreach(int i,const ref v; prepared.pack.verts[])
             {
-                const pos = (v.pos.xy / v.pos.w);
+                const pos = (v.xy / v.z);
                 sortedPos[i] = Vec2(cast(PosT)((pos.x * size.w) + size.w / 2),
                     cast(PosT)((pos.y * size.h) + size.h / 2));
                 if(sortedPos[i].y < upperY)
@@ -1170,6 +1169,7 @@ private:
         alias PosT = Unqual!(typeof(VertT.pos.x));
 
         auto prepared = prepareTriangle(alloc, outContext, extContext, pverts);
+        pragma(msg, prepared.pack.sizeof);
 
         if(!prepared.valid)
         {
