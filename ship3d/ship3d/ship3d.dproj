@@ -330,6 +330,7 @@
     <Compile Include="game\topology\mesh.d" />
     <Compile Include="game\entities\staticmesh.d" />
     <Compile Include="game\utils.d" />
+    <Compile Include="game\renderer\rasterizerhybrid3.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />

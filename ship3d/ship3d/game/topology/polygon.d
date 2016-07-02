@@ -15,7 +15,6 @@ import game.topology.plane;
 import game.entities.entity;
 
 import game.renderer.spanmask;
-import game.renderer.rasterizerhybrid2;
 
 enum PolygonType
 {
@@ -229,7 +228,7 @@ public:
                     //draw mask
                     struct Context1 {}
                     Context1 ctx;
-                    alias RastT1 = RasterizerHybrid2!(false,true,true,false);
+                    alias RastT1 = Rasterizer!(false,true,true,false);
                     renderer.drawIndexedTriangle!RastT1(alloc, ctx, transformedVerts[], mTriangleIndices[]);
                     if(!renderer.state.dstMask.isEmpty)
                     {
@@ -265,7 +264,7 @@ public:
             {
                 Context2 ctx = {texture: mTexture, lightController: room.lightController};
             }
-            alias RastT2 = RasterizerHybrid2!(true,false,true,DynLights);
+            alias RastT2 = Rasterizer!(true,false,true,DynLights);
             renderer.drawIndexedTriangle!RastT2(alloc, ctx, transformedVerts[], mTriangleIndices[]);
         }
     }

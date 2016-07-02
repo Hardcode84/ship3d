@@ -23,7 +23,6 @@ public:
     {
         import std.algorithm;
         import game.renderer.light;
-        import game.renderer.rasterizerhybrid2;
 
         auto allocState = params.alloc.state;
         scope(exit) params.alloc.restoreState(allocState);
@@ -50,7 +49,7 @@ public:
             Context2 ctx = {texture: mMesh.texture, lightController: params.room.lightController};
         }
 
-        alias RastT2 = RasterizerHybrid2!(true,false,false,DynLights);
+        alias RastT2 = Rasterizer!(true,false,false,DynLights);
         foreach(const ref ind; mMesh.indices[])
         {
             renderer.drawIndexedTriangle!RastT2(params.alloc, ctx, transformedVertices[], ind[]);

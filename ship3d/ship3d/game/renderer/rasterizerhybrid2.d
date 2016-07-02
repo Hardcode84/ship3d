@@ -18,6 +18,9 @@ import game.units;
 
 struct RasterizerHybrid2(bool HasTextures, bool WriteMask, bool ReadMask, bool HasLight)
 {
+    import ldc.attributes;
+@llvmAttr("unsafe-fp-math", "true"):
+
     static void drawIndexedTriangle(AllocT,CtxT1,CtxT2,VertT,IndT)
         (auto ref AllocT alloc, auto ref CtxT1 outputContext, auto ref CtxT2 extContext, in VertT[] verts, in IndT[] indices) if(isIntegral!IndT)
     {
@@ -984,7 +987,8 @@ private:
 
                     static if(FixedLen)
                     {
-                        extContext.texture.getLine!AffineLength(ctx,line[x1..x2]);
+                        //extContext.texture.getLine!AffineLength(ctx,line[x1..x2]);
+                        extContext.texture.getLine!AffineLength(ctx,ntsRange(line[x1..x2]));
                     }
                     else
                     {
@@ -1110,4 +1114,30 @@ private:
         //end
     }
 
+}
+
+private:
+
+pure nothrow @nogc:
+pragma(LDC_inline_ir)
+    R inlineIR(string s, R, P...)(P);
+
+struct NtsRange(T)
+{
+pure nothrow @nogc:
+    T[] dstRange;
+
+    void opIndexAssign(in T val, size_t ind)
+    {
+        static assert(T.sizeof == 4);
+        dstRange[ind] = val;
+        //inlineIR!(`store i32 %0, i32* %1, align 4, !nontemporal !0`, void)(*(cast(int*)&val), cast(int*)dstRange.ptr + ind);
+    }
+
+    auto length() const { return dstRange.length; }
+}
+
+auto ntsRange(T)(T[] range)
+{
+    return NtsRange!T(range);
 }
