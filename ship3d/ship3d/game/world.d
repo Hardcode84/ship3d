@@ -83,7 +83,7 @@ public:
         mAllocators.length = mTaskPool.size + 1;
         foreach(ref alloc; mAllocators[])
         {
-            alloc = new StackAlloc(0xFFFFFF);
+            alloc = new StackAlloc(0x1FFFFFF);
         }
         createThreadTiles(sz);
         mRefAlloc =  new RefAllocator(0xFF);
@@ -242,7 +242,7 @@ public:
             renderer.state = octx;
             drawPlayer(renderer, allocator, surf);
         }
-        //debugOut("present");
+        debugOut("present");
     }
 
 private:
@@ -324,11 +324,12 @@ private:
         import std.array;
         enum Scale = 10.0f;
         enum CubeScale = 2.5f;
-        foreach(z; 0..10)
+        enum Dim = 1;
+        foreach(z; 0..Dim)
         {
-            foreach(y; 0..10)
+            foreach(y; 0..Dim)
             {
-                foreach(x; 0..10)
+                foreach(x; 0..Dim)
                 {
                     import game.topology.mesh;
                     Mesh mesh;
@@ -378,7 +379,7 @@ private:
 
                     auto ent = new StaticMesh(this, mesh);
 
-                    enum offset = 4.5f;
+                    enum offset = Dim / 2 - 0.5f;
                     //addEntity(ent, mRooms[0], vec3_t((x - offset) * Scale, (y - offset) * Scale, (z - offset) * Scale), quat_t.identity);
 
                     //if(z == 9)
@@ -394,21 +395,24 @@ private:
     {
         auto playerCon  = mPlayer.mainConnection;
         auto playerPos  = playerCon.pos + playerCon.correction;
-        
+
         auto distSquared(in vec3_t vec)
         {
-            return 
+            return
                 (vec.x - playerPos.x) * (vec.x - playerPos.x) + 
-                    (vec.y - playerPos.y) * (vec.y - playerPos.y) +
-                    (vec.z - playerPos.z) * (vec.z - playerPos.z);
+                (vec.y - playerPos.y) * (vec.y - playerPos.y) +
+                (vec.z - playerPos.z) * (vec.z - playerPos.z);
         }
         
         bool myComp(in StaticEntityRef a, in StaticEntityRef b)
         {
-            return distSquared(a.pos) > distSquared(b.pos);
+            const res = distSquared(a.pos) >= distSquared(b.pos);
+            const antires = distSquared(a.pos) < distSquared(b.pos);
+            assert(res == !antires);
+            return res;
         }
-        
-        mRooms[0].staticEntities.sort!(myComp)();
+
+        //mRooms[0].staticEntities.sort!(myComp,SwapStrategy.stable)();
     }
 }
 

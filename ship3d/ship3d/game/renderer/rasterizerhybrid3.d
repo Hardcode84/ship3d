@@ -35,6 +35,39 @@ struct RasterizerHybrid3(bool HasTextures, bool WriteMask, bool ReadMask, bool H
 
 private:
     enum AffineLength = 16;
+    enum TileSize = Size(32,32);
+    enum TileBufferSize = 64;
+    struct Tile
+    {
+        ushort[TileBufferSize] buffer = void;
+        ubyte used = 0;
+        bool end = false;
+
+        @property auto empty() const
+        {
+            return 0 == used;
+        }
+
+        @property auto full() const
+        {
+            assert(used <= buffer.length);
+            return end || used == buffer.length;
+        }
+
+        auto addTriangle(int index, bool finalize)
+        {
+            assert(index >= 0);
+            assert(index <= ushort.max);
+            assert(!end);
+            assert(used < buffer.length);
+            buffer[used] = cast(ushort)index;
+            ++used;
+            if(finalize)
+            {
+                end = true;
+            }
+        }
+    }
     struct Line(PosT)
     {
         pure nothrow:
@@ -62,8 +95,7 @@ private:
 
     struct Plane(PosT)
     {
-        pure nothrow:
-    @nogc:
+    pure nothrow @nogc:
         Unqual!PosT dx;
         Unqual!PosT dy;
         Unqual!PosT c;
@@ -82,7 +114,7 @@ private:
 
     struct LinesPack(PosT,TextT,LineT)
     {
-    @nogc:
+    pure nothrow @nogc:
         alias pos_t = PosT;
         enum HasTexture = !is(TextT : void);
         alias vec2 = Vector!(PosT,2);
@@ -106,7 +138,7 @@ private:
         }
         bool external = void;
 
-        this(VT,ST)(in VT v1, in VT v2, in VT v3, in ST size, ref bool degenerate) pure nothrow
+        this(VT,ST)(in VT v1, in VT v2, in VT v3, in ST size, ref bool degenerate)
         {
             verts = [v1.pos.xyw,v2.pos.xyw,v3.pos.xyw];
 
@@ -382,12 +414,32 @@ private:
         Span[] spans;
     }
 
+    struct RelSpanRange
+    {
+        struct Span
+        {
+            int x0,x1;
+        }
+        Span[] spns;
+        int y0;
+        int x0 ,x1;
+
+        @property y1() const { return y0 + spns.length; }
+
+        auto ref spans(int index) inout
+        {
+            assert(index >= y0);
+            assert(index < y1);
+            return spns[index - y0];
+        }
+    }
+
     struct PreparedData(PosT,TextT,LineT)
     {
         bool valid = true;
         alias PackT   = LinesPack!(PosT,TextT,LineT);
         PackT pack;
-        SpanRange spanrange;
+        RelSpanRange spanrange;
 
         this(PackT pack_)
         {
@@ -473,502 +525,530 @@ private:
             return;
         }
 
-        prepared.spanrange.spans = alloc.alloc!(SpanRange.Span)(size.h);
-        const LineT[3] lines = [
-            LineT(prepared.pack.verts[0], prepared.pack.verts[1], prepared.pack.verts[2], size),
-            LineT(prepared.pack.verts[1], prepared.pack.verts[2], prepared.pack.verts[0], size),
-            LineT(prepared.pack.verts[2], prepared.pack.verts[0], prepared.pack.verts[1], size)];
+        void* ptr = null;
+        int trueMinX = maxY;
+        int trueMaxX = minX;
+        int hgt = 0;
+        {
+            auto allocState = alloc.state;
+            scope(exit) alloc.restoreState(allocState);
 
-        if(PointT(prepared.pack, minX, minY, lines).check() &&
-           PointT(prepared.pack, maxX, minY, lines).check() &&
-           PointT(prepared.pack, minX, maxY, lines).check() &&
-           PointT(prepared.pack, maxX, maxY, lines).check())
-        {
-            prepared.spanrange.y0 = minY;
-            prepared.spanrange.y1 = maxY;
-            foreach(y;minY..maxY)
+            SpanRange spanrange;
+            spanrange.spans = alloc.alloc!(SpanRange.Span)(size.h);
+            const LineT[3] lines = [
+                LineT(prepared.pack.verts[0], prepared.pack.verts[1], prepared.pack.verts[2], size),
+                LineT(prepared.pack.verts[1], prepared.pack.verts[2], prepared.pack.verts[0], size),
+                LineT(prepared.pack.verts[2], prepared.pack.verts[0], prepared.pack.verts[1], size)];
+
+            if(PointT(prepared.pack, minX, minY, lines).check() &&
+               PointT(prepared.pack, maxX, minY, lines).check() &&
+               PointT(prepared.pack, minX, maxY, lines).check() &&
+               PointT(prepared.pack, maxX, maxY, lines).check())
             {
-                static if(ReadMask)
-                {
-                    const xc0 = max(srcMask.spans[y].x0, minX);
-                    const xc1 = min(srcMask.spans[y].x1, maxX);
-                }
-                else
-                {
-                    const xc0 = minX;
-                    const xc1 = maxX;
-                }
-                prepared.spanrange.spans[y].x0 = xc0;
-                prepared.spanrange.spans[y].x1 = xc1;
-            }
-        }
-        else if(prepared.pack.external)
-        {
-            //find first valid point
-            bool findStart(int x0, int y0, int x1, int y1, ref PointT start)
-            {
-                assert(x0 <= x1);
-                assert(x0 >= minX);
-                assert(x1 <= maxX);
-                assert(y0 <= y1);
-                assert(y0 >= minY);
-                assert(y1 <= maxY);
-                foreach(y;y0..y1)
+                spanrange.y0 = minY;
+                spanrange.y1 = maxY;
+                foreach(y;minY..maxY)
                 {
                     static if(ReadMask)
                     {
-                        const xs = max(x0, srcMask.spans[y].x0);
-                        const xe = min(x1, srcMask.spans[y].x1);
+                        const xc0 = max(srcMask.spans[y].x0, minX);
+                        const xc1 = min(srcMask.spans[y].x1, maxX);
                     }
                     else
                     {
-                        const xs = x0;
-                        const xe = x1;
+                        const xc0 = minX;
+                        const xc1 = maxX;
                     }
-                    auto pt = PointT(prepared.pack, xs, y, lines);
-                    int count = 0;
-                    foreach(x;xs..xe)
-                    {
-                        if(pt.check())
-                        {
-                            if(++count > 1)
-                            {
-                                start = pt;
-                                return true;
-                            }
-                        }
-                        pt.incX(1);
-                    }
+                    spanrange.spans[y].x0 = xc0;
+                    spanrange.spans[y].x1 = xc1;
                 }
-                return false;
             }
-
-            PointT startPoint = void;
-            do
+            else if(prepared.pack.external)
             {
-                foreach(const ref v; prepared.pack.verts[])
+                //find first valid point
+                bool findStart(int x0, int y0, int x1, int y1, ref PointT start)
                 {
-                    const w = v.z;
-                    const x = cast(int)((v.x / w) * size.w) + size.w / 2;
-                    const y = cast(int)((v.y / w) * size.h) + size.h / 2;
-
-                    if(x >= minX && x < maxX &&
-                       y >= minY && y < maxY &&
-                       findStart(max(x - 2, minX), max(y - 2, minY), min(x + 3, maxX), min(y + 3, maxY), startPoint))
-                    {
-                        goto found;
-                    }
-                }
-
-                bool checkQuad(in PointT pt00, in PointT pt10, in PointT pt01, in PointT pt11)
-                {
-                    const x0 = pt00.currx;
-                    const x1 = pt11.currx;
-                    const y0 = pt00.curry;
-                    const y1 = pt11.curry;
-                    assert(x1 > x0);
-                    assert(y1 > y0);
+                    assert(x0 <= x1);
                     assert(x0 >= minX);
                     assert(x1 <= maxX);
+                    assert(y0 <= y1);
                     assert(y0 >= minY);
                     assert(y1 <= maxY);
-                    bool none(in uint val) pure nothrow
+                    foreach(y;y0..y1)
                     {
-                        return 0x0 == (val & 0b001_001_001_001) ||
-                               0x0 == (val & 0b010_010_010_010) ||
-                               0x0 == (val & 0b100_100_100_100);
-                    }
-                    if(none((pt00.vals() << 0) |
-                            (pt10.vals() << 3) |
-                            (pt01.vals() << 6) |
-                            (pt11.vals() << 9)))
-                    {
-                        return false;
-                    }
-
-                    if((x1 - x0) <= 8 ||
-                        (y1 - y0) <= 8)
-                    {
-                        return findStart(x0, y0, x1, y1, startPoint);
-                    }
-                    const cx = x0 + (x1 - x0) / 2;
-                    const cy = y0 + (y1 - y0) / 2;
-                    //outContext.surface[cy][cx] = ColorRed;
-                    auto ptc0 = PointT(prepared.pack, cx, y0, lines);
-                    auto pt0c = PointT(prepared.pack, x0, cy, lines);
-                    auto ptcc = PointT(prepared.pack, cx, cy, lines);
-                    auto pt1c = PointT(prepared.pack, x1, cy, lines);
-                    auto ptc1 = PointT(prepared.pack, cx, y1, lines);
-                    return checkQuad(pt00, ptc0, pt0c, ptcc) ||
-                        checkQuad(ptc0, pt10, ptcc, pt1c) ||
-                            checkQuad(pt0c, ptcc, pt01, ptc1) ||
-                            checkQuad(ptcc, pt1c, ptc1, pt11);
-                }
-                if(checkQuad(PointT(prepared.pack, minX, minY, lines),
-                             PointT(prepared.pack, maxX, minY, lines),
-                             PointT(prepared.pack, minX, maxY, lines),
-                             PointT(prepared.pack, maxX, maxY, lines)))
-                {
-                    goto found;
-                }
-                //nothing found
-                prepared.valid = false;
-                return;
-            }
-            while(false);
-        found:
-
-            auto fillLine(in ref PointT pt)
-            {
-                enum Step = 16;
-                static if(ReadMask)
-                {
-                    const leftBound  = max(minX, srcMask.spans[pt.curry].x0);
-                    const rightBound = min(maxX, srcMask.spans[pt.curry].x1);
-                }
-                else
-                {
-                    const leftBound  = minX;
-                    const rightBound = maxX;
-                }
-                if(leftBound < rightBound)
-                {
-                    int findLeft()
-                    {
-                        PointT newPt = pt;
-                        const count = (newPt.currx - leftBound) / Step;
-                        foreach(i;0..count)
+                        static if(ReadMask)
                         {
-                            newPt.incX(-Step);
-                            if(!newPt.check)
-                            {
-                                foreach(j;0..Step)
-                                {
-                                    newPt.incX(1);
-                                    if(newPt.check()) break;
-                                }
-                                return newPt.currx;
-                            }
-                        }
-                        while(newPt.currx >= leftBound && newPt.check())
-                        {
-                            newPt.incX(-1);
-                        }
-                        return newPt.currx + 1;
-                    }
-                    int findRight()
-                    {
-                        PointT newPt = pt;
-                        const count = (rightBound - newPt.currx) / Step;
-                        foreach(i;0..count)
-                        {
-                            newPt.incX(Step);
-                            if(!newPt.check)
-                            {
-                                foreach(j;0..Step)
-                                {
-                                    newPt.incX(-1);
-                                    if(newPt.check()) break;
-                                }
-                                return newPt.currx + 1;
-                            }
-                        }
-                        while(newPt.currx < (rightBound - 0) && newPt.check())
-                        {
-                            newPt.incX(1);
-                        }
-                        return newPt.currx;
-                    }
-                    const x0 = findLeft();
-                    const x1 = findRight();
-                    static import gamelib.math;
-                    prepared.spanrange.spans[pt.curry].x0 = gamelib.math.clamp(x0, leftBound, rightBound);
-                    prepared.spanrange.spans[pt.curry].x1 = gamelib.math.clamp(x1, leftBound, rightBound);
-                    return vec2i(x0, x1);
-                }
-                assert(false);
-            }
-
-            bool findPoint(T)(int y, in T bounds, out int x)
-            {
-                //debugOut("find point");
-                static if(ReadMask)
-                {
-                    const x0 = max(bounds.x - 4, minX, srcMask.spans[y].x0);
-                    const x1 = min(bounds.y + 4, maxX, srcMask.spans[y].x1);
-                }
-                else
-                {
-                    const x0 = max(bounds.x - 4, minX);
-                    const x1 = min(bounds.y + 4, maxX);
-                }
-                auto none(in uint val) pure nothrow
-                {
-                    return 0x0 == (val & 0b001_001) ||
-                           0x0 == (val & 0b010_010) ||
-                           0x0 == (val & 0b100_100);
-                }
-                const pt0 = PointT(prepared.pack, x0, y, lines);
-                const pt1 = PointT(prepared.pack, x1, y, lines);
-                if(none(pt0.vals() | (pt1.vals() << 3)))
-                {
-                    return false;
-                }
-                enum Step = 16;
-                if((x1 - x0) >= Step)
-                {
-                    foreach(i;0..Step)
-                    {
-                        auto pt = PointT(prepared.pack, x0 + i, y, lines);
-                        while(pt.currx < x1)
-                        {
-                            if(pt.check())
-                            {
-                                x = pt.currx;
-                                return true;
-                            }
-                            pt.incX(Step);
-                        }
-                    }
-                }
-                const e = x0 + ((x1 - x0) / Step) * Step;
-                auto pt = PointT(prepared.pack, e, y, lines);
-                while(pt.currx < x1)
-                {
-                    //debugOut("check");
-                    //debugOut(pt.currx);
-                    if(pt.check())
-                    {
-                        x = pt.currx;
-                        return true;
-                    }
-                    pt.incX(1);
-                }
-                bool findP(T)(in ref T p0, in ref T p1)
-                {
-                    if(none(p0.vals() | (p1.vals() << 3)))
-                    {
-                        return false;
-                    }
-                    const d = p1.currx - p0.currx;
-                    if(d <= 1)
-                    {
-                        x = p0.currx;
-                        return true;
-                    }
-                    const cp = PointT(prepared.pack, p0.currx + d / 2, y, lines);
-                    if(!findP(p0,cp))
-                    {
-                        findP(cp,p1);
-                    }
-                    return true;
-                }
-                findP(pt0, pt1);
-                return false;
-            }
-            int search(bool Down)(vec2i bounds, int y)
-            {
-                //debugOut("search");
-                enum Inc = (Down ? 1 : -1);
-                y += Inc;
-                int x;
-                bool check()
-                {
-                    static if(Down)
-                    {
-                        return bounds.y > bounds.x && y < maxY;
-                    }
-                    else
-                    {
-                        return bounds.y > bounds.x && y >= minY;
-                    }
-                }
-                while(check() && findPoint(y, bounds, x))
-                {
-                    const pt = PointT(prepared.pack, x, y, lines);
-                    bounds = fillLine(pt);
-                    //outContext.surface[y][x] = ColorBlue;
-                    y += Inc;
-                }
-                return y;
-            }
-            const sy = startPoint.curry;
-            const bounds = fillLine(startPoint);
-            prepared.spanrange.y1 = search!true(bounds, sy);
-            prepared.spanrange.y0 = search!false(bounds, sy) + 1;
-        }
-        else //external
-        {
-            alias Vec2 = Vector!(PosT,2);
-            Vec2[3] sortedPos = void;
-            PosT upperY = PosT.max;
-            int minElem;
-            foreach(int i,const ref v; prepared.pack.verts[])
-            {
-                const pos = (v.xy / v.z);
-                sortedPos[i] = Vec2(cast(PosT)((pos.x * size.w) + size.w / 2),
-                    cast(PosT)((pos.y * size.h) + size.h / 2));
-                if(sortedPos[i].y < upperY)
-                {
-                    upperY = sortedPos[i].y;
-                    minElem = i;
-                }
-            }
-            bringToFront(sortedPos[0..minElem], sortedPos[minElem..$]);
-            //debugOut(sortedPos);
-            struct Edge
-            {
-                alias FP = float;//FixedPoint!(16,16,int);
-                immutable FP dx;
-                FP currX;
-                FP y;
-                FP ye;
-                this(P)(in P p1, in P p2)
-                {
-                    y  = p1.y;
-                    ye = p2.y;
-                    const FP x1 = p1.x;
-                    const FP y1 = p1.y;
-                    const FP x2 = p2.x;
-                    const FP y2 = p2.y;
-                    currX = x1;
-                    //debugOut(y1," ",y2);
-                    assert(y2 >= y1);
-                    dx = (x2 - x1) / (y2 - y1);
-                    incY(y.ceil - y);
-                }
-
-                void incY(PosT val)
-                {
-                    y += val;
-                    currX += dx * val;
-                }
-
-                @property x() const { return cast(int)(currX + 1.0f); }
-            }
-
-            Edge[3] edges = void;
-            bool revX = void;
-            if(sortedPos[1].y < sortedPos[2].y)
-            {
-                revX = true;
-                edges[] = [
-                    Edge(sortedPos[0],sortedPos[2]),
-                    Edge(sortedPos[0],sortedPos[1]),
-                    Edge(sortedPos[1],sortedPos[2])];
-            }
-            else
-            {
-                revX = false;
-                edges[] = [
-                    Edge(sortedPos[0],sortedPos[1]),
-                    Edge(sortedPos[0],sortedPos[2]),
-                    Edge(sortedPos[2],sortedPos[1])];
-            }
-
-            void fillSpans(bool ReverseX)()
-            {
-                int y = cast(int)edges[0].y;
-                bool iterate(bool Fill)()
-                {
-                    auto e0 = &edges[0];
-                    foreach(i;TupleRange!(0,2))
-                    {
-                        static if(0 == i)
-                        {
-                            auto e1 = &edges[1];
+                            const xs = max(x0, srcMask.spans[y].x0);
+                            const xe = min(x1, srcMask.spans[y].x1);
                         }
                         else
                         {
-                            auto e1 = &edges[2];
+                            const xs = x0;
+                            const xe = x1;
                         }
-                        const ye = e1.ye;
-                        while(y < ye)
+                        auto pt = PointT(prepared.pack, xs, y, lines);
+                        int count = 0;
+                        foreach(x;xs..xe)
                         {
-                            if(y >= maxY)
+                            if(pt.check())
                             {
-                                return false;
+                                if(++count > 1)
+                                {
+                                    start = pt;
+                                    return true;
+                                }
                             }
-                            else if(y >= minY)
-                            {
-                                //const x0 = min(e0.x, e1.x);
-                                //const x1 = max(e0.x, e1.x);
-                                static if(ReverseX)
-                                {
-                                    const x0 = e1.x;
-                                    const x1 = e0.x;
-                                }
-                                else
-                                {
-                                    const x0 = e0.x;
-                                    const x1 = e1.x;
-                                }
-                                /*if(x0 > x1)
-                                {
-                                    debugOut(x0," ",x1);
-                                    debugOut(*e0, " ",*e1);
-                                }*/
-                                //assert(x1 >= x0); TODO: investigate fails
-                                //outContext.surface[y][x0..x1] = ColorBlue;
-                                //debugOut(y);
-                                static if(ReadMask)
-                                {
-                                    const xc0 = max(x0, srcMask.spans[y].x0, minX);
-                                    const xc1 = min(x1, srcMask.spans[y].x1, maxX);
-                                }
-                                else
-                                {
-                                    const xc0 = max(x0, minX);
-                                    const xc1 = min(x1, maxX);
-                                }
-
-                                static if(!Fill)
-                                {
-                                    if(xc1 > xc0)
-                                    {
-                                        return true;
-                                    }
-                                }
-                                else
-                                {
-                                    if(xc0 > xc1)
-                                    {
-                                        return false;
-                                    }
-                                    prepared.spanrange.spans[y].x0 = xc0;
-                                }
-                                prepared.spanrange.spans[y].x1 = xc1;
-                                //outContext.surface[y][xc0..xc1] = ColorBlue;
-                            }
-                            ++y;
-                            e0.incY(1);
-                            e1.incY(1);
+                            pt.incX(1);
                         }
                     }
                     return false;
-                } //iterate
-                if(iterate!false())
-                {
-                    prepared.spanrange.y0 = y;
-                    iterate!true();
-                    prepared.spanrange.y1 = y;
                 }
-            } //fillspans
-            if(revX)
-            {
-                fillSpans!true();
-            }
-            else
-            {
-                fillSpans!false();
-            }
-        } //external
 
-        if(prepared.spanrange.y0 >= prepared.spanrange.y1) prepared.valid = false;
+                PointT startPoint = void;
+                do
+                {
+                    foreach(const ref v; prepared.pack.verts[])
+                    {
+                        const w = v.z;
+                        const x = cast(int)((v.x / w) * size.w) + size.w / 2;
+                        const y = cast(int)((v.y / w) * size.h) + size.h / 2;
+
+                        if(x >= minX && x < maxX &&
+                           y >= minY && y < maxY &&
+                           findStart(max(x - 2, minX), max(y - 2, minY), min(x + 3, maxX), min(y + 3, maxY), startPoint))
+                        {
+                            goto found;
+                        }
+                    }
+
+                    bool checkQuad(in PointT pt00, in PointT pt10, in PointT pt01, in PointT pt11)
+                    {
+                        const x0 = pt00.currx;
+                        const x1 = pt11.currx;
+                        const y0 = pt00.curry;
+                        const y1 = pt11.curry;
+                        assert(x1 > x0);
+                        assert(y1 > y0);
+                        assert(x0 >= minX);
+                        assert(x1 <= maxX);
+                        assert(y0 >= minY);
+                        assert(y1 <= maxY);
+                        bool none(in uint val) pure nothrow
+                        {
+                            return 0x0 == (val & 0b001_001_001_001) ||
+                                   0x0 == (val & 0b010_010_010_010) ||
+                                   0x0 == (val & 0b100_100_100_100);
+                        }
+                        if(none((pt00.vals() << 0) |
+                                (pt10.vals() << 3) |
+                                (pt01.vals() << 6) |
+                                (pt11.vals() << 9)))
+                        {
+                            return false;
+                        }
+
+                        if((x1 - x0) <= 8 ||
+                           (y1 - y0) <= 8)
+                        {
+                            return findStart(x0, y0, x1, y1, startPoint);
+                        }
+                        const cx = x0 + (x1 - x0) / 2;
+                        const cy = y0 + (y1 - y0) / 2;
+                        //outContext.surface[cy][cx] = ColorRed;
+                        auto ptc0 = PointT(prepared.pack, cx, y0, lines);
+                        auto pt0c = PointT(prepared.pack, x0, cy, lines);
+                        auto ptcc = PointT(prepared.pack, cx, cy, lines);
+                        auto pt1c = PointT(prepared.pack, x1, cy, lines);
+                        auto ptc1 = PointT(prepared.pack, cx, y1, lines);
+                        return checkQuad(pt00, ptc0, pt0c, ptcc) ||
+                               checkQuad(ptc0, pt10, ptcc, pt1c) ||
+                               checkQuad(pt0c, ptcc, pt01, ptc1) ||
+                               checkQuad(ptcc, pt1c, ptc1, pt11);
+                    }
+                    if(checkQuad(PointT(prepared.pack, minX, minY, lines),
+                                 PointT(prepared.pack, maxX, minY, lines),
+                                 PointT(prepared.pack, minX, maxY, lines),
+                                 PointT(prepared.pack, maxX, maxY, lines)))
+                    {
+                        goto found;
+                    }
+                    //nothing found
+                    prepared.valid = false;
+                    return;
+                }
+                while(false);
+            found:
+
+                auto fillLine(in ref PointT pt)
+                {
+                    enum Step = 16;
+                    static if(ReadMask)
+                    {
+                        const leftBound  = max(minX, srcMask.spans[pt.curry].x0);
+                        const rightBound = min(maxX, srcMask.spans[pt.curry].x1);
+                    }
+                    else
+                    {
+                        const leftBound  = minX;
+                        const rightBound = maxX;
+                    }
+                    if(leftBound < rightBound)
+                    {
+                        int findLeft()
+                        {
+                            PointT newPt = pt;
+                            const count = (newPt.currx - leftBound) / Step;
+                            foreach(i;0..count)
+                            {
+                                newPt.incX(-Step);
+                                if(!newPt.check)
+                                {
+                                    foreach(j;0..Step)
+                                    {
+                                        newPt.incX(1);
+                                        if(newPt.check()) break;
+                                    }
+                                    return newPt.currx;
+                                }
+                            }
+                            while(newPt.currx >= leftBound && newPt.check())
+                            {
+                                newPt.incX(-1);
+                            }
+                            return newPt.currx + 1;
+                        }
+                        int findRight()
+                        {
+                            PointT newPt = pt;
+                            const count = (rightBound - newPt.currx) / Step;
+                            foreach(i;0..count)
+                            {
+                                newPt.incX(Step);
+                                if(!newPt.check)
+                                {
+                                    foreach(j;0..Step)
+                                    {
+                                        newPt.incX(-1);
+                                        if(newPt.check()) break;
+                                    }
+                                    return newPt.currx + 1;
+                                }
+                            }
+                            while(newPt.currx < (rightBound - 0) && newPt.check())
+                            {
+                                newPt.incX(1);
+                            }
+                            return newPt.currx;
+                        }
+                        const x0 = findLeft();
+                        const x1 = findRight();
+                        static import gamelib.math;
+                        spanrange.spans[pt.curry].x0 = gamelib.math.clamp(x0, leftBound, rightBound);
+                        spanrange.spans[pt.curry].x1 = gamelib.math.clamp(x1, leftBound, rightBound);
+                        return vec2i(x0, x1);
+                    }
+                    assert(false);
+                }
+
+                bool findPoint(T)(int y, in T bounds, out int x)
+                {
+                    //debugOut("find point");
+                    static if(ReadMask)
+                    {
+                        const x0 = max(bounds.x - 4, minX, srcMask.spans[y].x0);
+                        const x1 = min(bounds.y + 4, maxX, srcMask.spans[y].x1);
+                    }
+                    else
+                    {
+                        const x0 = max(bounds.x - 4, minX);
+                        const x1 = min(bounds.y + 4, maxX);
+                    }
+                    auto none(in uint val) pure nothrow
+                    {
+                        return 0x0 == (val & 0b001_001) ||
+                               0x0 == (val & 0b010_010) ||
+                               0x0 == (val & 0b100_100);
+                    }
+                    const pt0 = PointT(prepared.pack, x0, y, lines);
+                    const pt1 = PointT(prepared.pack, x1, y, lines);
+                    if(none(pt0.vals() | (pt1.vals() << 3)))
+                    {
+                        return false;
+                    }
+                    enum Step = 16;
+                    if((x1 - x0) >= Step)
+                    {
+                        foreach(i;0..Step)
+                        {
+                            auto pt = PointT(prepared.pack, x0 + i, y, lines);
+                            while(pt.currx < x1)
+                            {
+                                if(pt.check())
+                                {
+                                    x = pt.currx;
+                                    return true;
+                                }
+                                pt.incX(Step);
+                            }
+                        }
+                    }
+                    const e = x0 + ((x1 - x0) / Step) * Step;
+                    auto pt = PointT(prepared.pack, e, y, lines);
+                    while(pt.currx < x1)
+                    {
+                        //debugOut("check");
+                        //debugOut(pt.currx);
+                        if(pt.check())
+                        {
+                            x = pt.currx;
+                            return true;
+                        }
+                        pt.incX(1);
+                    }
+                    bool findP(T)(in ref T p0, in ref T p1)
+                    {
+                        if(none(p0.vals() | (p1.vals() << 3)))
+                        {
+                            return false;
+                        }
+                        const d = p1.currx - p0.currx;
+                        if(d <= 1)
+                        {
+                            x = p0.currx;
+                            return true;
+                        }
+                        const cp = PointT(prepared.pack, p0.currx + d / 2, y, lines);
+                        if(!findP(p0,cp))
+                        {
+                            findP(cp,p1);
+                        }
+                        return true;
+                    }
+                    findP(pt0, pt1);
+                    return false;
+                }
+                int search(bool Down)(vec2i bounds, int y)
+                {
+                    //debugOut("search");
+                    enum Inc = (Down ? 1 : -1);
+                    y += Inc;
+                    int x;
+                    bool check()
+                    {
+                        static if(Down)
+                        {
+                            return bounds.y > bounds.x && y < maxY;
+                        }
+                        else
+                        {
+                            return bounds.y > bounds.x && y >= minY;
+                        }
+                    }
+                    while(check() && findPoint(y, bounds, x))
+                    {
+                        const pt = PointT(prepared.pack, x, y, lines);
+                        bounds = fillLine(pt);
+                        //outContext.surface[y][x] = ColorBlue;
+                        y += Inc;
+                    }
+                    return y;
+                }
+                const sy = startPoint.curry;
+                const bounds = fillLine(startPoint);
+                spanrange.y1 = search!true(bounds, sy);
+                spanrange.y0 = search!false(bounds, sy) + 1;
+            }
+            else //external
+            {
+                alias Vec2 = Vector!(PosT,2);
+                Vec2[3] sortedPos = void;
+                PosT upperY = PosT.max;
+                int minElem;
+                foreach(int i,const ref v; prepared.pack.verts[])
+                {
+                    const pos = (v.xy / v.z);
+                    sortedPos[i] = Vec2(cast(PosT)((pos.x * size.w) + size.w / 2),
+                        cast(PosT)((pos.y * size.h) + size.h / 2));
+                    if(sortedPos[i].y < upperY)
+                    {
+                        upperY = sortedPos[i].y;
+                        minElem = i;
+                    }
+                }
+                bringToFront(sortedPos[0..minElem], sortedPos[minElem..$]);
+                //debugOut(sortedPos);
+                struct Edge
+                {
+                    alias FP = float;//FixedPoint!(16,16,int);
+                    immutable FP dx;
+                    FP currX;
+                    FP y;
+                    FP ye;
+                    this(P)(in P p1, in P p2)
+                    {
+                        y  = p1.y;
+                        ye = p2.y;
+                        const FP x1 = p1.x;
+                        const FP y1 = p1.y;
+                        const FP x2 = p2.x;
+                        const FP y2 = p2.y;
+                        currX = x1;
+                        //debugOut(y1," ",y2);
+                        assert(y2 >= y1);
+                        dx = (x2 - x1) / (y2 - y1);
+                        incY(y.ceil - y);
+                    }
+
+                    void incY(PosT val)
+                    {
+                        y += val;
+                        currX += dx * val;
+                    }
+
+                    @property x() const { return cast(int)(currX + 1.0f); }
+                }
+
+                Edge[3] edges = void;
+                bool revX = void;
+                if(sortedPos[1].y < sortedPos[2].y)
+                {
+                    revX = true;
+                    edges[] = [
+                        Edge(sortedPos[0],sortedPos[2]),
+                        Edge(sortedPos[0],sortedPos[1]),
+                        Edge(sortedPos[1],sortedPos[2])];
+                }
+                else
+                {
+                    revX = false;
+                    edges[] = [
+                        Edge(sortedPos[0],sortedPos[1]),
+                        Edge(sortedPos[0],sortedPos[2]),
+                        Edge(sortedPos[2],sortedPos[1])];
+                }
+
+                void fillSpans(bool ReverseX)()
+                {
+                    int y = cast(int)edges[0].y;
+                    bool iterate(bool Fill)()
+                    {
+                        auto e0 = &edges[0];
+                        foreach(i;TupleRange!(0,2))
+                        {
+                            static if(0 == i)
+                            {
+                                auto e1 = &edges[1];
+                            }
+                            else
+                            {
+                                auto e1 = &edges[2];
+                            }
+                            const ye = e1.ye;
+                            while(y < ye)
+                            {
+                                if(y >= maxY)
+                                {
+                                    return false;
+                                }
+                                else if(y >= minY)
+                                {
+                                    //const x0 = min(e0.x, e1.x);
+                                    //const x1 = max(e0.x, e1.x);
+                                    static if(ReverseX)
+                                    {
+                                        const x0 = e1.x;
+                                        const x1 = e0.x;
+                                    }
+                                    else
+                                    {
+                                        const x0 = e0.x;
+                                        const x1 = e1.x;
+                                    }
+                                    /*if(x0 > x1)
+                                    {
+                                        debugOut(x0," ",x1);
+                                        debugOut(*e0, " ",*e1);
+                                    }*/
+                                    //assert(x1 >= x0); TODO: investigate fails
+                                    //outContext.surface[y][x0..x1] = ColorBlue;
+                                    //debugOut(y);
+                                    static if(ReadMask)
+                                    {
+                                        const xc0 = max(x0, srcMask.spans[y].x0, minX);
+                                        const xc1 = min(x1, srcMask.spans[y].x1, maxX);
+                                    }
+                                    else
+                                    {
+                                        const xc0 = max(x0, minX);
+                                        const xc1 = min(x1, maxX);
+                                    }
+
+                                    static if(!Fill)
+                                    {
+                                        if(xc1 > xc0)
+                                        {
+                                            return true;
+                                        }
+                                    }
+                                    else
+                                    {
+                                        if(xc0 > xc1)
+                                        {
+                                            return false;
+                                        }
+                                        spanrange.spans[y].x0 = xc0;
+                                    }
+                                    spanrange.spans[y].x1 = xc1;
+                                    //outContext.surface[y][xc0..xc1] = ColorBlue;
+                                }
+                                ++y;
+                                e0.incY(1);
+                                e1.incY(1);
+                            }
+                        }
+                        return false;
+                    } //iterate
+                    if(iterate!false())
+                    {
+                        spanrange.y0 = y;
+                        iterate!true();
+                        spanrange.y1 = y;
+                    }
+                } //fillspans
+                if(revX)
+                {
+                    fillSpans!true();
+                }
+                else
+                {
+                    fillSpans!false();
+                }
+            } //external
+
+            if(spanrange.y0 >= spanrange.y1) 
+            {
+                prepared.valid = false;
+                return;
+            }
+
+            prepared.spanrange.y0 = spanrange.y0;
+            hgt = spanrange.y1 - spanrange.y0;
+            ptr = spanrange.spans.ptr;
+            foreach(i,span;spanrange.spans[spanrange.y0..spanrange.y1]) //hack to reduce allocated memory
+            {
+                trueMinX = min(trueMinX, span.x0);
+                trueMaxX = max(trueMaxX, span.x1);
+                spanrange.spans[i] = span;
+            }
+        }
+        prepared.spanrange.spns = alloc.alloc!(RelSpanRange.Span)(hgt); //should be same data as in previous spanrange
+        prepared.spanrange.x0 = trueMinX;
+        prepared.spanrange.x1 = trueMaxX;
+        assert(prepared.spanrange.spns.ptr == ptr);
     }
 
     static void drawPreparedTriangle(AllocT,CtxT1,CtxT2,PrepT)
-        (auto ref AllocT alloc, auto ref CtxT1 outContext, auto ref CtxT2 extContext, in ref PrepT prepared)
+        (auto ref AllocT alloc, in Rect clipRect, auto ref CtxT1 outContext, auto ref CtxT2 extContext, in ref PrepT prepared)
     {
         alias SpanT   = Span!(prepared.pack.pos_t);
         static if(HasLight)
@@ -1052,14 +1132,15 @@ private:
                 }
             }
 
-            const sx = prepared.spanrange.spans[prepared.spanrange.y0].x0;
-            auto span = SpanT(prepared.pack, sx, prepared.spanrange.y0);
+            const sy = max(clipRect.y, prepared.spanrange.y0);
+            const sx = max(clipRect.x, prepared.spanrange.spans(sy).x0);
+            auto span = SpanT(prepared.pack, sx, sy);
 
-            auto line = outContext.surface[prepared.spanrange.y0];
-            foreach(y;prepared.spanrange.y0..prepared.spanrange.y1)
+            auto line = outContext.surface[sy];
+            foreach(y;sy..min(clipRect.y + clipRect.h, prepared.spanrange.y1))
             {
-                const x0 = prepared.spanrange.spans[y].x0;
-                const x1 = prepared.spanrange.spans[y].x1;
+                const x0 = max(clipRect.x,prepared.spanrange.spans(y).x0);
+                const x1 = min(clipRect.x + clipRect.w, prepared.spanrange.spans(y).x1);
                 span.incX(x0 - sx);
                 static if(HasLight)
                 {
@@ -1185,10 +1266,19 @@ private:
         assert(0 == (data.length - FlushParam.sizeof) % CacheElem.sizeof);
         FlushParam* param = (cast(FlushParam*)data.ptr);
         const(CacheElem)[] cache = (cast(const(CacheElem)*)(data.ptr + FlushParam.sizeof))[0..(data.length - FlushParam.sizeof) / CacheElem.sizeof];
-        foreach(ref elem; cache)
+
+        auto allocState1 = param.alloc.state;
+        scope(exit) param.alloc.restoreState(allocState1);
+
+        const clipRect = param.context.clipRect;
+        const tilesw = (clipRect.w + TileSize.w - 1) / TileSize.w;
+        const tilesh = (clipRect.h + TileSize.h - 1) / TileSize.h;
+        alias PackT = Unqual!(typeof(cache[0]));
+        auto tiles = param.alloc.alloc(tilesw * tilesh,Tile());
+        auto spans = param.alloc.alloc!RelSpanRange(cache.length);
+
+        foreach(i,ref elem; cache)
         {
-            auto allocState = param.alloc.state;
-            scope(exit) param.alloc.restoreState(allocState);
             auto prepared = PreparedT(elem.pack);
             createTriangleSpans(param.alloc, param.context, elem.extContext, prepared);
 
@@ -1196,8 +1286,121 @@ private:
             {
                 continue;
             }
+            updateTiles(param, tiles, Size(tilesw,tilesh),prepared.spanrange, elem.pack, cast(int)i);
+            spans[i] = prepared.spanrange;
 
-            drawPreparedTriangle(param.alloc, param.context, elem.extContext, prepared);
+            //drawPreparedTriangle(param.alloc, param.context, elem.extContext, prepared);
+        }
+
+        drawTiles(param, tiles, Size(tilesw,tilesh), cache, spans);
+    }
+
+    static void updateTiles(ParamsT,TileT,SpanT,PackT)
+        (auto ref ParamsT params, TileT[] tiles, in Size tilesSize, auto ref SpanT spanrange, in auto ref PackT pack, int index)
+    {
+        assert(index >= 0);
+
+        alias PosT    = pack.pos_t;
+        alias LineT   = Line!(PosT);
+        alias PointT  = Point!(PosT);
+
+        const LineT[3] lines = [
+            LineT(pack.verts[0], pack.verts[1], pack.verts[2], params.context.size),
+            LineT(pack.verts[1], pack.verts[2], pack.verts[0], params.context.size),
+            LineT(pack.verts[2], pack.verts[0], pack.verts[1], params.context.size)];
+
+        const clipRect = params.context.clipRect;
+
+        bool hadOne = false;
+        foreach(y; (spanrange.y0 / TileSize.h)..((spanrange.y1 + TileSize.h - 1) / TileSize.h))
+        {
+            const ty0 = y * TileSize.h;
+            const ty1 = min(ty0 + TileSize.h, clipRect.y + clipRect.h);
+            assert(ty1 > ty0);
+            const sy0 = max(spanrange.y0, ty0);
+            const sy1 = min(spanrange.y1, ty1);
+            assert(sy1 > sy0);
+
+            auto pt1 = PointT(pack, spanrange.x0, ty0, lines);
+            auto pt2 = PointT(pack, spanrange.x0, ty1 - 1, lines);
+            uint val = (pt1.vals() << 0) | (pt2.vals() << 3);
+
+            foreach(x; (spanrange.x0 / TileSize.w)..((spanrange.x1 + TileSize.w - 1) / TileSize.w))
+            {
+                pt1.incX(TileSize.w);
+                pt2.incX(TileSize.w);
+                val = val | (pt1.vals() << 6) | (pt2.vals() << 9);
+                const oldval = val;
+                val >>= 6;
+                auto tile = &tiles[x + y * tilesSize.w];
+                if(tile.full)
+                {
+                    continue;
+                }
+
+                bool none(in uint val) pure nothrow
+                {
+                    return 0x0 == (val & 0b001_001_001_001) ||
+                           0x0 == (val & 0b010_010_010_010) ||
+                           0x0 == (val & 0b100_100_100_100);
+                }
+                auto all(in uint val) pure nothrow
+                {
+                    return val == 0b111_111_111_111;
+                }
+
+                if(none(oldval))
+                {
+                    if(hadOne)
+                    {
+                        break;
+                    }
+                    else
+                    {
+                        continue;
+                    }
+                }
+                hadOne = true;
+
+                tile.addTriangle(index, all(oldval));
+            }
+        }
+    }
+
+    static void drawTiles(ParamsT,TileT,CacheT,SpansT)
+        (auto ref ParamsT params, TileT[] tiles, in Size tilesSize, CacheT[] cache, SpansT[] spans)
+    {
+        const clipRect = params.context.clipRect;
+        foreach(y; 0..tilesSize.h)
+        {
+            const ty0 = y * TileSize.h;
+            const ty1 = min(ty0 + TileSize.h, clipRect.y + clipRect.h);
+            assert(ty1 > ty0);
+            foreach(x; 0..tilesSize.w)
+            {
+                auto tile = &tiles[x + y * tilesSize.w];
+                if(tile.empty)
+                {
+                    continue;
+                }
+                const tx0 = x * TileSize.w;
+                const tx1 = min(tx0 + TileSize.w, clipRect.x + clipRect.w);
+                assert(tx1 > tx0);
+                const rect = Rect(tx0, ty0, tx0 + tx1, ty0 + ty1);
+
+                foreach(index; tile.buffer[0..tile.used])
+                {
+                    assert(index >= 0);
+                    assert(index < cache.length);
+                    struct TilePrepared
+                    {
+                        Unqual!(typeof(cache[0].pack)) pack;
+                        RelSpanRange spanrange;
+                    }
+                    auto tilePrep = TilePrepared(cache[index].pack, spans[index]);
+                    drawPreparedTriangle(params.alloc, rect, params.context, cache[index].extContext, tilePrep);
+                }
+            }
         }
     }
 
@@ -1220,10 +1423,10 @@ private:
             alias CacheElemT = CacheElem!(Unqual!(typeof(prepared.pack)), Unqual!CtxT2);
             enum CacheElemSize = CacheElemT.sizeof;
             alias FlushParamT = FlushParam!(Unqual!AllocT,Unqual!CtxT1);
-            assert(outContext.rasterizerCache.length <= CacheElemSize);
+            assert(outContext.rasterizerCache.length > (CacheElemSize + FlushParamT.sizeof));
 
             auto ownFunc = &flushData!(PreparedT,FlushParamT,CacheElemT);
-            if((outContext.rasterizerCache.length - outContext.rasterizerCacheUsed) > CacheElemSize ||
+            if((outContext.rasterizerCache.length - outContext.rasterizerCacheUsed) < CacheElemSize ||
                     outContext.flushFunc != ownFunc)
             {
                 if(outContext.flushFunc !is null)
@@ -1241,6 +1444,8 @@ private:
         }
         else
         {
+            auto allocState1 = alloc.state;
+            scope(exit) alloc.restoreState(allocState1);
             createTriangleSpans(alloc, outContext, extContext, prepared);
 
             if(!prepared.valid)
@@ -1248,7 +1453,7 @@ private:
                 return;
             }
 
-            drawPreparedTriangle(alloc, outContext, extContext, prepared);
+            drawPreparedTriangle(alloc, outContext.clipRect, outContext, extContext, prepared);
         }
     }
 
