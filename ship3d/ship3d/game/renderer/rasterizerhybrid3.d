@@ -41,30 +41,39 @@ private:
     {
         ushort[TileBufferSize] buffer = void;
         ubyte used = 0;
-        bool end = false;
+        enum EndFlag = 1 << (used.sizeof * 8 - 1);
 
         @property auto empty() const
         {
             return 0 == used;
         }
 
+        @property auto length() const
+        {
+            return used & ~EndFlag;
+        }
+
+        @property auto covered() const
+        {
+            return 0 != (used & EndFlag);
+        }
+
         @property auto full() const
         {
-            assert(used <= buffer.length);
-            return end || used == buffer.length;
+            assert(length <= buffer.length);
+            return covered || length == buffer.length;
         }
 
         auto addTriangle(int index, bool finalize)
         {
             assert(index >= 0);
             assert(index <= ushort.max);
-            assert(!end);
-            assert(used < buffer.length);
-            buffer[used] = cast(ushort)index;
+            assert(!full);
+            buffer[length] = cast(ushort)index;
             ++used;
             if(finalize)
             {
-                end = true;
+                used |= EndFlag;
             }
         }
     }
@@ -1047,7 +1056,7 @@ private:
         assert(prepared.spanrange.spns.ptr == ptr);
     }
 
-    static void drawPreparedTriangle(AllocT,CtxT1,CtxT2,PrepT)
+    static void drawPreparedTriangle(bool Full, AllocT,CtxT1,CtxT2,PrepT)
         (auto ref AllocT alloc, in Rect clipRect, auto ref CtxT1 outContext, auto ref CtxT2 extContext, in ref PrepT prepared)
     {
         alias SpanT   = Span!(prepared.pack.pos_t);
@@ -1132,15 +1141,30 @@ private:
                 }
             }
 
-            const sy = max(clipRect.y, prepared.spanrange.y0);
-            const sx = max(clipRect.x, prepared.spanrange.spans(sy).x0);
+            static if(Full)
+            {
+                const sy = clipRect.y;
+                const sx = clipRect.x;
+                const ey = clipRect.y + clipRect.h;
+                const x0 = clipRect.x;
+                const x1 = clipRect.x + clipRect.w;
+            }
+            else
+            {
+                const sy = max(clipRect.y, prepared.spanrange.y0);
+                const sx = max(clipRect.x, prepared.spanrange.spans(sy).x0);
+                const ey = min(clipRect.y + clipRect.h, prepared.spanrange.y1);
+            }
             auto span = SpanT(prepared.pack, sx, sy);
 
             auto line = outContext.surface[sy];
-            foreach(y;sy..min(clipRect.y + clipRect.h, prepared.spanrange.y1))
+            foreach(y;sy..ey)
             {
-                const x0 = max(clipRect.x,prepared.spanrange.spans(y).x0);
-                const x1 = min(clipRect.x + clipRect.w, prepared.spanrange.spans(y).x1);
+                static if(!Full)
+                {
+                    const x0 = max(clipRect.x,prepared.spanrange.spans(y).x0);
+                    const x1 = min(clipRect.x + clipRect.w, prepared.spanrange.spans(y).x1);
+                }
                 span.incX(x0 - sx);
                 static if(HasLight)
                 {
@@ -1289,7 +1313,7 @@ private:
             updateTiles(param, tiles, Size(tilesw,tilesh),prepared.spanrange, elem.pack, cast(int)i);
             spans[i] = prepared.spanrange;
 
-            //drawPreparedTriangle(param.alloc, param.context, elem.extContext, prepared);
+            //drawPreparedTriangle(param.alloc, param.context.clipRect, param.context, elem.extContext, prepared);
         }
 
         drawTiles(param, tiles, Size(tilesw,tilesh), cache, spans);
@@ -1311,7 +1335,6 @@ private:
 
         const clipRect = params.context.clipRect;
 
-        bool hadOne = false;
         foreach(y; (spanrange.y0 / TileSize.h)..((spanrange.y1 + TileSize.h - 1) / TileSize.h))
         {
             const ty0 = y * TileSize.h;
@@ -1321,10 +1344,12 @@ private:
             const sy1 = min(spanrange.y1, ty1);
             assert(sy1 > sy0);
 
-            auto pt1 = PointT(pack, spanrange.x0, ty0, lines);
-            auto pt2 = PointT(pack, spanrange.x0, ty1 - 1, lines);
+            const sx = (spanrange.x0 / TileSize.w) * TileSize.w;
+            auto pt1 = PointT(pack, sx, ty0, lines);
+            auto pt2 = PointT(pack, sx, ty1, lines);
             uint val = (pt1.vals() << 0) | (pt2.vals() << 3);
 
+            bool hadOne = false;
             foreach(x; (spanrange.x0 / TileSize.w)..((spanrange.x1 + TileSize.w - 1) / TileSize.w))
             {
                 pt1.incX(TileSize.w);
@@ -1386,19 +1411,30 @@ private:
                 const tx0 = x * TileSize.w;
                 const tx1 = min(tx0 + TileSize.w, clipRect.x + clipRect.w);
                 assert(tx1 > tx0);
-                const rect = Rect(tx0, ty0, tx0 + tx1, ty0 + ty1);
+                const rect = Rect(tx0, ty0, tx1 - tx0, ty1 - ty0);
+                auto buff = tile.buffer[0..tile.length];
+                assert(buff.length > 0);
+                struct TilePrepared
+                {
+                    Unqual!(typeof(cache[0].pack)) pack;
+                    RelSpanRange spanrange;
+                }
+                if(tile.covered)
+                {
+                    const index = buff.back;
+                    assert(index >= 0);
+                    assert(index < cache.length);
+                    auto tilePrep = TilePrepared(cache[index].pack, spans[index]);
+                    drawPreparedTriangle!true(params.alloc, rect, params.context, cache[index].extContext, tilePrep);
+                    buff.popBack;
+                }
 
-                foreach(index; tile.buffer[0..tile.used])
+                foreach(index; buff.retro)
                 {
                     assert(index >= 0);
                     assert(index < cache.length);
-                    struct TilePrepared
-                    {
-                        Unqual!(typeof(cache[0].pack)) pack;
-                        RelSpanRange spanrange;
-                    }
                     auto tilePrep = TilePrepared(cache[index].pack, spans[index]);
-                    drawPreparedTriangle(params.alloc, rect, params.context, cache[index].extContext, tilePrep);
+                    drawPreparedTriangle!false(params.alloc, rect, params.context, cache[index].extContext, tilePrep);
                 }
             }
         }
@@ -1419,6 +1455,7 @@ private:
         }
 
         if(UseCache)
+        //if(false)
         {
             alias CacheElemT = CacheElem!(Unqual!(typeof(prepared.pack)), Unqual!CtxT2);
             enum CacheElemSize = CacheElemT.sizeof;
@@ -1453,7 +1490,7 @@ private:
                 return;
             }
 
-            drawPreparedTriangle(alloc, outContext.clipRect, outContext, extContext, prepared);
+            drawPreparedTriangle!false(alloc, outContext.clipRect, outContext, extContext, prepared);
         }
     }
 

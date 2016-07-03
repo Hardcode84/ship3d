@@ -237,7 +237,7 @@ public:
             const clipRect = Rect(0, 0, surf.width, surf.height);
             const mat = mProjMat;
             OutContext octx = {mSize, surf, clipRect, mat, SpanMask(mSize, allocator)};
-            octx.rasterizerCache = allocator.alloc!void(1024 * 100);
+            octx.rasterizerCache = allocator.alloc!void(1024 * 10000);
             RendererT renderer;
             renderer.state = octx;
             drawPlayer(renderer, allocator, surf);
@@ -324,7 +324,7 @@ private:
         import std.array;
         enum Scale = 10.0f;
         enum CubeScale = 2.5f;
-        enum Dim = 1;
+        enum Dim = 10;
         foreach(z; 0..Dim)
         {
             foreach(y; 0..Dim)
@@ -409,10 +409,10 @@ private:
             const res = distSquared(a.pos) >= distSquared(b.pos);
             const antires = distSquared(a.pos) < distSquared(b.pos);
             assert(res == !antires);
-            return res;
+            return antires;
         }
 
-        //mRooms[0].staticEntities.sort!(myComp,SwapStrategy.stable)();
+        mRooms[0].staticEntities.sort!(myComp,SwapStrategy.unstable)();
     }
 }
 
