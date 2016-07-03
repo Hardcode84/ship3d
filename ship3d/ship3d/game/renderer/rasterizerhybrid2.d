@@ -1118,32 +1118,3 @@ private:
     }
 
 }
-
-private:
-
-pure nothrow @nogc:
-version(LDC)
-{
-pragma(LDC_inline_ir)
-    R inlineIR(string s, R, P...)(P);
-}
-
-struct NtsRange(T)
-{
-pure nothrow @nogc:
-    T[] dstRange;
-
-    void opIndexAssign(in T val, size_t ind)
-    {
-        static assert(T.sizeof == 4);
-        dstRange[ind] = val;
-        //inlineIR!(`store i32 %0, i32* %1, align 4, !nontemporal !0`, void)(*(cast(int*)&val), cast(int*)dstRange.ptr + ind);
-    }
-
-    auto length() const { return dstRange.length; }
-}
-
-auto ntsRange(T)(T[] range)
-{
-    return NtsRange!T(range);
-}

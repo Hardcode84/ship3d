@@ -13,6 +13,7 @@ import gamelib.memory.utils;
 import gamelib.memory.arrayview;
 
 import game.units;
+import game.utils;
 
 @nogc:
 
@@ -1125,14 +1126,16 @@ private:
                         enum SmallLine = 4;
                         foreach(sx;0..(x2 - x1) / SmallLine)
                         {
-                            extContext.texture.getLine!SmallLine(ctx,line[ctx.x..ctx.x+SmallLine]);
+                            //extContext.texture.getLine!SmallLine(ctx,line[ctx.x..ctx.x+SmallLine]);
+                            extContext.texture.getLine!SmallLine(ctx,ntsRange(line[ctx.x..ctx.x+SmallLine]));
                             ctx.u += ctx.dux * SmallLine;
                             ctx.v += ctx.dvx * SmallLine;
                             ctx.x += SmallLine;
                         }
                         foreach(x;ctx.x..x2)
                         {
-                            extContext.texture.getLine!1(ctx,line[x..x+1]);
+                            //extContext.texture.getLine!1(ctx,line[x..x+1]);
+                            extContext.texture.getLine!1(ctx,ntsRange(line[x..x+1]));
                             ctx.u += ctx.dux;
                             ctx.v += ctx.dvx;
                             ++ctx.x;
@@ -1345,8 +1348,8 @@ private:
             assert(sy1 > sy0);
 
             const sx = (spanrange.x0 / TileSize.w) * TileSize.w;
-            auto pt1 = PointT(pack, sx, ty0, lines);
-            auto pt2 = PointT(pack, sx, ty1, lines);
+            auto pt1 = PointT(pack, cast(int)sx, cast(int)ty0, lines);
+            auto pt2 = PointT(pack, cast(int)sx, cast(int)ty1, lines);
             uint val = (pt1.vals() << 0) | (pt2.vals() << 3);
 
             bool hadOne = false;
@@ -1494,33 +1497,4 @@ private:
         }
     }
 
-}
-
-private:
-
-pure nothrow @nogc:
-version(LDC)
-{
-pragma(LDC_inline_ir)
-    R inlineIR(string s, R, P...)(P);
-}
-
-struct NtsRange(T)
-{
-    pure nothrow @nogc:
-    T[] dstRange;
-
-    void opIndexAssign(in T val, size_t ind)
-    {
-        static assert(T.sizeof == 4);
-        dstRange[ind] = val;
-        //inlineIR!(`store i32 %0, i32* %1, align 4, !nontemporal !0`, void)(*(cast(int*)&val), cast(int*)dstRange.ptr + ind);
-    }
-
-    auto length() const { return dstRange.length; }
-}
-
-auto ntsRange(T)(T[] range)
-{
-    return NtsRange!T(range);
 }
