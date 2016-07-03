@@ -36,12 +36,13 @@ struct RasterizerHybrid3(bool HasTextures, bool WriteMask, bool ReadMask, bool H
 
 private:
     enum AffineLength = 16;
-    enum TileSize = Size(32,32);
-    enum TileBufferSize = 64;
+    enum TileSize = Size(16,16);
+    enum TileBufferSize = 16;
     struct Tile
     {
-        ushort[TileBufferSize] buffer = void;
-        ubyte used = 0;
+        alias type_t = ushort;
+        type_t used = 0;
+        type_t[TileBufferSize - 1] buffer = void;
         enum EndFlag = 1 << (used.sizeof * 8 - 1);
 
         @property auto empty() const
@@ -68,9 +69,9 @@ private:
         auto addTriangle(int index, bool finalize)
         {
             assert(index >= 0);
-            assert(index <= ushort.max);
+            assert(index <= type_t.max);
             assert(!full);
-            buffer[length] = cast(ushort)index;
+            buffer[length] = cast(type_t)index;
             ++used;
             if(finalize)
             {

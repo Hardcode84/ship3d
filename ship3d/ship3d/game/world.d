@@ -412,7 +412,7 @@ private:
             return antires;
         }
 
-        mRooms[0].staticEntities.sort!(myComp,SwapStrategy.unstable)();
+        mRooms[0].staticEntities.sort!(myComp,SwapStrategy.stable)();
     }
 }
 
