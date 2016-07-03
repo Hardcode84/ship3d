@@ -22,6 +22,12 @@ protected:
         mData[] = data[];
     }
 public:
+    version(LDC)
+    {
+        import ldc.attributes;
+    @llvmAttr("unsafe-fp-math", "true"):
+    }
+
     alias ColT  = Base.ColorType;
     this(int w, int h)
     {

@@ -581,13 +581,15 @@ private:
         void* ptr = null;
         int trueMinX = maxY;
         int trueMaxX = minX;
+        int offset = 0;
         int hgt = 0;
+        bool fullSpansRange = false;
         {
             auto allocState = alloc.state;
             scope(exit) alloc.restoreState(allocState);
 
             SpanRange spanrange;
-            spanrange.spans = alloc.alloc!(SpanRange.Span)(size.h);
+            //spanrange.spans = alloc.alloc!(SpanRange.Span)(size.h);
             const LineT[3] lines = [
                 LineT(prepared.pack.verts[0], prepared.pack.verts[1], prepared.pack.verts[2], size),
                 LineT(prepared.pack.verts[1], prepared.pack.verts[2], prepared.pack.verts[0], size),
@@ -598,6 +600,8 @@ private:
                PointT(prepared.pack, minX, maxY, lines).check() &&
                PointT(prepared.pack, maxX, maxY, lines).check())
             {
+                fullSpansRange = true;
+                spanrange.spans = alloc.alloc!(SpanRange.Span)(size.h);
                 spanrange.y0 = minY;
                 spanrange.y1 = maxY;
                 foreach(y;minY..maxY)
@@ -618,6 +622,8 @@ private:
             }
             else if(prepared.pack.external)
             {
+                fullSpansRange = true;
+                spanrange.spans = alloc.alloc!(SpanRange.Span)(size.h);
                 //find first valid point
                 bool findStart(int x0, int y0, int x1, int y1, ref PointT start)
                 {
@@ -978,6 +984,14 @@ private:
                     edges[2] = Edge(sortedPos[2],sortedPos[1]);
                 }
 
+                const y0 = max(cast(int)min(sortedPos[0].y, sortedPos[1].y, sortedPos[2].y), minY);
+                const y1 = min(cast(int)max(sortedPos[0].y, sortedPos[1].y, sortedPos[2].y), maxY);
+                assert(y0 >= 0);
+                if(y0 <= y1)
+                {
+                    spanrange.spans = (alloc.alloc!(SpanRange.Span)(y1 - y0).ptr - y0)[0..y1 + 2]; //hack to reduce allocated memory
+                }
+
                 void fillSpans(bool ReverseX)()
                 {
                     int y = cast(int)edges[0].y;
@@ -1048,8 +1062,10 @@ private:
                                             return false;
                                         }
                                         spanrange.spans[y].x0 = xc0;
+                                        spanrange.spans[y].x1 = xc1;
                                     }
-                                    spanrange.spans[y].x1 = xc1;
+
+                                    //spanrange.spans[y].x1 = xc1;
                                     //outContext.surface[y][xc0..xc1] = ColorBlue;
                                 }
                                 ++y;
@@ -1066,6 +1082,7 @@ private:
                         spanrange.y1 = y;
                     }
                 } //fillspans
+
                 if(revX)
                 {
                     fillSpans!true();
@@ -1074,6 +1091,7 @@ private:
                 {
                     fillSpans!false();
                 }
+                offset = spanrange.y0 - y0;
             } //external
 
             if(spanrange.y0 >= spanrange.y1) 
@@ -1084,15 +1102,27 @@ private:
 
             prepared.spanrange.y0 = spanrange.y0;
             hgt = spanrange.y1 - spanrange.y0;
-            ptr = spanrange.spans.ptr;
-            foreach(i,span;spanrange.spans[spanrange.y0..spanrange.y1]) //hack to reduce allocated memory
+            if(fullSpansRange && 0 != spanrange.y0)
             {
-                trueMinX = min(trueMinX, span.x0);
-                trueMaxX = max(trueMaxX, span.x1);
-                spanrange.spans[i] = span;
+                ptr = spanrange.spans.ptr;
+                foreach(i,span;spanrange.spans[spanrange.y0..spanrange.y1]) 
+                {
+                    trueMinX = min(trueMinX, span.x0);
+                    trueMaxX = max(trueMaxX, span.x1);
+                    spanrange.spans[i] = span; //hack to reduce allocated memory
+                }
+            }
+            else
+            {
+                foreach(i,span;spanrange.spans[spanrange.y0..spanrange.y1])
+                {
+                    trueMinX = min(trueMinX, span.x0);
+                    trueMaxX = max(trueMaxX, span.x1);
+                }
+                ptr = spanrange.spans.ptr + spanrange.y0;
             }
         }
-        prepared.spanrange.spns = alloc.alloc!(RelSpanRange.Span)(hgt); //should be same data as in previous spanrange
+        prepared.spanrange.spns = alloc.alloc!(RelSpanRange.Span)(hgt).ptr[offset..offset + hgt]; //should be same data as in previous spanrange
         prepared.spanrange.x0 = trueMinX;
         prepared.spanrange.x1 = trueMaxX;
         assert(prepared.spanrange.spns.ptr == ptr);
@@ -1115,6 +1145,7 @@ private:
             {
                 auto lightProx = LightProxT(alloc,prepared.pack,prepared.spanrange,extContext);
             }
+
             void drawSpan(bool FixedLen,L)(
                 int y,
                 int x1, int x2,
