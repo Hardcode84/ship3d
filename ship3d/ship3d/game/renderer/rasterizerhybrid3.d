@@ -469,7 +469,7 @@ private:
         int y0;
         int x0 ,x1;
 
-        @property y1() const { return y0 + spns.length; }
+        @property auto y1() const { return y0 + cast(int)spns.length; }
 
         auto ref spans(int index) inout
         {
