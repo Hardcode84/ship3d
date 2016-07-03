@@ -237,7 +237,7 @@ public:
             const clipRect = Rect(0, 0, surf.width, surf.height);
             const mat = mProjMat;
             OutContext octx = {mSize, surf, clipRect, mat, SpanMask(mSize, allocator)};
-            octx.rasterizerCache = allocator.alloc!void(1024 * 10000);
+            octx.rasterizerCache = allocator.alloc!void(1024 * 5000);
             RendererT renderer;
             renderer.state = octx;
             drawPlayer(renderer, allocator, surf);

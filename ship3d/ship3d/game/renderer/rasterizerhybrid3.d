@@ -1341,13 +1341,16 @@ private:
         }
         Size[HighTileLevelCount + 1] tilesSizes = void;
         HighTile[][HighTileLevelCount] highTiles;
-        foreach(i; TupleRange!(0,HighTileLevelCount))
+        tilesSizes[0] = CalcTileSize(TileSize);
+        highTiles[0] = param.alloc.alloc(tilesSizes[0].w * tilesSizes[0].h, HighTile());
+        foreach(i; TupleRange!(1,HighTileLevelCount + 1))
         {
-            const size = Size(TileSize.w >> i, TileSize.h >> i);
-            tilesSizes[i] = CalcTileSize(size);
-            highTiles[i] = param.alloc.alloc(tilesSizes[i].w * tilesSizes[i].h, HighTile());
+            tilesSizes[i] = Size(tilesSizes[i - 1].w * 2, tilesSizes[i - 1].h * 2);
+            static if(i < HighTileLevelCount)
+            {
+                highTiles[i] = param.alloc.alloc(tilesSizes[i].w * tilesSizes[i].h, HighTile());
+            }
         }
-        tilesSizes[HighTileLevelCount] = CalcTileSize(Size(TileSize.w >> HighTileLevelCount, TileSize.h >> HighTileLevelCount));
 
         alias PackT = Unqual!(typeof(cache[0]));
         auto tiles = param.alloc.alloc(tilesSizes[HighTileLevelCount].w * tilesSizes[HighTileLevelCount].h,Tile());
@@ -1386,13 +1389,13 @@ private:
             LineT(pack.verts[2], pack.verts[0], pack.verts[1], params.context.size)];
 
         const clipRect = params.context.clipRect;
-        bool none(in uint val) pure nothrow
+        bool none(in uint val) pure nothrow const
         {
             return 0x0 == (val & 0b00000001_00000001_00000001_00000001) ||
                    0x0 == (val & 0b00000010_00000010_00000010_00000010) ||
                    0x0 == (val & 0b00000100_00000100_00000100_00000100);
         }
-        auto all(in uint val) pure nothrow
+        auto all(in uint val) pure nothrow const
         {
             return val == 0b00000111_00000111_00000111_00000111;
         }
@@ -1424,10 +1427,11 @@ private:
                 }
                 static assert(U.sizeof == uint.sizeof);
                 const U u = {oldval: val};
-                val >>= 16;
                 assert((u.oldval & 0xff) == u.vals[0]);
+                val >>= 16;
 
                 auto tile = &htiles[0][x + y * tilesSizes[0].w];
+
                 if(tile.used)
                 {
                     continue;
@@ -1445,13 +1449,14 @@ private:
                     }
                 }
                 hadOne = true;
+
                 if(!tile.hasChildren && all(u.oldval))
                 {
                     tile.set(index);
                 }
                 else
                 {
-                    void checkTile(Size TSize, int Level)(int tx, int ty, in ubyte[] prevVals)
+                    void checkTile(Size TSize, int Level)(int tx, int ty, in ubyte[4] prevVals)
                     {
                         //debugfOut("checkTile %s %s %s", TSize, Level, gamelib.types.Point(tx ,ty));
                         static assert(TSize.w > 0 && TSize.h > 0);
@@ -1465,18 +1470,18 @@ private:
                              gamelib.types.Point(0, 1),
                              gamelib.types.Point(1, 1)];
 
-                        const pt1 = cast(uint)prevVals[0];//PointT(pack, cast(int)x              , cast(int)y              , lines).vals();
+                        const pt1 = cast(uint)prevVals[0];//*/PointT(pack, cast(int)x              , cast(int)y              , lines).vals();
                         const pt2 = PointT(pack, cast(int)x + TSize.w    , cast(int)y              , lines).vals();
-                        const pt3 = cast(uint)prevVals[2];//PointT(pack, cast(int)x + TSize.w * 2, cast(int)y              , lines).vals();
+                        const pt3 = cast(uint)prevVals[2];//*/PointT(pack, cast(int)x + TSize.w * 2, cast(int)y              , lines).vals();
                         const pt4 = PointT(pack, cast(int)x              , cast(int)y + TSize.h    , lines).vals();
                         const pt5 = PointT(pack, cast(int)x + TSize.w    , cast(int)y + TSize.h    , lines).vals();
                         const pt6 = PointT(pack, cast(int)x + TSize.w * 2, cast(int)y + TSize.h    , lines).vals();
-                        const pt7 = cast(uint)prevVals[1];//PointT(pack, cast(int)x              , cast(int)y + TSize.h * 2, lines).vals();
+                        const pt7 = cast(uint)prevVals[1];//*/PointT(pack, cast(int)x              , cast(int)y + TSize.h * 2, lines).vals();
                         const pt8 = PointT(pack, cast(int)x + TSize.w    , cast(int)y + TSize.h * 2, lines).vals();
-                        const pt9 = cast(uint)prevVals[3];//PointT(pack, cast(int)x + TSize.w * 2, cast(int)y + TSize.h * 2, lines).vals();
+                        const pt9 = cast(uint)prevVals[3];//*/PointT(pack, cast(int)x + TSize.w * 2, cast(int)y + TSize.h * 2, lines).vals();
                         const uint[4] vals = [
                             (pt1 << 0) | (pt4 << 8) | (pt2 << 16) | (pt5 << 24),
-                            (pt2 << 0) | (pt5 << 8) | (pt6 << 16) | (pt6 << 24),
+                            (pt2 << 0) | (pt5 << 8) | (pt3 << 16) | (pt6 << 24),
                             (pt4 << 0) | (pt7 << 8) | (pt5 << 16) | (pt8 << 24),
                             (pt5 << 0) | (pt8 << 8) | (pt6 << 16) | (pt9 << 24)];
 
@@ -1485,10 +1490,6 @@ private:
                             foreach(i;TupleRange!(0,4))
                             {
                                 const currPt = gamelib.types.Point(tx + tpoints[i].x, ty + tpoints[i].y);
-                                if(currPt.x >= tilesSizes[Level].w || currPt.y >= tilesSizes[Level].h)
-                                {
-                                    continue;
-                                }
                                 auto tile = &htiles[Level][currPt.x + currPt.y * tilesSizes[Level].w];
                                 if(tile.used)
                                 {
@@ -1514,10 +1515,6 @@ private:
                             foreach(i;TupleRange!(0,4))
                             {
                                 const currPt = gamelib.types.Point(tx + tpoints[i].x, ty + tpoints[i].y);
-                                if(currPt.x >= tilesSizes[Level].w || currPt.y >= tilesSizes[Level].h)
-                                {
-                                    continue;
-                                }
                                 auto tile = &tiles[currPt.x + currPt.y * tilesSizes[Level].w];
                                 if(tile.full)
                                 {
@@ -1526,10 +1523,11 @@ private:
 
                                 const int x0 = currPt.x * TSize.w;
                                 const int x1 = min(x0 + TSize.w, clipRect.x + clipRect.w);
-                                assert(x1 > x0);
+                                //assert(x1 > x0);
+
                                 const int y0 = currPt.y * TSize.h;
                                 const int y1 = min(y0 + TSize.h, clipRect.y + clipRect.h);
-                                assert(y1 > y0);
+                                //assert(y1 > y0);
 
                                 if(spanrange.x1 <= x0 || spanrange.x0 >= x1 ||
                                    spanrange.y1 <= y0 || spanrange.y0 >= y1)
@@ -1547,7 +1545,7 @@ private:
                         else static assert(false);
                     }
 
-                    checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1)(x * 2, y * 2, u.vals[]);
+                    checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1)(x * 2, y * 2, u.vals);
                     //debugfOut("setChindren %s", gamelib.types.Point(x ,y));
                     tile.setChildren();
                 }
@@ -1572,13 +1570,6 @@ private:
                 {
                     static assert(TSize.w > 0 && TSize.h > 0);
                     static assert(Level >= 0);
-
-                    //debugfOut("drawTile %s %s %s", TSize, Level, gamelib.types.Point(tx ,ty));
-                    if(tx >= tilesSizes[Level].w || ty >= tilesSizes[Level].h)
-                    {
-                        //debugfOut("invalid tile");
-                        return;
-                    }
 
                     static if(Level < HighTileLevelCount)
                     {
@@ -1608,7 +1599,6 @@ private:
 
                             const index = tile.index;
                             auto tilePrep = TilePrepared(cache[index].pack, spans[index]);
-                            //debugOut(1);
                             drawPreparedTriangle!true(params.alloc, rect, params.context, cache[index].extContext, tilePrep);
                         }
                     }
@@ -1636,7 +1626,6 @@ private:
                             assert(index >= 0);
                             assert(index < cache.length);
                             auto tilePrep = TilePrepared(cache[index].pack, spans[index]);
-                            //debugOut(2);
                             drawPreparedTriangle!true(params.alloc, rect, params.context, cache[index].extContext, tilePrep);
                             buff.popBack;
                         }
@@ -1646,7 +1635,6 @@ private:
                             assert(index >= 0);
                             assert(index < cache.length);
                             auto tilePrep = TilePrepared(cache[index].pack, spans[index]);
-                            //debugfOut("3 %s %s", rect, index);
                             drawPreparedTriangle!false(params.alloc, rect, params.context, cache[index].extContext, tilePrep);
                         }
                     }
