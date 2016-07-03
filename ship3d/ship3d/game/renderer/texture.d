@@ -43,7 +43,8 @@ public:
         TextT v = context.v;
         const TextT dux = context.dux;
         const TextT dvx = context.dvx;
-        foreach(i;TupleRange!(0,W))
+        //foreach(i;TupleRange!(0,W))
+        foreach(i;0..W)
         {
             const x = cast(int)(u * w) & wmask;
             const y = cast(int)(v * h) & hmask;
@@ -116,7 +117,8 @@ public:
 
         enum TileDataSize = TileSize * TileSize;
         const tilePitch = TileDataSize * (width / TileSize);
-        foreach(i;TupleRange!(0,W))
+        //foreach(i;TupleRange!(0,W))
+        foreach(i;0..W)
         {
             const x = cast(int)(u * w) & wmask;
             const y = cast(int)(v * h) & hmask;

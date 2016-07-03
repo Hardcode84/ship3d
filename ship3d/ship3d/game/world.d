@@ -92,6 +92,8 @@ public:
         mRooms = generateWorld(this, seed);
         mPlayer = createEntity!Player(mRooms[0], vec3_t(0,0,/*-50.8*/-50.77), quat_t.identity);
         generateCubes(seed);
+        import core.memory;
+        GC.disable();
     }
 
     auto createEntity(E)(Room room, in vec3_t pos, in quat_t dir)
@@ -406,13 +408,16 @@ private:
         
         bool myComp(in StaticEntityRef a, in StaticEntityRef b)
         {
-            const res = distSquared(a.pos) >= distSquared(b.pos);
-            const antires = distSquared(a.pos) < distSquared(b.pos);
-            assert(res == !antires);
+            const res     = distSquared(a.pos) > distSquared(b.pos);
+            const antires = distSquared(b.pos) > distSquared(a.pos);
+            //debugOut("==");
+            //debugfOut("%s %s",a.pos,distSquared(a.pos));
+            //debugfOut("%s %s",b.pos,distSquared(b.pos));
+            //assert(res == !antires);
             return antires;
         }
 
-        mRooms[0].staticEntities.sort!(myComp,SwapStrategy.stable)();
+        mRooms[0].staticEntities.sort!(myComp,SwapStrategy.unstable)();
     }
 }
 

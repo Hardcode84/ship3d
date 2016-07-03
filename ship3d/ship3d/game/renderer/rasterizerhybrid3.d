@@ -36,7 +36,7 @@ struct RasterizerHybrid3(bool HasTextures, bool WriteMask, bool ReadMask, bool H
 
 private:
     enum AffineLength = 16;
-    enum TileSize = Size(64,64);
+    enum TileSize = Size(32,32);
     enum HighTileLevelCount = 1;
     enum TileBufferSize = 16;
     struct Tile
@@ -251,7 +251,7 @@ private:
         PosT[NumLines] dy = void;
         this(PackT,LineT)(in ref PackT p, int x, int y, in ref LineT lines)
         {
-            foreach(i;TupleRange!(0,NumLines))
+            foreach(i;0..NumLines)
             {
                 const val = lines[i].val(x, y);
                 cx[i] = val;
@@ -264,7 +264,7 @@ private:
 
         void incX(int val)
         {
-            foreach(i;TupleRange!(0,NumLines))
+            foreach(i;0..NumLines)
             {
                 cx[i] += dx[i] * val;
             }
@@ -273,7 +273,7 @@ private:
 
         void incY(int val)
         {
-            foreach(i;TupleRange!(0,NumLines))
+            foreach(i;0..NumLines)
             {
                 cx[i] += dy[i] * val;
             }
@@ -341,6 +341,14 @@ private:
             v1 = svCurr / wCurr;
             dux = (u1 - u) / dx;
             dvx = (v1 - v) / dx;
+        }
+
+        void initX()
+        {
+            u = u1;
+            v = v1;
+            u1 = suCurr / wCurr;
+            v1 = svCurr / wCurr;
         }
 
         void incY()
@@ -431,7 +439,7 @@ private:
             ++currX;
             l1 = l2;
             l2 = get();
-            foreach(i;TupleRange!(0,Len))
+            foreach(i;0..Len)
             {
                 buff[i] = (i + currY) % 2 ? l1 : l2;
             }
@@ -925,7 +933,7 @@ private:
                 struct Edge
                 {
                     alias FP = float;//FixedPoint!(16,16,int);
-                    immutable FP dx;
+                    FP dx;
                     FP currX;
                     FP y;
                     FP ye;
@@ -950,7 +958,7 @@ private:
                         currX += dx * val;
                     }
 
-                    @property x() const { return cast(int)(currX + 1.0f); }
+                    @property auto x() const { return cast(int)(currX + 1.0f); }
                 }
 
                 Edge[3] edges = void;
@@ -958,18 +966,16 @@ private:
                 if(sortedPos[1].y < sortedPos[2].y)
                 {
                     revX = true;
-                    edges[] = [
-                        Edge(sortedPos[0],sortedPos[2]),
-                        Edge(sortedPos[0],sortedPos[1]),
-                        Edge(sortedPos[1],sortedPos[2])];
+                    edges[0] = Edge(sortedPos[0],sortedPos[2]);
+                    edges[1] = Edge(sortedPos[0],sortedPos[1]);
+                    edges[2] = Edge(sortedPos[1],sortedPos[2]);
                 }
                 else
                 {
                     revX = false;
-                    edges[] = [
-                        Edge(sortedPos[0],sortedPos[1]),
-                        Edge(sortedPos[0],sortedPos[2]),
-                        Edge(sortedPos[2],sortedPos[1])];
+                    edges[0] = Edge(sortedPos[0],sortedPos[1]);
+                    edges[1] = Edge(sortedPos[0],sortedPos[2]);
+                    edges[2] = Edge(sortedPos[2],sortedPos[1]);
                 }
 
                 void fillSpans(bool ReverseX)()
@@ -1093,9 +1099,11 @@ private:
     }
 
     static void drawPreparedTriangle(bool Full, AllocT,CtxT1,CtxT2,PrepT)
-        (auto ref AllocT alloc, in Rect clipRect, auto ref CtxT1 outContext, auto ref CtxT2 extContext, in ref PrepT prepared)
+        (auto ref AllocT alloc, in Rect clipRect, auto ref CtxT1 outContext, auto ref CtxT2 extContext, in PrepT prepared)
     {
+        //alias FP = FixedPoint!(16,16,int);
         alias SpanT   = Span!(prepared.pack.pos_t);
+        //alias SpanT   = Span!FP;
         static if(HasLight)
         {
             alias LightProxT = LightProxy!(AffineLength, PosT);
@@ -1184,7 +1192,7 @@ private:
                 const sy = clipRect.y;
                 const sx = clipRect.x;
                 const ey = clipRect.y + clipRect.h;
-                const x0 = clipRect.x;
+                const x0 = sx;
                 const x1 = clipRect.x + clipRect.w;
             }
             else
@@ -1203,7 +1211,17 @@ private:
                     const x0 = max(clipRect.x,prepared.spanrange.spans(y).x0);
                     const x1 = min(clipRect.x + clipRect.w, prepared.spanrange.spans(y).x1);
                 }
-                span.incX(x0 - sx);
+
+                const dx = x0 - sx;
+                if(0 == dx)
+                {
+                    span.initX();
+                }
+                else
+                {
+                    span.incX(dx);
+                }
+
                 static if(HasLight)
                 {
                     lightProx.setXY(x0, y);
@@ -1262,7 +1280,7 @@ private:
             auto  dstMask = &outContext.dstMask;
             void writeMask(bool Empty)()
             {
-                static immutable colors = [ColorRed,ColorGreen,ColorBlue];
+                //static immutable colors = [ColorRed,ColorGreen,ColorBlue];
                 int mskMinX = maxX;
                 int mskMaxX = minX;
                 foreach(y;prepared.spanrange.y0..prepared.spanrange.y1)
@@ -1487,7 +1505,7 @@ private:
 
                         static if(Level < HighTileLevelCount)
                         {
-                            foreach(i;TupleRange!(0,4))
+                            foreach(i;0..4)
                             {
                                 const currPt = gamelib.types.Point(tx + tpoints[i].x, ty + tpoints[i].y);
                                 auto tile = &htiles[Level][currPt.x + currPt.y * tilesSizes[Level].w];
@@ -1512,7 +1530,7 @@ private:
                         }
                         else static if(Level == HighTileLevelCount)
                         {
-                            foreach(i;TupleRange!(0,4))
+                            foreach(i;0..4)
                             {
                                 const currPt = gamelib.types.Point(tx + tpoints[i].x, ty + tpoints[i].y);
                                 auto tile = &tiles[currPt.x + currPt.y * tilesSizes[Level].w];
@@ -1582,7 +1600,7 @@ private:
                                   gamelib.types.Point(tx * 2 + 1,ty * 2),
                                   gamelib.types.Point(tx * 2    ,ty * 2 + 1),
                                   gamelib.types.Point(tx * 2 + 1,ty * 2 + 1)];
-                            foreach(i;TupleRange!(0,4))
+                            foreach(i;0..4)
                             {
                                 drawTile!(Size(TSize.w >> 1, TSize.h >> 1), Level + 1)(tpoints[i].x,tpoints[i].y);
                             }
@@ -1598,8 +1616,7 @@ private:
                             const rect = Rect(x0, y0, x1 - x0, y1 - y0);
 
                             const index = tile.index;
-                            auto tilePrep = TilePrepared(cache[index].pack, spans[index]);
-                            drawPreparedTriangle!true(params.alloc, rect, params.context, cache[index].extContext, tilePrep);
+                            drawPreparedTriangle!true(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
                         }
                     }
                     else static if(Level == HighTileLevelCount)
@@ -1625,8 +1642,7 @@ private:
                             const index = buff.back;
                             assert(index >= 0);
                             assert(index < cache.length);
-                            auto tilePrep = TilePrepared(cache[index].pack, spans[index]);
-                            drawPreparedTriangle!true(params.alloc, rect, params.context, cache[index].extContext, tilePrep);
+                            drawPreparedTriangle!true(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
                             buff.popBack;
                         }
 
@@ -1634,8 +1650,7 @@ private:
                         {
                             assert(index >= 0);
                             assert(index < cache.length);
-                            auto tilePrep = TilePrepared(cache[index].pack, spans[index]);
-                            drawPreparedTriangle!false(params.alloc, rect, params.context, cache[index].extContext, tilePrep);
+                            drawPreparedTriangle!false(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
                         }
                     }
                     else static assert(false);
