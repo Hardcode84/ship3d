@@ -37,7 +37,7 @@ struct RasterizerHybrid3(bool HasTextures, bool WriteMask, bool ReadMask, bool H
 private:
     enum AffineLength = 16;
     enum TileSize = Size(64,64);
-    enum HighTileLevelCount = 2;
+    enum HighTileLevelCount = 1;
     enum TileBufferSize = 16;
     struct Tile
     {
@@ -1388,13 +1388,13 @@ private:
         const clipRect = params.context.clipRect;
         bool none(in uint val) pure nothrow
         {
-            return 0x0 == (val & 0b001_001_001_001) ||
-                   0x0 == (val & 0b010_010_010_010) ||
-                   0x0 == (val & 0b100_100_100_100);
+            return 0x0 == (val & 0b00000001_00000001_00000001_00000001) ||
+                   0x0 == (val & 0b00000010_00000010_00000010_00000010) ||
+                   0x0 == (val & 0b00000100_00000100_00000100_00000100);
         }
         auto all(in uint val) pure nothrow
         {
-            return val == 0b111_111_111_111;
+            return val == 0b00000111_00000111_00000111_00000111;
         }
 
         foreach(y; (spanrange.y0 / TileSize.h)..((spanrange.y1 + TileSize.h - 1) / TileSize.h))
@@ -1409,23 +1409,31 @@ private:
             const sx = (spanrange.x0 / TileSize.w) * TileSize.w;
             auto pt1 = PointT(pack, cast(int)sx, cast(int)ty0, lines);
             auto pt2 = PointT(pack, cast(int)sx, cast(int)ty1, lines);
-            uint val = (pt1.vals() << 0) | (pt2.vals() << 3);
+            uint val = (pt1.vals() << 0) | (pt2.vals() << 8);
 
             bool hadOne = false;
             foreach(x; (spanrange.x0 / TileSize.w)..((spanrange.x1 + TileSize.w - 1) / TileSize.w))
             {
                 pt1.incX(TileSize.w);
                 pt2.incX(TileSize.w);
-                val = val | (pt1.vals() << 6) | (pt2.vals() << 9);
-                const oldval = val;
-                val >>= 6;
+                val = val | (pt1.vals() << 16) | (pt2.vals() << 24);
+                union U
+                {
+                    uint oldval;
+                    ubyte[4] vals;
+                }
+                static assert(U.sizeof == uint.sizeof);
+                const U u = {oldval: val};
+                val >>= 16;
+                assert((u.oldval & 0xff) == u.vals[0]);
+
                 auto tile = &htiles[0][x + y * tilesSizes[0].w];
                 if(tile.used)
                 {
                     continue;
                 }
 
-                if(none(oldval))
+                if(none(u.oldval))
                 {
                     if(hadOne)
                     {
@@ -1437,49 +1445,51 @@ private:
                     }
                 }
                 hadOne = true;
-                if(!tile.hasChildren && all(oldval))
+                if(!tile.hasChildren && all(u.oldval))
                 {
                     tile.set(index);
                 }
                 else
                 {
-                    void checkTile(Size TSize, int Level)(int tx, int ty)
+                    void checkTile(Size TSize, int Level)(int tx, int ty, in ubyte[] prevVals)
                     {
                         //debugfOut("checkTile %s %s %s", TSize, Level, gamelib.types.Point(tx ,ty));
                         static assert(TSize.w > 0 && TSize.h > 0);
                         static assert(Level >= 0);
+                        assert(4 == prevVals.length);
                         const x = tx * TSize.w;
                         const y = ty * TSize.h;
-                        const gamelib.types.Point[4] tpoints = [
-                            gamelib.types.Point(tx    ,ty),
-                            gamelib.types.Point(tx + 1,ty),
-                            gamelib.types.Point(tx    ,ty + 1),
-                            gamelib.types.Point(tx + 1,ty + 1)];
+                        enum gamelib.types.Point[4] tpoints = [
+                             gamelib.types.Point(0, 0),
+                             gamelib.types.Point(1, 0),
+                             gamelib.types.Point(0, 1),
+                             gamelib.types.Point(1, 1)];
 
-                        const pt1 = PointT(pack, cast(int)x              , cast(int)y              , lines);
-                        const pt2 = PointT(pack, cast(int)x + TSize.w    , cast(int)y              , lines);
-                        const pt3 = PointT(pack, cast(int)x + TSize.w * 2, cast(int)y              , lines);
-                        const pt4 = PointT(pack, cast(int)x              , cast(int)y + TSize.h    , lines);
-                        const pt5 = PointT(pack, cast(int)x + TSize.w    , cast(int)y + TSize.h    , lines);
-                        const pt6 = PointT(pack, cast(int)x + TSize.w * 2, cast(int)y + TSize.h    , lines);
-                        const pt7 = PointT(pack, cast(int)x              , cast(int)y + TSize.h * 2, lines);
-                        const pt8 = PointT(pack, cast(int)x + TSize.w    , cast(int)y + TSize.h * 2, lines);
-                        const pt9 = PointT(pack, cast(int)x + TSize.w * 2, cast(int)y + TSize.h * 2, lines);
+                        const pt1 = cast(uint)prevVals[0];//PointT(pack, cast(int)x              , cast(int)y              , lines).vals();
+                        const pt2 = PointT(pack, cast(int)x + TSize.w    , cast(int)y              , lines).vals();
+                        const pt3 = cast(uint)prevVals[2];//PointT(pack, cast(int)x + TSize.w * 2, cast(int)y              , lines).vals();
+                        const pt4 = PointT(pack, cast(int)x              , cast(int)y + TSize.h    , lines).vals();
+                        const pt5 = PointT(pack, cast(int)x + TSize.w    , cast(int)y + TSize.h    , lines).vals();
+                        const pt6 = PointT(pack, cast(int)x + TSize.w * 2, cast(int)y + TSize.h    , lines).vals();
+                        const pt7 = cast(uint)prevVals[1];//PointT(pack, cast(int)x              , cast(int)y + TSize.h * 2, lines).vals();
+                        const pt8 = PointT(pack, cast(int)x + TSize.w    , cast(int)y + TSize.h * 2, lines).vals();
+                        const pt9 = cast(uint)prevVals[3];//PointT(pack, cast(int)x + TSize.w * 2, cast(int)y + TSize.h * 2, lines).vals();
                         const uint[4] vals = [
-                            (pt1.vals() << 0) | (pt2.vals() << 3) | (pt4.vals() << 6) | (pt5.vals() << 9),
-                            (pt2.vals() << 0) | (pt3.vals() << 3) | (pt5.vals() << 6) | (pt6.vals() << 9),
-                            (pt4.vals() << 0) | (pt5.vals() << 3) | (pt7.vals() << 6) | (pt8.vals() << 9),
-                            (pt5.vals() << 0) | (pt6.vals() << 3) | (pt8.vals() << 6) | (pt9.vals() << 9)];
+                            (pt1 << 0) | (pt4 << 8) | (pt2 << 16) | (pt5 << 24),
+                            (pt2 << 0) | (pt5 << 8) | (pt6 << 16) | (pt6 << 24),
+                            (pt4 << 0) | (pt7 << 8) | (pt5 << 16) | (pt8 << 24),
+                            (pt5 << 0) | (pt8 << 8) | (pt6 << 16) | (pt9 << 24)];
 
                         static if(Level < HighTileLevelCount)
                         {
                             foreach(i;TupleRange!(0,4))
                             {
-                                if(tpoints[i].x >= tilesSizes[Level].w || tpoints[i].y >= tilesSizes[Level].h)
+                                const currPt = gamelib.types.Point(tx + tpoints[i].x, ty + tpoints[i].y);
+                                if(currPt.x >= tilesSizes[Level].w || currPt.y >= tilesSizes[Level].h)
                                 {
                                     continue;
                                 }
-                                auto tile = &htiles[Level][tpoints[i].x + tpoints[i].y * tilesSizes[Level].w];
+                                auto tile = &htiles[Level][currPt.x + currPt.y * tilesSizes[Level].w];
                                 if(tile.used)
                                 {
                                     continue;
@@ -1492,7 +1502,8 @@ private:
                                 }
                                 else if(!none(vals[i]))
                                 {
-                                    checkTile!(Size(TSize.w >> 1, TSize.h >> 1), Level + 1)(tpoints[i].x * 2,tpoints[i].y * 2);
+                                    const U temp = {oldval: vals[i] };
+                                    checkTile!(Size(TSize.w >> 1, TSize.h >> 1), Level + 1)(currPt.x * 2, currPt.y * 2, temp.vals);
                                     tile.setChildren();
                                     //debugfOut("set2");
                                 }
@@ -1502,20 +1513,21 @@ private:
                         {
                             foreach(i;TupleRange!(0,4))
                             {
-                                if(tpoints[i].x >= tilesSizes[Level].w || tpoints[i].y >= tilesSizes[Level].h)
+                                const currPt = gamelib.types.Point(tx + tpoints[i].x, ty + tpoints[i].y);
+                                if(currPt.x >= tilesSizes[Level].w || currPt.y >= tilesSizes[Level].h)
                                 {
                                     continue;
                                 }
-                                auto tile = &tiles[tpoints[i].x + tpoints[i].y * tilesSizes[Level].w];
+                                auto tile = &tiles[currPt.x + currPt.y * tilesSizes[Level].w];
                                 if(tile.full)
                                 {
                                     continue;
                                 }
 
-                                const int x0 = tpoints[i].x * TSize.w;
+                                const int x0 = currPt.x * TSize.w;
                                 const int x1 = min(x0 + TSize.w, clipRect.x + clipRect.w);
                                 assert(x1 > x0);
-                                const int y0 = tpoints[i].y * TSize.h;
+                                const int y0 = currPt.y * TSize.h;
                                 const int y1 = min(y0 + TSize.h, clipRect.y + clipRect.h);
                                 assert(y1 > y0);
 
@@ -1535,7 +1547,7 @@ private:
                         else static assert(false);
                     }
 
-                    checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1)(x * 2, y * 2);
+                    checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1)(x * 2, y * 2, u.vals[]);
                     //debugfOut("setChindren %s", gamelib.types.Point(x ,y));
                     tile.setChildren();
                 }
@@ -1575,10 +1587,10 @@ private:
                         if(tile.hasChildren)
                         {
                             const gamelib.types.Point[4] tpoints = [
-                                gamelib.types.Point(tx * 2    ,ty * 2),
-                                gamelib.types.Point(tx * 2 + 1,ty * 2),
-                                gamelib.types.Point(tx * 2    ,ty * 2 + 1),
-                                gamelib.types.Point(tx * 2 + 1,ty * 2 + 1)];
+                                  gamelib.types.Point(tx * 2    ,ty * 2),
+                                  gamelib.types.Point(tx * 2 + 1,ty * 2),
+                                  gamelib.types.Point(tx * 2    ,ty * 2 + 1),
+                                  gamelib.types.Point(tx * 2 + 1,ty * 2 + 1)];
                             foreach(i;TupleRange!(0,4))
                             {
                                 drawTile!(Size(TSize.w >> 1, TSize.h >> 1), Level + 1)(tpoints[i].x,tpoints[i].y);
