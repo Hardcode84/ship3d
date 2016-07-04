@@ -282,58 +282,59 @@ private:
         enum Scale = 10.0f;
         enum CubeScale = 2.5f;
         enum Dim = 10;
+
+        import game.topology.mesh;
+        Mesh mesh;
+        mesh.addTriangles([
+                Vertex(vec3_t(-1,-1, 1),vec2_t(0,0)),
+                Vertex(vec3_t( 1,-1, 1),vec2_t(1,0)),
+                Vertex(vec3_t(-1, 1, 1),vec2_t(0,1)),
+                Vertex(vec3_t( 1, 1, 1),vec2_t(1,1))].map!(a => Vertex(a.pos * CubeScale, a.tpos)).array,
+            [[0,1,2],[2,1,3]]);
+
+        mesh.addTriangles([
+                Vertex(vec3_t(-1,-1, -1),vec2_t(0,0)),
+                Vertex(vec3_t( 1,-1, -1),vec2_t(1,0)),
+                Vertex(vec3_t(-1, 1, -1),vec2_t(0,1)),
+                Vertex(vec3_t( 1, 1, -1),vec2_t(1,1))].map!(a => Vertex(a.pos * CubeScale, a.tpos)).array,
+            [[2,1,0],[3,1,2]]);
+
+        mesh.addTriangles([
+                Vertex(vec3_t(-1,-1,-1),vec2_t(0,0)),
+                Vertex(vec3_t( 1,-1,-1),vec2_t(1,0)),
+                Vertex(vec3_t(-1,-1, 1),vec2_t(0,1)),
+                Vertex(vec3_t( 1,-1, 1),vec2_t(1,1))].map!(a => Vertex(a.pos * CubeScale, a.tpos)).array,
+            [[0,1,2],[2,1,3]]);
+
+        mesh.addTriangles([
+                Vertex(vec3_t(-1, 1,-1),vec2_t(0,0)),
+                Vertex(vec3_t( 1, 1,-1),vec2_t(1,0)),
+                Vertex(vec3_t(-1, 1, 1),vec2_t(0,1)),
+                Vertex(vec3_t( 1, 1, 1),vec2_t(1,1))].map!(a => Vertex(a.pos * CubeScale, a.tpos)).array,
+            [[2,1,0],[3,1,2]]);
+
+        mesh.addTriangles([
+                Vertex(vec3_t( 1,-1,-1),vec2_t(0,0)),
+                Vertex(vec3_t( 1, 1,-1),vec2_t(1,0)),
+                Vertex(vec3_t( 1,-1, 1),vec2_t(0,1)),
+                Vertex(vec3_t( 1, 1, 1),vec2_t(1,1))].map!(a => Vertex(a.pos * CubeScale, a.tpos)).array,
+            [[0,1,2],[2,1,3]]);
+
+        mesh.addTriangles([
+                Vertex(vec3_t(-1,-1,-1),vec2_t(0,0)),
+                Vertex(vec3_t(-1, 1,-1),vec2_t(1,0)),
+                Vertex(vec3_t(-1,-1, 1),vec2_t(0,1)),
+                Vertex(vec3_t(-1, 1, 1),vec2_t(1,1))].map!(a => Vertex(a.pos * CubeScale, a.tpos)).array,
+            [[2,1,0],[3,1,2]]);
+
         foreach(z; 0..Dim)
         {
             foreach(y; 0..Dim)
             {
                 foreach(x; 0..Dim)
                 {
-                    import game.topology.mesh;
-                    Mesh mesh;
                     import std.random;
                     mesh.texture = textures[uniform(0,textures.length)];
-                    mesh.addTriangles([
-                            Vertex(vec3_t(-1,-1, 1),vec2_t(0,0)),
-                            Vertex(vec3_t( 1,-1, 1),vec2_t(1,0)),
-                            Vertex(vec3_t(-1, 1, 1),vec2_t(0,1)),
-                            Vertex(vec3_t( 1, 1, 1),vec2_t(1,1))].map!(a => Vertex(a.pos * CubeScale, a.tpos)).array,
-                        [[0,1,2],[2,1,3]]);
-
-                    mesh.addTriangles([
-                            Vertex(vec3_t(-1,-1, -1),vec2_t(0,0)),
-                            Vertex(vec3_t( 1,-1, -1),vec2_t(1,0)),
-                            Vertex(vec3_t(-1, 1, -1),vec2_t(0,1)),
-                            Vertex(vec3_t( 1, 1, -1),vec2_t(1,1))].map!(a => Vertex(a.pos * CubeScale, a.tpos)).array,
-                        [[2,1,0],[3,1,2]]);
-
-                    mesh.addTriangles([
-                            Vertex(vec3_t(-1,-1,-1),vec2_t(0,0)),
-                            Vertex(vec3_t( 1,-1,-1),vec2_t(1,0)),
-                            Vertex(vec3_t(-1,-1, 1),vec2_t(0,1)),
-                            Vertex(vec3_t( 1,-1, 1),vec2_t(1,1))].map!(a => Vertex(a.pos * CubeScale, a.tpos)).array,
-                        [[0,1,2],[2,1,3]]);
-
-                    mesh.addTriangles([
-                            Vertex(vec3_t(-1, 1,-1),vec2_t(0,0)),
-                            Vertex(vec3_t( 1, 1,-1),vec2_t(1,0)),
-                            Vertex(vec3_t(-1, 1, 1),vec2_t(0,1)),
-                            Vertex(vec3_t( 1, 1, 1),vec2_t(1,1))].map!(a => Vertex(a.pos * CubeScale, a.tpos)).array,
-                        [[2,1,0],[3,1,2]]);
-
-                    mesh.addTriangles([
-                            Vertex(vec3_t( 1,-1,-1),vec2_t(0,0)),
-                            Vertex(vec3_t( 1, 1,-1),vec2_t(1,0)),
-                            Vertex(vec3_t( 1,-1, 1),vec2_t(0,1)),
-                            Vertex(vec3_t( 1, 1, 1),vec2_t(1,1))].map!(a => Vertex(a.pos * CubeScale, a.tpos)).array,
-                        [[0,1,2],[2,1,3]]);
-
-                    mesh.addTriangles([
-                            Vertex(vec3_t(-1,-1,-1),vec2_t(0,0)),
-                            Vertex(vec3_t(-1, 1,-1),vec2_t(1,0)),
-                            Vertex(vec3_t(-1,-1, 1),vec2_t(0,1)),
-                            Vertex(vec3_t(-1, 1, 1),vec2_t(1,1))].map!(a => Vertex(a.pos * CubeScale, a.tpos)).array,
-                        [[2,1,0],[3,1,2]]);
-
                     auto ent = new StaticMesh(this, mesh);
 
                     enum offset = Dim / 2 - 0.5f;
