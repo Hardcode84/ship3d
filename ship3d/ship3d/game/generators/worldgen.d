@@ -45,7 +45,7 @@ Room[] generateWorld(World world, uint seed)
                 uniform(1,5,rnd),
                 uniform(1,5,rnd),
                 uniform(1,5,rnd));*/
-            const size = vec3i(7,7,7);
+            const size = vec3i(5,5,5);
             auto room = generateRoom(rnd, world, size, 50);
             foreach(ref p; room.polygons)
             {
