@@ -39,7 +39,7 @@ private:
     enum AffineLength = 16;
     enum TileSize = Size(64,64);
     enum HighTileLevelCount = 1;
-    enum TileBufferSize = 32;
+    enum TileBufferSize = 128;
     enum LowTileSize = Size(TileSize.w >> HighTileLevelCount, TileSize.h >> HighTileLevelCount);
     struct Tile
     {

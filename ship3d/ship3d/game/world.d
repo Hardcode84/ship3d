@@ -79,7 +79,7 @@ public:
         assert(numThreads > 0);
         mTaskPool = new TaskPool(max(1, numThreads - 1));
         mTaskPool.isDaemon = true;
-        mAllocator = new StackAlloc(0x8FFFFFF);
+        mAllocator = new StackAlloc(0x1FFFFFFF);
         mRefAlloc =  new RefAllocator(0xFF);
         mSize = sz;
         mProjMat = mat4_t.perspective(sz.w,sz.h,155,0.1,1000);
