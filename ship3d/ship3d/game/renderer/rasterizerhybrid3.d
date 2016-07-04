@@ -37,8 +37,8 @@ struct RasterizerHybrid3(bool HasTextures, bool WriteMask, bool ReadMask, bool H
 
 private:
     enum AffineLength = 16;
-    enum TileSize = Size(128,128);
-    enum HighTileLevelCount = 2;
+    enum TileSize = Size(64,64);
+    enum HighTileLevelCount = 1;
     enum TileBufferSize = 32;
     enum LowTileSize = Size(TileSize.w >> HighTileLevelCount, TileSize.h >> HighTileLevelCount);
     struct Tile
