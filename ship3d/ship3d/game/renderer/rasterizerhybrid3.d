@@ -1159,9 +1159,11 @@ private:
         assert(prepared.spanrange.spns.ptr == ptr);
     }
 
-    static void drawPreparedTriangle(bool Full, AllocT,CtxT1,CtxT2,PrepT)
+    static void drawPreparedTriangle(size_t TWidth, AllocT,CtxT1,CtxT2,PrepT)
         (auto ref AllocT alloc, in Rect clipRect, auto ref CtxT1 outContext, auto ref CtxT2 extContext, in PrepT prepared)
     {
+        enum Full = (TWidth > 0);
+        static assert(!Full || (TWidth >= AffineLength && 0 == (TWidth % AffineLength)));
         //alias FP = FixedPoint!(16,16,int);
         alias SpanT   = Span!(prepared.pack.pos_t);
         //alias SpanT   = Span!FP;
@@ -1255,7 +1257,7 @@ private:
                 const sx = clipRect.x;
                 const ey = clipRect.y + clipRect.h;
                 const x0 = sx;
-                const x1 = clipRect.x + clipRect.w;
+                const x1 = x0 + TWidth;
             }
             else
             {
@@ -1272,16 +1274,20 @@ private:
                 {
                     const x0 = max(clipRect.x,prepared.spanrange.spans(y).x0);
                     const x1 = min(clipRect.x + clipRect.w, prepared.spanrange.spans(y).x1);
-                }
-
-                const dx = x0 - sx;
-                if(0 == dx)
-                {
-                    span.initX();
+                    const dx = x0 - sx;
+                    assert(!Full || (0 == dx));
+                    if(0 == dx)
+                    {
+                        span.initX();
+                    }
+                    else
+                    {
+                        span.incX(dx);
+                    }
                 }
                 else
                 {
-                    span.incX(dx);
+                    span.initX();
                 }
 
                 static if(HasLight)
@@ -1290,37 +1296,43 @@ private:
                 }
                 int x = x0;
 
-                const nx = (x + (AffineLength - 1)) & ~(AffineLength - 1);
-                if(nx > x && nx < x1)
+                static if(!Full)
                 {
-                    static if(HasLight) lightProx.incX();
-                    span.incX(nx - x - 1);
-                    drawSpan!false(y, x, nx, span, line);
-                    x = nx;
+                    const nx = (x + (AffineLength - 1)) & ~(AffineLength - 1);
+                    if(nx > x && nx < x1)
+                    {
+                        static if(HasLight) lightProx.incX();
+                        span.incX(nx - x - 1);
+                        drawSpan!false(y, x, nx, span, line);
+                        x = nx;
+                    }
+                    const affParts = ((x1-x) / AffineLength);
+                }
+                else
+                {
+                    //Full
+                    enum affParts = TWidth / AffineLength;
                 }
 
-                foreach(i;0..((x1-x) / AffineLength))
+                foreach(i;0..affParts)
                 {
                     span.incX(AffineLength);
                     static if(HasLight) lightProx.incX();
                     drawSpan!true(y, x, x + AffineLength, span, line);
                     x += AffineLength;
                 }
-                const rem = (x1 - x);
-                if(rem > 0)
+
+                static if(!Full)
                 {
-                    span.incX(rem);
-                    static if(HasLight) lightProx.incX();
-                    drawSpan!false(y, x, x1, span, line);
+                    const rem = (x1 - x);
+                    if(rem > 0)
+                    {
+                        span.incX(rem);
+                        static if(HasLight) lightProx.incX();
+                        drawSpan!false(y, x, x1, span, line);
+                    }
                 }
-                /*if(pack.external)
-                {
-                    line[x0..x1] = ColorRed;
-                }
-                else
-                {
-                    line[x0..x1] = ColorBlue;
-                }*/
+
                 span.incY();
                 ++line;
             }
@@ -1693,6 +1705,7 @@ private:
                 {
                     static assert(TSize.w > 0 && TSize.h > 0);
                     static assert(Level >= 0);
+                    enum FullDrawWidth = TSize.w;
 
                     static if(Level < HighTileLevelCount)
                     {
@@ -1721,7 +1734,14 @@ private:
                             const rect = Rect(x0, y0, x1 - x0, y1 - y0);
 
                             const index = tile.index;
-                            drawPreparedTriangle!true(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
+                            if(rect.w == TSize.w)
+                            {
+                                drawPreparedTriangle!FullDrawWidth(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
+                            }
+                            else
+                            {
+                                drawPreparedTriangle!0(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
+                            }
                         }
                     }
                     else static if(Level == HighTileLevelCount)
@@ -1742,12 +1762,12 @@ private:
                         auto buff = tile.buffer[0..tile.length];
                         assert(buff.length > 0);
 
-                        if(tile.covered)
+                        if(tile.covered && (rect.w == TSize.w))
                         {
                             const index = buff.back;
                             assert(index >= 0);
                             assert(index < cache.length);
-                            drawPreparedTriangle!true(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
+                            drawPreparedTriangle!FullDrawWidth(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
                             buff.popBack;
                         }
 
@@ -1755,7 +1775,7 @@ private:
                         {
                             assert(index >= 0);
                             assert(index < cache.length);
-                            drawPreparedTriangle!false(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
+                            drawPreparedTriangle!0(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
                         }
                     }
                     else static assert(false);
@@ -1815,7 +1835,7 @@ private:
                 return;
             }
 
-            drawPreparedTriangle!false(alloc, outContext.clipRect, outContext, extContext, prepared);
+            drawPreparedTriangle!0(alloc, outContext.clipRect, outContext, extContext, prepared);
         }
     }
 
