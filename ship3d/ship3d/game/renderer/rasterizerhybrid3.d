@@ -36,7 +36,7 @@ struct RasterizerHybrid3(bool HasTextures, bool WriteMask, bool ReadMask, bool H
     }
 
 private:
-    enum AffineLength = 16;
+    enum AffineLength = 32;
     enum TileSize = Size(64,64);
     enum HighTileLevelCount = 1;
     enum TileBufferSize = 128;
@@ -1642,38 +1642,44 @@ private:
                                     continue;
                                 }
 
-
-                                const sy0 = max(spanrange.y0, y0);
-                                const sy1 = min(spanrange.y1, y1);
-
-                                auto mask = &masks[currPt.x + currPt.y * tilesSizes[Level].w];
-                                assert(!mask.full);
-
-                                bool visible = false;
-                                foreach(my; sy0..sy1)
+                                if(all(vals[i]))
                                 {
-                                    const sx0 = max(spanrange.spans(my).x0, x0);
-                                    const sx1 = min(spanrange.spans(my).x1, x1);
-                                    if(sx1 > sx0)
+                                    tile.addTriangle(index, true);
+                                }
+                                else
+                                {
+                                    const sy0 = max(spanrange.y0, y0);
+                                    const sy1 = min(spanrange.y1, y1);
+
+                                    auto mask = &masks[currPt.x + currPt.y * tilesSizes[Level].w];
+                                    assert(!mask.full);
+
+                                    bool visible = false;
+                                    foreach(my; sy0..sy1)
                                     {
-                                        const myr = my - y0;
-                                        enum FullMask = mask.FullMask;
-                                        const sh0 = (sx0 - x0);
-                                        const sh1 = (x0 + TSize.w - sx1);
-                                        const val = (FullMask >> sh0) & (FullMask << sh1);
-                                        assert(0 != val);
-                                        if(0 != (val & ~mask.data[myr]))
+                                        const sx0 = max(spanrange.spans(my).x0, x0);
+                                        const sx1 = min(spanrange.spans(my).x1, x1);
+                                        if(sx1 > sx0)
                                         {
-                                            mask.data[myr] |= val;
-                                            visible = true;
+                                            const myr = my - y0;
+                                            enum FullMask = mask.FullMask;
+                                            const sh0 = (sx0 - x0);
+                                            const sh1 = (x0 + TSize.w - sx1);
+                                            const val = (FullMask >> sh0) & (FullMask << sh1);
+                                            assert(0 != val);
+                                            if(0 != (val & ~mask.data[myr]))
+                                            {
+                                                mask.data[myr] |= val;
+                                                visible = true;
+                                            }
                                         }
                                     }
-                                }
 
-                                if(visible)
-                                {
-                                    //debugfOut("set3 %s %s", gamelib.types.Point(tpoints[i].x ,tpoints[i].y), index);
-                                    tile.addTriangle(index, mask.full);
+                                    if(visible)
+                                    {
+                                        //debugfOut("set3 %s %s", gamelib.types.Point(tpoints[i].x ,tpoints[i].y), index);
+                                        tile.addTriangle(index, mask.full);
+                                    }
                                 }
                             }
                         }
