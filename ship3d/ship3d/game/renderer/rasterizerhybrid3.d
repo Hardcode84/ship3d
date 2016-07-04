@@ -483,14 +483,16 @@ private:
         }
     }
 
+    alias SpanElemType = short;
     struct SpanRange
     {
         struct Span
         {
-            int x0, x1;
+            SpanElemType x0 = void;
+            SpanElemType x1 = void;
         }
-        int y0;
-        int y1;
+        int y0 = void;
+        int y1 = void;
         Span[] spans;
     }
 
@@ -498,11 +500,13 @@ private:
     {
         struct Span
         {
-            int x0,x1;
+            SpanElemType x0 = void;
+            SpanElemType x1 = void;
         }
         Span[] spns;
-        int y0;
-        int x0 ,x1;
+        int y0 = void;
+        int x0 = void;
+        int x1 = void;
 
         @property auto y1() const { return y0 + cast(int)spns.length; }
 
@@ -643,8 +647,8 @@ private:
                         const xc0 = minX;
                         const xc1 = maxX;
                     }
-                    spanrange.spans[y].x0 = xc0;
-                    spanrange.spans[y].x1 = xc1;
+                    spanrange.spans[y].x0 = numericCast!SpanElemType(xc0);
+                    spanrange.spans[y].x1 = numericCast!SpanElemType(xc1);
                 }
             }
             else if(prepared.pack.external)
@@ -829,8 +833,8 @@ private:
                         const x0 = findLeft();
                         const x1 = findRight();
                         static import gamelib.math;
-                        spanrange.spans[pt.curry].x0 = gamelib.math.clamp(x0, leftBound, rightBound);
-                        spanrange.spans[pt.curry].x1 = gamelib.math.clamp(x1, leftBound, rightBound);
+                        spanrange.spans[pt.curry].x0 = numericCast!SpanElemType(gamelib.math.clamp(x0, leftBound, rightBound));
+                        spanrange.spans[pt.curry].x1 = numericCast!SpanElemType(gamelib.math.clamp(x1, leftBound, rightBound));
                         return vec2i(x0, x1);
                     }
                     assert(false);
@@ -1088,8 +1092,8 @@ private:
                                         {
                                             return false;
                                         }
-                                        spanrange.spans[y].x0 = xc0;
-                                        spanrange.spans[y].x1 = xc1;
+                                        spanrange.spans[y].x0 = numericCast!SpanElemType(xc0);
+                                        spanrange.spans[y].x1 = numericCast!SpanElemType(xc1);
                                     }
 
                                     //spanrange.spans[y].x1 = xc1;

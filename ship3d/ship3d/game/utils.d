@@ -62,3 +62,8 @@ auto ntsRange(T)(T[] range)
 {
     return NtsRange!T(range);
 }
+
+auto numericCast(DstT,SrcT)(in SrcT src)
+{
+    return cast(DstT)src;
+}
