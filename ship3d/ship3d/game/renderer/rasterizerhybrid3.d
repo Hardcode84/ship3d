@@ -1289,16 +1289,16 @@ private:
                     lightProx.setXY(x0, y);
                 }
                 int x = x0;
+
+                const nx = (x + (AffineLength - 1)) & ~(AffineLength - 1);
+                if(nx > x && nx < x1)
                 {
-                    const nx = (x + (AffineLength - 1)) & ~(AffineLength - 1);
-                    if(nx > x && nx < x1)
-                    {
-                        static if(HasLight) lightProx.incX();
-                        span.incX(nx - x - 1);
-                        drawSpan!false(y, x, nx, span, line);
-                        x = nx;
-                    }
+                    static if(HasLight) lightProx.incX();
+                    span.incX(nx - x - 1);
+                    drawSpan!false(y, x, nx, span, line);
+                    x = nx;
                 }
+
                 foreach(i;0..((x1-x) / AffineLength))
                 {
                     span.incX(AffineLength);

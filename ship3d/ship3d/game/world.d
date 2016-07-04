@@ -269,10 +269,12 @@ private:
         texture_t[] textures;
         textures.length = colors2.length;
 
+        auto palette = new palette_t(data2[0..(1 << PaletteBits)], lpalette[]);
+
         foreach(i,ref tex; textures)
         {
             tex = new texture_t(16,16);
-            tex.palette = new palette_t(data2[0..(1 << PaletteBits)], lpalette[]);
+            tex.palette = palette;
             tex.fillChess(cast(ubyte)((1 << PaletteBits) - 1), cast(ubyte)(i), 1, 1);
         }
         import std.algorithm;

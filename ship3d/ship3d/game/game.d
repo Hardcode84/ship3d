@@ -83,8 +83,8 @@ public:
                     default:
                 }
             }
-            auto newTicks = SDL_GetTicks();
-            auto updateCount = (newTicks - mLastTicks) / UpdateInterval;
+            const newTicks = SDL_GetTicks();
+            const updateCount = (newTicks - mLastTicks) / UpdateInterval;
             foreach(i;0..updateCount)
             {
                 if(!update())
@@ -101,7 +101,7 @@ public:
                 ++mFPSCounter;
                 if((newTicks - mLastFPSTicks) > 2000)
                 {
-                    mFPS = cast(float)mFPSCounter / (cast(float)(newTicks - mLastFPSTicks) / 1000.0f);
+                    mFPS = 1000.0f * cast(float)mFPSCounter / cast(float)(newTicks - mLastFPSTicks);
                     mLastFPSTicks = newTicks;
                     mFPSCounter = 0;
 
