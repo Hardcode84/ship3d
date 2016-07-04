@@ -400,10 +400,10 @@ private:
 
         auto distSquared(in vec3_t vec)
         {
-            return
+            return cast(int)((
                 (vec.x - playerPos.x) * (vec.x - playerPos.x) + 
                 (vec.y - playerPos.y) * (vec.y - playerPos.y) +
-                (vec.z - playerPos.z) * (vec.z - playerPos.z);
+                (vec.z - playerPos.z) * (vec.z - playerPos.z)) * 10.0f);
         }
         
         bool myComp(in StaticEntityRef a, in StaticEntityRef b)
