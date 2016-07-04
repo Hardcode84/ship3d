@@ -1502,7 +1502,7 @@ private:
             return val == 0b00000111_00000111_00000111_00000111;
         }
 
-        foreach(y; (spanrange.y0 / TileSize.h)..((spanrange.y1 + TileSize.h - 1) / TileSize.h))
+        void updateLine(int y)
         {
             const ty0 = y * TileSize.h;
             const ty1 = min(ty0 + TileSize.h, clipRect.y + clipRect.h);
@@ -1560,7 +1560,6 @@ private:
                 {
                     void checkTile(Size TSize, int Level)(int tx, int ty, in ubyte[4] prevVals)
                     {
-                        //debugfOut("checkTile %s %s %s", TSize, Level, gamelib.types.Point(tx ,ty));
                         static assert(TSize.w > 0 && TSize.h > 0);
                         static assert(Level >= 0);
                         assert(4 == prevVals.length);
@@ -1601,14 +1600,12 @@ private:
                                 if(!tile.hasChildren && all(vals[i]))
                                 {
                                     tile.set(index);
-                                    //debugfOut("set1");
                                 }
                                 else if(!none(vals[i]))
                                 {
                                     const U temp = {oldval: vals[i] };
                                     checkTile!(Size(TSize.w >> 1, TSize.h >> 1), Level + 1)(currPt.x * 2, currPt.y * 2, temp.vals);
                                     tile.setChildren();
-                                    //debugfOut("set2");
                                 }
                             }
                         }
@@ -1677,7 +1674,6 @@ private:
 
                                     if(visible)
                                     {
-                                        //debugfOut("set3 %s %s", gamelib.types.Point(tpoints[i].x ,tpoints[i].y), index);
                                         tile.addTriangle(index, mask.full);
                                     }
                                 }
@@ -1687,9 +1683,25 @@ private:
                     }
 
                     checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1)(x * 2, y * 2, u.vals);
-                    //debugfOut("setChindren %s", gamelib.types.Point(x ,y));
                     tile.setChildren();
                 }
+            }
+        }
+
+        auto yrange = iota((spanrange.y0 / TileSize.h), ((spanrange.y1 + TileSize.h - 1) / TileSize.h));
+
+        /*if(params.context.myTaskPool !is null && yrange.length > 1)
+        {
+            foreach(y; params.context.myTaskPool.parallel(yrange, 1))
+            {
+                updateLine(y);
+            }
+        }
+        else*/
+        {
+            foreach(y; yrange)
+            {
+                updateLine(y);
             }
         }
     }
@@ -1702,93 +1714,109 @@ private:
             Unqual!(typeof(cache[0].pack)) pack;
             RelSpanRange spanrange;
         }
-        const clipRect = params.context.clipRect;
-        foreach(y; 0..tilesSizes[0].h)
+        void drawTile(Size TSize, int Level)(int tx, int ty)
         {
-            foreach(x; 0..tilesSizes[0].w)
+            static assert(TSize.w > 0 && TSize.h > 0);
+            static assert(Level >= 0);
+            enum FullDrawWidth = TSize.w;
+
+            static if(Level < HighTileLevelCount)
             {
-                void drawTile(Size TSize, int Level)(int tx, int ty)
+                auto tile = &htiles[Level][tx + ty * tilesSizes[Level].w];
+                
+                if(tile.hasChildren)
                 {
-                    static assert(TSize.w > 0 && TSize.h > 0);
-                    static assert(Level >= 0);
-                    enum FullDrawWidth = TSize.w;
-
-                    static if(Level < HighTileLevelCount)
+                    const gamelib.types.Point[4] tpoints = [
+                          gamelib.types.Point(tx * 2    ,ty * 2),
+                          gamelib.types.Point(tx * 2 + 1,ty * 2),
+                          gamelib.types.Point(tx * 2    ,ty * 2 + 1),
+                          gamelib.types.Point(tx * 2 + 1,ty * 2 + 1)];
+                    foreach(i;0..4)
                     {
-                        auto tile = &htiles[Level][tx + ty * tilesSizes[Level].w];
-
-                        if(tile.hasChildren)
-                        {
-                            const gamelib.types.Point[4] tpoints = [
-                                  gamelib.types.Point(tx * 2    ,ty * 2),
-                                  gamelib.types.Point(tx * 2 + 1,ty * 2),
-                                  gamelib.types.Point(tx * 2    ,ty * 2 + 1),
-                                  gamelib.types.Point(tx * 2 + 1,ty * 2 + 1)];
-                            foreach(i;0..4)
-                            {
-                                drawTile!(Size(TSize.w >> 1, TSize.h >> 1), Level + 1)(tpoints[i].x,tpoints[i].y);
-                            }
-                        }
-                        else if(tile.used)
-                        {
-                            const x0 = tx * TSize.w;
-                            const x1 = min(x0 + TSize.w, clipRect.x + clipRect.w);
-                            assert(x1 > x0);
-                            const y0 = ty * TSize.h;
-                            const y1 = min(y0 + TSize.h, clipRect.y + clipRect.h);
-                            assert(y1 > y0);
-                            const rect = Rect(x0, y0, x1 - x0, y1 - y0);
-
-                            const index = tile.index;
-                            if(rect.w == TSize.w)
-                            {
-                                drawPreparedTriangle!FullDrawWidth(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
-                            }
-                            else
-                            {
-                                drawPreparedTriangle!0(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
-                            }
-                        }
+                        drawTile!(Size(TSize.w >> 1, TSize.h >> 1), Level + 1)(tpoints[i].x,tpoints[i].y);
                     }
-                    else static if(Level == HighTileLevelCount)
-                    {
-                        auto tile = &tiles[tx + ty * tilesSizes[Level].w];
-                        if(tile.empty)
-                        {
-                            return;
-                        }
-                        const x0 = tx * TSize.w;
-                        const x1 = min(x0 + TSize.w, clipRect.x + clipRect.w);
-                        assert(x1 > x0);
-                        const y0 = ty * TSize.h;
-                        const y1 = min(y0 + TSize.h, clipRect.y + clipRect.h);
-                        assert(y1 > y0);
-                        const rect = Rect(x0, y0, x1 - x0, y1 - y0);
-
-                        auto buff = tile.buffer[0..tile.length];
-                        assert(buff.length > 0);
-
-                        if(tile.covered && (rect.w == TSize.w))
-                        {
-                            const index = buff.back;
-                            assert(index >= 0);
-                            assert(index < cache.length);
-                            drawPreparedTriangle!FullDrawWidth(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
-                            buff.popBack;
-                        }
-
-                        foreach(const index; buff.retro)
-                        {
-                            assert(index >= 0);
-                            assert(index < cache.length);
-                            drawPreparedTriangle!0(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
-                        }
-                    }
-                    else static assert(false);
                 }
+                else if(tile.used)
+                {
+                    const x0 = tx * TSize.w;
+                    const x1 = min(x0 + TSize.w, clipRect.x + clipRect.w);
+                    assert(x1 > x0);
+                    const y0 = ty * TSize.h;
+                    const y1 = min(y0 + TSize.h, clipRect.y + clipRect.h);
+                    assert(y1 > y0);
+                    const rect = Rect(x0, y0, x1 - x0, y1 - y0);
+                    
+                    const index = tile.index;
+                    if(rect.w == TSize.w)
+                    {
+                        drawPreparedTriangle!FullDrawWidth(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
+                    }
+                    else
+                    {
+                        drawPreparedTriangle!0(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
+                    }
+                }
+            }
+            else static if(Level == HighTileLevelCount)
+            {
+                auto tile = &tiles[tx + ty * tilesSizes[Level].w];
+                if(tile.empty)
+                {
+                    return;
+                }
+                const x0 = tx * TSize.w;
+                const x1 = min(x0 + TSize.w, clipRect.x + clipRect.w);
+                assert(x1 > x0);
+                const y0 = ty * TSize.h;
+                const y1 = min(y0 + TSize.h, clipRect.y + clipRect.h);
+                assert(y1 > y0);
+                const rect = Rect(x0, y0, x1 - x0, y1 - y0);
+
+                auto buff = tile.buffer[0..tile.length];
+                assert(buff.length > 0);
+
+                if(tile.covered && (rect.w == TSize.w))
+                {
+                    const index = buff.back;
+                    assert(index >= 0);
+                    assert(index < cache.length);
+                    drawPreparedTriangle!FullDrawWidth(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
+                    buff.popBack;
+                }
+
+                foreach(const index; buff.retro)
+                {
+                    assert(index >= 0);
+                    assert(index < cache.length);
+                    drawPreparedTriangle!0(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
+                }
+            }
+            else static assert(false);
+        }
+        const clipRect = params.context.clipRect;
+
+        auto xyrange = cartesianProduct(iota(0, tilesSizes[0].h), iota(0, tilesSizes[0].w));
+
+        if(params.context.myTaskPool !is null)
+        {
+            foreach(pos; params.context.myTaskPool.parallel(xyrange, 8))
+            {
+                const y = pos[0];
+                const x = pos[1];
                 drawTile!(TileSize,0)(x,y);
             }
         }
+        else
+        {
+            foreach(pos; xyrange)
+            {
+                const y = pos[0];
+                const x = pos[1];
+                drawTile!(TileSize,0)(x,y);
+            }
+        }
+
+
     }
 
     static void drawTriangle(AllocT,CtxT1,CtxT2,VertT)

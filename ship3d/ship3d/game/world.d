@@ -54,6 +54,7 @@ private:
         mat4_t matrix;
         SpanMask mask;
         SpanMask dstMask;
+        TaskPool myTaskPool;
 
         void[] rasterizerCache;
         uint rasterizerCacheUsed = 0;
@@ -212,6 +213,10 @@ public:
         const clipRect = Rect(0, 0, surf.width, surf.height);
         const mat = mProjMat;
         OutContext octx = {mSize, surf, clipRect, mat, SpanMask(mSize, allocator)};
+        if(mMultithreadedRendering)
+        {
+            octx.myTaskPool = mTaskPool;
+        }
         octx.rasterizerCache = allocator.alloc!void(1024 * 5000);
         RendererT renderer;
         renderer.state = octx;
