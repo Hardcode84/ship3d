@@ -7,6 +7,7 @@ import std.string;
 import std.functional;
 import std.range;
 
+import gamelib.types;
 import gamelib.util;
 import gamelib.graphics.graph;
 import gamelib.memory.utils;
@@ -36,9 +37,10 @@ struct RasterizerHybrid3(bool HasTextures, bool WriteMask, bool ReadMask, bool H
 
 private:
     enum AffineLength = 16;
-    enum TileSize = Size(32,32);
-    enum HighTileLevelCount = 1;
-    enum TileBufferSize = 16;
+    enum TileSize = Size(128,128);
+    enum HighTileLevelCount = 2;
+    enum TileBufferSize = 32;
+    enum LowTileSize = Size(TileSize.w >> HighTileLevelCount, TileSize.h >> HighTileLevelCount);
     struct Tile
     {
         alias type_t = ushort;
@@ -110,6 +112,31 @@ private:
         {
             assert(!used);
             index = ChildrenFlag;
+        }
+    }
+
+    struct TileMask(int Size)
+    {
+        static assert(Size > 0);
+        static assert(ispow2(Size));
+        static      if(1*8 == Size) alias type_t = ubyte;
+        else static if(2*8 == Size) alias type_t = ushort;
+        else static if(4*8 == Size) alias type_t = uint;
+        else static if(8*8 == Size) alias type_t = ulong;
+        else static assert(false);
+
+        enum FullMask = type_t.max;
+
+        type_t[Size] data;
+
+        @property auto full() const
+        {
+            auto val = FullMask;
+            foreach(m;data[])
+            {
+                val &= m;
+            }
+            return FullMask == val;
         }
     }
 
@@ -1405,26 +1432,36 @@ private:
         auto tiles = param.alloc.alloc(tilesSizes[HighTileLevelCount].w * tilesSizes[HighTileLevelCount].h,Tile());
         auto spans = param.alloc.alloc!RelSpanRange(cache.length);
 
-        foreach(i,ref elem; cache)
         {
-            auto prepared = PreparedT(elem.pack);
-            createTriangleSpans(param.alloc, param.context, elem.extContext, prepared);
+            auto allocState2 = param.alloc.state;
+            scope(exit) param.alloc.restoreState(allocState2);
+            static assert(LowTileSize.w == LowTileSize.h);
+            enum MaskSize = LowTileSize.w;
+            alias MaskT = TileMask!(MaskSize);
+            auto masks = param.alloc.alloc(tilesSizes[HighTileLevelCount].w * tilesSizes[HighTileLevelCount].h,MaskT());
 
-            if(!prepared.valid)
+            foreach(i,ref elem; cache)
             {
-                continue;
-            }
-            updateTiles(param, highTiles, tiles, tilesSizes, prepared.spanrange, elem.pack, cast(int)i);
-            spans[i] = prepared.spanrange;
+                auto prepared = PreparedT(elem.pack);
+                createTriangleSpans(param.alloc, param.context, elem.extContext, prepared);
 
-            //drawPreparedTriangle(param.alloc, param.context.clipRect, param.context, elem.extContext, prepared);
+                if(!prepared.valid)
+                {
+                    continue;
+                }
+                updateTiles(param, highTiles, tiles, masks, tilesSizes, prepared.spanrange, elem.pack, cast(int)i);
+                spans[i] = prepared.spanrange;
+
+                //drawPreparedTriangle(param.alloc, param.context.clipRect, param.context, elem.extContext, prepared);
+            }
+
         }
 
         drawTiles(param, highTiles, tiles, tilesSizes, cache, spans);
     }
 
-    static void updateTiles(ParamsT,HTileT,TileT,SpanT,PackT)
-        (auto ref ParamsT params, HTileT[][] htiles, TileT[] tiles, in Size[] tilesSizes, auto ref SpanT spanrange, in auto ref PackT pack, int index)
+    static void updateTiles(ParamsT,HTileT,TileT,MaskT,SpanT,PackT)
+        (auto ref ParamsT params, HTileT[][] htiles, TileT[] tiles, MaskT[] masks, in Size[] tilesSizes, auto ref SpanT spanrange, in auto ref PackT pack, int index)
     {
         assert(index >= 0);
 
@@ -1584,10 +1621,43 @@ private:
                                     continue;
                                 }
 
-                                if(!none(vals[i]))
+                                if(none(vals[i]))
+                                {
+                                    continue;
+                                }
+
+
+                                const sy0 = max(spanrange.y0, y0);
+                                const sy1 = min(spanrange.y1, y1);
+
+                                auto mask = &masks[currPt.x + currPt.y * tilesSizes[Level].w];
+                                assert(!mask.full);
+
+                                bool visible = false;
+                                foreach(my; sy0..sy1)
+                                {
+                                    const sx0 = max(spanrange.spans(my).x0, x0);
+                                    const sx1 = min(spanrange.spans(my).x1, x1);
+                                    if(sx1 > sx0)
+                                    {
+                                        const myr = my - y0;
+                                        enum FullMask = mask.FullMask;
+                                        const sh0 = (sx0 - x0);
+                                        const sh1 = (x0 + TSize.w - sx1);
+                                        const val = (FullMask >> sh0) & (FullMask << sh1);
+                                        assert(0 != val);
+                                        if(0 != (val & ~mask.data[myr]))
+                                        {
+                                            mask.data[myr] |= val;
+                                            visible = true;
+                                        }
+                                    }
+                                }
+
+                                if(visible)
                                 {
                                     //debugfOut("set3 %s %s", gamelib.types.Point(tpoints[i].x ,tpoints[i].y), index);
-                                    tile.addTriangle(index, all(vals[i]));
+                                    tile.addTriangle(index, mask.full);
                                 }
                             }
                         }
