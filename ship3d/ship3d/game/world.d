@@ -39,11 +39,10 @@ private:
     StaticMesh[] mCubes;
 
     TaskPool mTaskPool;
-    StackAlloc[] mAllocators;
+    StackAlloc mAllocator;
     RefAllocator mRefAlloc;
 
     enum ThreadTileSize = Size(320,240);
-    Rect[] mThreadTiles;
 
     IntrusiveList!(Room,"worldUpdateLightsLink") mUpdateLightsList;
 
@@ -80,12 +79,7 @@ public:
         assert(numThreads > 0);
         mTaskPool = new TaskPool(max(1, numThreads - 1));
         mTaskPool.isDaemon = true;
-        mAllocators.length = mTaskPool.size + 1;
-        foreach(ref alloc; mAllocators[])
-        {
-            alloc = new StackAlloc(0x1FFFFFF);
-        }
-        createThreadTiles(sz);
+        mAllocator = new StackAlloc(0x4FFFFFF);
         mRefAlloc =  new RefAllocator(0xFF);
         mSize = sz;
         mProjMat = mat4_t.perspective(sz.w,sz.h,155,0.1,1000);
@@ -212,38 +206,17 @@ public:
         surf.lock();
         scope(exit) surf.unlock();
 
-        if(mMultithreadedRendering)
-        {
-            foreach(Rect tile; mTaskPool.parallel(mThreadTiles[], 1))
-            {
-                const workerIndex = mTaskPool.workerIndex;
-                assert(workerIndex >= 0);
-                assert(workerIndex < mAllocators.length);
-                auto allocator = mAllocators[workerIndex];
-                auto allocState = allocator.state;
-                scope(exit) allocator.restoreState(allocState);
-                const clipRect = tile;
-                const mat = mProjMat;
-                OutContext octx = {mSize, surf, clipRect, mat, SpanMask(mSize, allocator)};
-                octx.rasterizerCache = allocator.alloc!void(1024 * 100);
-                RendererT renderer;
-                renderer.state = octx;
-                drawPlayer(renderer, allocator, surf);
-            }
-        }
-        else
-        {
-            auto allocator = mAllocators[0];
-            auto allocState = allocator.state;
-            scope(exit) allocator.restoreState(allocState);
-            const clipRect = Rect(0, 0, surf.width, surf.height);
-            const mat = mProjMat;
-            OutContext octx = {mSize, surf, clipRect, mat, SpanMask(mSize, allocator)};
-            octx.rasterizerCache = allocator.alloc!void(1024 * 5000);
-            RendererT renderer;
-            renderer.state = octx;
-            drawPlayer(renderer, allocator, surf);
-        }
+        auto allocator = mAllocator;
+        auto allocState = allocator.state;
+        scope(exit) allocator.restoreState(allocState);
+        const clipRect = Rect(0, 0, surf.width, surf.height);
+        const mat = mProjMat;
+        OutContext octx = {mSize, surf, clipRect, mat, SpanMask(mSize, allocator)};
+        octx.rasterizerCache = allocator.alloc!void(1024 * 5000);
+        RendererT renderer;
+        renderer.state = octx;
+        drawPlayer(renderer, allocator, surf);
+
         debugOut("present");
     }
 
@@ -256,26 +229,6 @@ private:
         auto playerDir  = playerCon.dir;
         enum MaxDepth = 16;
         playerRoom.draw(renderer, allocator, playerPos, playerDir, mPlayer, MaxDepth);
-    }
-
-    void createThreadTiles(in Size screenSize)
-    {
-        const w = (screenSize.w + ThreadTileSize.w - 1) / ThreadTileSize.w;
-        const h = (screenSize.h + ThreadTileSize.h - 1) / ThreadTileSize.h;
-        mThreadTiles.length = w * h;
-        foreach(y; 0..h)
-        {
-            foreach(x; 0..w)
-            {
-                const startx = x * ThreadTileSize.w;
-                const starty = y * ThreadTileSize.h;
-                const endx = min(startx + ThreadTileSize.w, screenSize.w);
-                const endy = min(starty + ThreadTileSize.h, screenSize.h);
-                assert(endx > startx);
-                assert(endy > starty);
-                mThreadTiles[x + y * w] = Rect(startx, starty, endx - startx, endy - starty);
-            }
-        }
     }
 
     void generateCubes(uint seed)
