@@ -1458,19 +1458,19 @@ private:
             alias MaskT = TileMask!(MaskSize);
             auto masks = param.alloc.alloc(tilesSizes[HighTileLevelCount].w * tilesSizes[HighTileLevelCount].h,MaskT());
 
-            foreach(i,ref elem; cache)
+            foreach(i;iota(0,cache.length).retro)
             {
-                auto prepared = PreparedT(elem.pack);
-                createTriangleSpans(param.alloc, param.context, elem.extContext, prepared);
+                auto prepared = PreparedT(cache[i].pack);
+                createTriangleSpans(param.alloc, param.context, cache[i].extContext, prepared);
 
                 if(!prepared.valid)
                 {
                     continue;
                 }
-                updateTiles(param, highTiles, tiles, masks, tilesSizes, prepared.spanrange, elem.pack, cast(int)i);
+                updateTiles(param, highTiles, tiles, masks, tilesSizes, prepared.spanrange, cache[i].pack, cast(int)i);
                 spans[i] = prepared.spanrange;
 
-                //drawPreparedTriangle(param.alloc, param.context.clipRect, param.context, elem.extContext, prepared);
+                //drawPreparedTriangle(param.alloc, param.context.clipRect, param.context, cache[i].extContext, prepared);
             }
 
         }
