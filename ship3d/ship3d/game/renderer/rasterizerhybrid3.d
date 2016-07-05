@@ -127,7 +127,7 @@ private:
 
         enum FullMask = type_t.max;
 
-        type_t[Size] data;
+        type_t[Size] data = void;
 
         @property auto full() const
         {
@@ -832,9 +832,11 @@ private:
                         }
                         const x0 = findLeft();
                         const x1 = findRight();
-                        static import gamelib.math;
-                        spanrange.spans[pt.curry].x0 = numericCast!SpanElemType(gamelib.math.clamp(x0, leftBound, rightBound));
-                        spanrange.spans[pt.curry].x1 = numericCast!SpanElemType(gamelib.math.clamp(x1, leftBound, rightBound));
+                        //static import gamelib.math;
+                        //spanrange.spans[pt.curry].x0 = numericCast!SpanElemType(gamelib.math.clamp(x0, leftBound, rightBound));
+                        //spanrange.spans[pt.curry].x1 = numericCast!SpanElemType(gamelib.math.clamp(x1, leftBound, rightBound));
+                        spanrange.spans[pt.curry].x0 = numericCast!SpanElemType(max(x0, leftBound));
+                        spanrange.spans[pt.curry].x1 = numericCast!SpanElemType(min(x1, rightBound));
                         return vec2i(x0, x1);
                     }
                     assert(false);
@@ -1649,32 +1651,60 @@ private:
                                     const sy1 = min(spanrange.y1, y1);
 
                                     auto mask = &masks[currPt.x + currPt.y * tilesSizes[Level].w];
-                                    assert(!mask.full);
-
-                                    bool visible = false;
-                                    foreach(my; sy0..sy1)
+                                    if(tile.empty)
                                     {
-                                        const sx0 = max(spanrange.spans(my).x0, x0);
-                                        const sx1 = min(spanrange.spans(my).x1, x1);
-                                        if(sx1 > sx0)
+                                        foreach(myr;0..TSize.h)
                                         {
-                                            const myr = my - y0;
-                                            enum FullMask = mask.FullMask;
-                                            const sh0 = (sx0 - x0);
-                                            const sh1 = (x0 + TSize.w - sx1);
-                                            const val = (FullMask >> sh0) & (FullMask << sh1);
-                                            assert(0 != val);
-                                            if(0 != (val & ~mask.data[myr]))
+                                            mask.type_t newMaskVal = 0;
+                                            const my = y0 + myr;
+                                            if(my >= sy0 && my < sy1)
                                             {
-                                                mask.data[myr] |= val;
-                                                visible = true;
+                                                const sx0 = max(spanrange.spans(my).x0, x0);
+                                                const sx1 = min(spanrange.spans(my).x1, x1);
+                                                if(sx1 > sx0)
+                                                {
+                                                    enum FullMask = mask.FullMask;
+                                                    const sh0 = (sx0 - x0);
+                                                    const sh1 = (x0 + TSize.w - sx1);
+                                                    const val = (FullMask >> sh0) & (FullMask << sh1);
+                                                    assert(0 != val);
+                                                    newMaskVal = val;
+                                                }
+                                            }
+                                            mask.data[myr] = newMaskVal;
+                                        }
+
+                                        tile.addTriangle(index, mask.full);
+                                    }
+                                    else
+                                    {
+                                        assert(!mask.full);
+
+                                        bool visible = false;
+                                        foreach(my; sy0..sy1)
+                                        {
+                                            const sx0 = max(spanrange.spans(my).x0, x0);
+                                            const sx1 = min(spanrange.spans(my).x1, x1);
+                                            if(sx1 > sx0)
+                                            {
+                                                const myr = my - y0;
+                                                enum FullMask = mask.FullMask;
+                                                const sh0 = (sx0 - x0);
+                                                const sh1 = (x0 + TSize.w - sx1);
+                                                const val = (FullMask >> sh0) & (FullMask << sh1);
+                                                assert(0 != val);
+                                                if(0 != (val & ~mask.data[myr]))
+                                                {
+                                                    mask.data[myr] |= val;
+                                                    visible = true;
+                                                }
                                             }
                                         }
-                                    }
 
-                                    if(visible)
-                                    {
-                                        tile.addTriangle(index, mask.full);
+                                        if(visible)
+                                        {
+                                            tile.addTriangle(index, mask.full);
+                                        }
                                     }
                                 }
                             }
@@ -1745,7 +1775,7 @@ private:
                     const y1 = min(y0 + TSize.h, clipRect.y + clipRect.h);
                     assert(y1 > y0);
                     const rect = Rect(x0, y0, x1 - x0, y1 - y0);
-                    
+
                     const index = tile.index;
                     if(rect.w == TSize.w)
                     {
