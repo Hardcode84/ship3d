@@ -3,8 +3,6 @@
 import std.traits;
 import std.algorithm;
 
-import gamelib.memory.stackalloc;
-
 import gamelib.types;
 
 struct Renderer(State, int MaxDepth)

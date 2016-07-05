@@ -1,6 +1,21 @@
 ﻿module game.units;
 
-public import gamelib.types, gamelib.linalg, gamelib.math, gamelib.fixedpoint, gamelib.graphics.color;
+public import gamelib.types;
+public import gamelib.linalg;
+public import gamelib.math;
+public import gamelib.fixedpoint;
+public import gamelib.graphics.color;
+
+static if(0)
+{
+    import gamelib.memory.stackalloc;
+    alias StackAlloc = gamelib.memory.stackalloc.StackAlloc;
+}
+else
+{
+    import gamelib.memory.growablestackalloc;
+    alias StackAlloc = gamelib.memory.growablestackalloc.GrowableStackAlloc;
+}
 
 import game.renderer.texture;
 import game.renderer.palette;

@@ -24,8 +24,6 @@ import game.entities.player;
 import game.entities.staticmesh;
 import game.generators.worldgen;
 
-import gamelib.memory.stackalloc;
-
 final class World
 {
 private:
@@ -80,7 +78,7 @@ public:
         assert(numThreads > 0);
         mTaskPool = new TaskPool(max(1, numThreads - 1));
         mTaskPool.isDaemon = true;
-        mAllocator = new StackAlloc(0x1FFFFFFF);
+        mAllocator = new StackAlloc(0xFFFFFF);
         mRefAlloc =  new RefAllocator(0xFF);
         mSize = sz;
         mProjMat = mat4_t.perspective(sz.w,sz.h,155,0.1,1000);

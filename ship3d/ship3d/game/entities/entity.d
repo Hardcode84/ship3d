@@ -3,7 +3,6 @@
 import std.algorithm;
 
 import gamelib.containers.intrusivelist;
-public import gamelib.memory.stackalloc;
 
 public import game.units;
 public import game.topology.room;
