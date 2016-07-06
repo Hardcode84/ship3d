@@ -115,19 +115,21 @@ private:
         }
     }
 
-    struct TileMask(int Size)
+    struct TileMask(int W, int H)
     {
-        static assert(Size > 0);
-        static assert(ispow2(Size));
-        static      if(1*8 == Size) alias type_t = ubyte;
-        else static if(2*8 == Size) alias type_t = ushort;
-        else static if(4*8 == Size) alias type_t = uint;
-        else static if(8*8 == Size) alias type_t = ulong;
+        static assert(W > 0);
+        static assert(H > 0);
+        static assert(ispow2(W));
+        static assert(ispow2(H));
+        static      if(1*8 == W) alias type_t = ubyte;
+        else static if(2*8 == W) alias type_t = ushort;
+        else static if(4*8 == W) alias type_t = uint;
+        else static if(8*8 == W) alias type_t = ulong;
         else static assert(false);
 
         enum FullMask = type_t.max;
 
-        type_t[Size] data = void;
+        type_t[H] data = void;
 
         @property auto full() const
         {
@@ -193,8 +195,8 @@ private:
         alias vec3 = Vector!(PosT,3);
         alias PlaneT = Plane!(PosT);
 
+        vec3[3] verts = void;
         PlaneT wplane = void;
-        vec3[3] verts;
 
         static if(HasTexture)
         {
@@ -632,7 +634,7 @@ private:
                PointT(prepared.pack, maxX, maxY, lines).check())
             {
                 fullSpansRange = true;
-                spanrange.spans = alloc.alloc!(SpanRange.Span)(size.h);
+                spanrange.spans = alloc.alloc!(SpanRange.Span)(maxY);
                 spanrange.y0 = minY;
                 spanrange.y1 = maxY;
                 foreach(y;minY..maxY)
@@ -647,14 +649,17 @@ private:
                         const xc0 = minX;
                         const xc1 = maxX;
                     }
-                    spanrange.spans[y].x0 = numericCast!SpanElemType(xc0);
-                    spanrange.spans[y].x1 = numericCast!SpanElemType(xc1);
+                    auto span = &spanrange.spans[y];
+                    span.x0 = numericCast!SpanElemType(xc0);
+                    span.x1 = numericCast!SpanElemType(xc1);
+                    trueMinX = min(trueMinX, span.x0);
+                    trueMaxX = max(trueMaxX, span.x1);
                 }
             }
             else if(prepared.pack.external)
             {
                 fullSpansRange = true;
-                spanrange.spans = alloc.alloc!(SpanRange.Span)(size.h);
+                spanrange.spans = alloc.alloc!(SpanRange.Span)(maxY);
                 //find first valid point
                 bool findStart(int x0, int y0, int x1, int y1, ref PointT start)
                 {
@@ -832,11 +837,12 @@ private:
                         }
                         const x0 = findLeft();
                         const x1 = findRight();
-                        //static import gamelib.math;
-                        //spanrange.spans[pt.curry].x0 = numericCast!SpanElemType(gamelib.math.clamp(x0, leftBound, rightBound));
-                        //spanrange.spans[pt.curry].x1 = numericCast!SpanElemType(gamelib.math.clamp(x1, leftBound, rightBound));
-                        spanrange.spans[pt.curry].x0 = numericCast!SpanElemType(max(x0, leftBound));
-                        spanrange.spans[pt.curry].x1 = numericCast!SpanElemType(min(x1, rightBound));
+
+                        auto span = &spanrange.spans[pt.curry];
+                        span.x0 = numericCast!SpanElemType(max(x0, leftBound));
+                        span.x1 = numericCast!SpanElemType(min(x1, rightBound));
+                        trueMinX = min(trueMinX, span.x0);
+                        trueMaxX = max(trueMaxX, span.x1);
                         return vec2i(x0, x1);
                     }
                     assert(false);
@@ -1022,7 +1028,7 @@ private:
                 assert(y0 >= 0);
                 if(y0 <= y1)
                 {
-                    spanrange.spans = (alloc.alloc!(SpanRange.Span)(y1 - y0).ptr - y0)[0..y1 + 2]; //hack to reduce allocated memory
+                    spanrange.spans = (alloc.alloc!(SpanRange.Span)(y1 - y0).ptr - y0)[0..y1 + 1]; //hack to reduce allocated memory
                 }
 
                 void fillSpans(bool ReverseX)()
@@ -1094,11 +1100,13 @@ private:
                                         {
                                             return false;
                                         }
-                                        spanrange.spans[y].x0 = numericCast!SpanElemType(xc0);
-                                        spanrange.spans[y].x1 = numericCast!SpanElemType(xc1);
+                                        auto span = &spanrange.spans[y];
+                                        span.x0 = numericCast!SpanElemType(xc0);
+                                        span.x1 = numericCast!SpanElemType(xc1);
+                                        trueMinX = min(trueMinX, span.x0);
+                                        trueMaxX = max(trueMaxX, span.x1);
                                     }
 
-                                    //spanrange.spans[y].x1 = xc1;
                                     //outContext.surface[y][xc0..xc1] = ColorBlue;
                                 }
                                 ++y;
@@ -1140,18 +1148,11 @@ private:
                 ptr = spanrange.spans.ptr;
                 foreach(i,span;spanrange.spans[spanrange.y0..spanrange.y1]) 
                 {
-                    trueMinX = min(trueMinX, span.x0);
-                    trueMaxX = max(trueMaxX, span.x1);
                     spanrange.spans[i] = span; //hack to reduce allocated memory
                 }
             }
             else
             {
-                foreach(i,span;spanrange.spans[spanrange.y0..spanrange.y1])
-                {
-                    trueMinX = min(trueMinX, span.x0);
-                    trueMaxX = max(trueMaxX, span.x1);
-                }
                 ptr = spanrange.spans.ptr + spanrange.y0;
             }
         }
@@ -1459,10 +1460,11 @@ private:
         {
             auto allocState2 = param.alloc.state;
             scope(exit) param.alloc.restoreState(allocState2);
-            static assert(LowTileSize.w == LowTileSize.h);
-            enum MaskSize = LowTileSize.w;
-            alias MaskT = TileMask!(MaskSize);
-            auto masks = param.alloc.alloc(tilesSizes[HighTileLevelCount].w * tilesSizes[HighTileLevelCount].h,MaskT());
+            //static assert(LowTileSize.w == LowTileSize.h);
+            enum MaskW = LowTileSize.w;
+            enum MaskH = LowTileSize.h;
+            alias MaskT = TileMask!(MaskW, MaskH);
+            auto masks = param.alloc.alloc!MaskT(tilesSizes[HighTileLevelCount].w * tilesSizes[HighTileLevelCount].h);
 
             foreach(i;iota(0,cache.length).retro)
             {
@@ -1759,7 +1761,7 @@ private:
             static if(Level < HighTileLevelCount)
             {
                 auto tile = &htiles[Level][tx + ty * tilesSizes[Level].w];
-                
+
                 if(tile.hasChildren)
                 {
                     const gamelib.types.Point[4] tpoints = [
@@ -1851,8 +1853,6 @@ private:
                 drawTile!(TileSize,0)(x,y);
             }
         }
-
-
     }
 
     static void drawTriangle(AllocT,CtxT1,CtxT2,VertT)
