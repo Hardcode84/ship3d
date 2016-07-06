@@ -1162,7 +1162,7 @@ private:
     }
 
     static void drawPreparedTriangle(size_t TWidth, AllocT,CtxT1,CtxT2,PrepT)
-        (auto ref AllocT alloc, in Rect clipRect, auto ref CtxT1 outContext, auto ref CtxT2 extContext, in PrepT prepared)
+        (auto ref AllocT alloc, in Rect clipRect, auto ref CtxT1 outContext, auto ref CtxT2 extContext, in auto ref PrepT prepared)
     {
         enum Full = (TWidth > 0);
         static assert(!Full || (TWidth >= AffineLength && 0 == (TWidth % AffineLength)));
@@ -1206,7 +1206,7 @@ private:
                         }
                         else
                         {
-                            auto opCall(T)(in T val,int) const { return val; }
+                            static auto opCall(T)(in T val,int) { return val; }
                         }
                     }
                     alias TexT = Unqual!(typeof(span.u));
@@ -1279,8 +1279,9 @@ private:
             {
                 static if(!Full)
                 {
-                    const x0 = max(clipRect.x,prepared.spanrange.spans(y).x0);
-                    const x1 = min(clipRect.x + clipRect.w, prepared.spanrange.spans(y).x1);
+                    const yspan = prepared.spanrange.spans(y);
+                    const x0 = max(clipRect.x, yspan.x0);
+                    const x1 = min(clipRect.x + clipRect.w, yspan.x1);
                     const dx = x0 - sx;
                     assert(!Full || (0 == dx));
                     if(0 == dx)

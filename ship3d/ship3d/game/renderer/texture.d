@@ -49,12 +49,22 @@ public:
         TextT v = context.v;
         const TextT dux = context.dux;
         const TextT dvx = context.dvx;
+        const startx = context.x;
+        debug
+        {
+            const data = mData[];
+        }
+        else
+        {
+            const data = mData.ptr;
+        }
+
         //foreach(i;TupleRange!(0,W))
         foreach(i;0..W)
         {
             const x = cast(int)(u * w) & wmask;
             const y = cast(int)(v * h) & hmask;
-            outLine[i] = getColor(context.colorProxy(mData[x + y * width],context.x + i));
+            outLine[i] = getColor(context.colorProxy(data[x + y * w],startx + i));
             u += dux;
             v += dvx;
         }
