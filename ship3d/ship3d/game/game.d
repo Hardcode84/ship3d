@@ -15,6 +15,7 @@ import derelict.sdl2.sdl;
 import game.controls;
 
 import game.units;
+import game.utils;
 import game.world;
 
 scope final class Game
@@ -184,7 +185,7 @@ private:
         enum SurfaceLineAlign = 64;
         if(0 != (mWidth * ColorT.sizeof) % SurfaceLineAlign)
         {
-            mSurface = new FFSurface!ColorT(mWidth, mHeight, alignSize(mWidth * ColorT.sizeof, SurfaceLineAlign));
+            mSurface = new FFSurface!ColorT(mWidth, mHeight, numericCast!int(alignSize(mWidth * ColorT.sizeof, SurfaceLineAlign)));
         }
         else
         {
