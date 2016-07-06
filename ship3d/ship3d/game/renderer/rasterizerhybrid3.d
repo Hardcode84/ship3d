@@ -1227,6 +1227,10 @@ private:
 
                     static if(FixedLen)
                     {
+                        static if(Full)
+                        {
+                            assert(0 == (cast(size_t)line.ptr & (64 - 1)));
+                        }
                         //extContext.texture.getLine!AffineLength(ctx,line[x1..x2]);
                         extContext.texture.getLine!AffineLength(ctx,ntsRange(line[x1..x2]));
                     }

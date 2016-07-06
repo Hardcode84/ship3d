@@ -172,24 +172,33 @@ private:
     void initWindowSurface()
     {
         assert(mWindow !is null);
-        mWindow.size = Size(mWidth,mHeight);
+        mWindow.size = Size(mWidth, mHeight);
         if(mSurface !is null)
         {
             mSurface.dispose();
             mSurface = null;
         }
         import std.stdio;
+        import gamelib.memory.utils;
         writeln(mWindow.formatString);
-        try
+        enum SurfaceLineAlign = 64;
+        if(0 != (mWidth * ColorT.sizeof) % SurfaceLineAlign)
         {
-            mSurface = mWindow.surface!ColorT;
+            mSurface = new FFSurface!ColorT(mWidth, mHeight, alignSize(mWidth * ColorT.sizeof, SurfaceLineAlign));
         }
-        catch(ColorFormatException e)
+        else
         {
-            import std.stdio;
-            writeln(e.msg);
-            const s = mWindow.size;
-            mSurface = new FFSurface!ColorT(s.w, s.h);
+            try
+            {
+                mSurface = mWindow.surface!ColorT;
+            }
+            catch(ColorFormatException e)
+            {
+                import std.stdio;
+                writeln(e.msg);
+                const s = mWindow.size;
+                mSurface = new FFSurface!ColorT(mWidth, mHeight);
+            }
         }
     }
 
