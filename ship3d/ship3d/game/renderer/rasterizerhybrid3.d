@@ -1230,25 +1230,26 @@ private:
                         static if(Full)
                         {
                             assert(0 == (cast(size_t)line.ptr & (64 - 1)));
+                            //assume(0 == (cast(size_t)line.ptr & (64 - 1)));
                         }
-                        //extContext.texture.getLine!AffineLength(ctx,line[x1..x2]);
-                        extContext.texture.getLine!AffineLength(ctx,ntsRange(line[x1..x2]));
+                        extContext.texture.getLine!AffineLength(ctx,line[x1..x2]);
+                        //extContext.texture.getLine!AffineLength(ctx,ntsRange(line[x1..x2]));
                     }
                     else
                     {
                         enum SmallLine = 4;
                         foreach(sx;0..(x2 - x1) / SmallLine)
                         {
-                            //extContext.texture.getLine!SmallLine(ctx,line[ctx.x..ctx.x+SmallLine]);
-                            extContext.texture.getLine!SmallLine(ctx,ntsRange(line[ctx.x..ctx.x+SmallLine]));
+                            extContext.texture.getLine!SmallLine(ctx,line[ctx.x..ctx.x+SmallLine]);
+                            //extContext.texture.getLine!SmallLine(ctx,ntsRange(line[ctx.x..ctx.x+SmallLine]));
                             ctx.u += ctx.dux * SmallLine;
                             ctx.v += ctx.dvx * SmallLine;
                             ctx.x += SmallLine;
                         }
                         foreach(x;ctx.x..x2)
                         {
-                            //extContext.texture.getLine!1(ctx,line[x..x+1]);
-                            extContext.texture.getLine!1(ctx,ntsRange(line[x..x+1]));
+                            extContext.texture.getLine!1(ctx,line[x..x+1]);
+                            //extContext.texture.getLine!1(ctx,ntsRange(line[x..x+1]));
                             ctx.u += ctx.dux;
                             ctx.v += ctx.dvx;
                             ++ctx.x;

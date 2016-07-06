@@ -67,3 +67,10 @@ auto numericCast(DstT,SrcT)(in SrcT src)
 {
     return cast(DstT)src;
 }
+
+
+version(LDC)
+{
+    pragma(LDC_intrinsic, "llvm.assume")
+        void assume(bool);
+}
