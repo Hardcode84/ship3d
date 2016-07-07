@@ -226,17 +226,17 @@ public:
 private:
     void drawPlayer(ref RendererT renderer, StackAlloc allocator, SurfT surf)
     {
-        auto playerCon  = mPlayer.mainConnection;
-        auto playerRoom = playerCon.room;
-        auto playerPos  = playerCon.pos + playerCon.correction;
-        auto playerDir  = playerCon.dir;
+        const playerCon  = mPlayer.mainConnection;
+        const playerRoom = playerCon.room;
+        const playerPos  = playerCon.pos + playerCon.correction;
+        const playerDir  = playerCon.dir;
         enum MaxDepth = 16;
         playerRoom.draw(renderer, allocator, playerPos, playerDir, mPlayer, MaxDepth);
     }
 
     void generateCubes(uint seed)
     {
-        enum GradNum = 1 << LightBrightnessBits;
+        /*enum GradNum = 1 << LightBrightnessBits;
         const ColorT[] colors1 = [
             ColorWhite,
             ColorRed,
@@ -253,7 +253,7 @@ private:
             auto line = data1[startInd..endInd];
             ColorT.interpolateLine!GradNum(line, ColorWhite, c);
         }
-        auto lpalette = new light_palette_t(data1[0..(1 << LightPaletteBits)]);
+        auto lpalette = new light_palette_t(data1[0..(1 << LightPaletteBits)]);*/
 
         const ColorT[] colors2 = [
             ColorYellow,
@@ -272,7 +272,7 @@ private:
         texture_t[] textures;
         textures.length = colors2.length;
 
-        auto palette = new palette_t(data2[0..(1 << PaletteBits)], lpalette[]);
+        auto palette = new palette_t(data2[0..(1 << LightPaletteBits)]);
 
         foreach(i,ref tex; textures)
         {

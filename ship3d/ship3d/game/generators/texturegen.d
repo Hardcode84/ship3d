@@ -62,7 +62,7 @@ private:
             auto line = data[startInd..endInd];
             ColorT.interpolateLine!GradNum(line, c, ColorBlack);*/
         }
-        mPalette = new palette_t(data[0..(1 << PaletteBits)], mLightPalette[]);
+        //mPalette = new palette_t(data[0..(1 << PaletteBits)], mLightPalette[]);
     }
 
     auto generateTexture(in ref TextureDesc desc)

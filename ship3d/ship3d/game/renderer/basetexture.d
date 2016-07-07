@@ -74,14 +74,14 @@ public:
     }
 }
 
-abstract class BaseTexturePaletted(ColT,PalT) : BaseTexture!int
+abstract class BaseTexturePaletted(ColT,PalT,ArrayType) : BaseTexture!ArrayType
 {
 pure nothrow:
 private:
     PalT mPalette;
 protected:
     alias ColorType = ColT;
-    alias ColorArrayType = int;
+    alias ColorArrayType = ArrayType;
     final auto getColor(int col) const
     {
         assert(mPalette !is null);
