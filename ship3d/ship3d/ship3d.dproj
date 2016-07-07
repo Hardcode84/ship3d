@@ -334,6 +334,7 @@
     <Compile Include="..\..\d-gamelib\gamelib\memory\growablestackalloc.d">
       <Link>gamelib\memory\growablestackalloc.d</Link>
     </Compile>
+    <Compile Include="game\renderer\rasterizertiled2.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />

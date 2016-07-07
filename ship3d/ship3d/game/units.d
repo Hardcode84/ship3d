@@ -51,8 +51,16 @@ alias lightmap_t = Texture!(BaseTextureRGB!byte);
 //enum LightUnitDist = 10;
 enum MaxLightDist = 200;
 
-import game.renderer.rasterizerhybrid3;
-alias Rasterizer =   RasterizerHybrid3;
+static if(0)
+{
+    import game.renderer.rasterizerhybrid3;
+    alias Rasterizer =   RasterizerHybrid3;
+}
+else
+{
+    import game.renderer.rasterizertiled2;
+    alias Rasterizer =   RasterizerTiled2;
+}
 
 struct Vertex
 {
