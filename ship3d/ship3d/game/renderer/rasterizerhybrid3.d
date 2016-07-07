@@ -1233,7 +1233,8 @@ private:
                             assert(0 == (cast(size_t)line.ptr & (64 - 1)));
                             //assume(0 == (cast(size_t)line.ptr & (64 - 1)));
                         }
-                        extContext.texture.getLine!AffineLength(ctx,line[x1..x2]);
+                        assert(x2 == (x1 + AffineLength));
+                        extContext.texture.getLine!AffineLength(ctx,line[x1..x1 + AffineLength]);
                         //extContext.texture.getLine!AffineLength(ctx,ntsRange(line[x1..x2]));
                     }
                     else

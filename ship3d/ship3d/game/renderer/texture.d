@@ -41,14 +41,16 @@ public:
         static assert(W > 0);
         const w = width;
         const h = height;
+        assert(ispow2(w));
+        assert(ispow2(h));
         const wmask = w - 1;
-        const hmask = h - 1;
+        const hmask = (h * w - 1) & ~wmask;
         alias TextT = Unqual!(typeof(context.u));
         //alias TextT = FixedPoint!(16,16,int);
-        TextT u = context.u;
-        TextT v = context.v;
-        const TextT dux = context.dux;
-        const TextT dvx = context.dvx;
+        TextT u = cast(TextT)context.u * w;
+        TextT v = cast(TextT)context.v * (h * w);
+        const TextT dux = cast(TextT)context.dux * w;
+        const TextT dvx = cast(TextT)context.dvx * (h * w);
         const startx = context.x;
         debug
         {
@@ -62,9 +64,9 @@ public:
         //foreach(i;TupleRange!(0,W))
         foreach(i;0..W)
         {
-            const x = cast(int)(u * w) & wmask;
-            const y = cast(int)(v * h) & hmask;
-            outLine[i] = getColor(context.colorProxy(data[x + y * w],startx + i));
+            const x = cast(int)(u) & wmask;
+            const y = cast(int)(v) & hmask;
+            outLine[i] = getColor(context.colorProxy(data[x | y],startx + i));
             u += dux;
             v += dvx;
         }
