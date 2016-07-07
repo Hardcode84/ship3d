@@ -1426,6 +1426,7 @@ private:
 
     static void flushData(PreparedT,FlushParam,CacheElem)(void[] data)
     {
+        debugOut("flush");
         assert(data.length > FlushParam.sizeof);
         assert(0 == (data.length - FlushParam.sizeof) % CacheElem.sizeof);
         FlushParam* param = (cast(FlushParam*)data.ptr);

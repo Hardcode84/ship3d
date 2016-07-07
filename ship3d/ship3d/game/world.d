@@ -170,6 +170,14 @@ public:
         {
             e.updatePos();
         }
+
+        foreach(room; mUpdateLightsList)
+        {
+            room.updateLights();
+        }
+        mUpdateLightsList.clear();
+        sortEntities();
+
         return true;
     }
 
@@ -193,14 +201,6 @@ public:
 
     void draw(SurfT surf)
     {
-        foreach(room; mUpdateLightsList)
-        {
-            room.updateLights();
-        }
-        mUpdateLightsList.clear();
-
-        sortEntities();
-
         /*debug*/ surf.fill(ColorBlue);
         surf.lock();
         scope(exit) surf.unlock();
@@ -215,7 +215,7 @@ public:
         {
             octx.myTaskPool = mTaskPool;
         }
-        octx.rasterizerCache = allocator.alloc!void(1024 * 5000);
+        octx.rasterizerCache = allocator.alloc!void(1024 * 500);
         RendererT renderer;
         renderer.state = octx;
         drawPlayer(renderer, allocator, surf);
