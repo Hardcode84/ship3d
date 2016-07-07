@@ -875,7 +875,6 @@ private:
 
                 bool findPoint(T)(int y, in T bounds, out int x)
                 {
-                    //debugOut("find point");
                     static if(ReadMask)
                     {
                         const x0 = max(bounds.x - 4, minX, srcMask.spans[y].x0);
@@ -1012,7 +1011,7 @@ private:
                         const FP x2 = p2.x;
                         const FP y2 = p2.y;
                         currX = x1;
-                        //debugOut(y1," ",y2);
+
                         assert(y2 >= y1);
                         dx = (x2 - x1) / (y2 - y1);
                         incY(y.ceil - y);
@@ -1044,8 +1043,8 @@ private:
                     edges[2] = Edge(sortedPos[2],sortedPos[1]);
                 }
 
-                const y0 = max(cast(int)min(sortedPos[0].y, sortedPos[1].y, sortedPos[2].y), minY);
-                const y1 = min(cast(int)max(sortedPos[0].y, sortedPos[1].y, sortedPos[2].y), maxY);
+                const y0 = max(cast(int)sortedPos[0].y, minY);
+                const y1 = min(cast(int)max(sortedPos[1].y, sortedPos[2].y), maxY);
                 assert(y0 >= 0);
                 if(y0 <= y1)
                 {
@@ -1068,18 +1067,23 @@ private:
                             {
                                 auto e1 = &edges[2];
                             }
+                            if(y < minY)
+                            {
+                                const dy = minY - y;
+                                e0.incY(dy);
+                                e1.incY(dy);
+                                y = minY;
+                            }
                             const ye = e1.ye;
                             while(y < ye)
                             {
-                                //assert(y > 0);
+                                assert(y >= 0);
                                 if(y >= maxY)
                                 {
                                     return false;
                                 }
                                 else if(y >= minY)
                                 {
-                                    //const x0 = min(e0.x, e1.x);
-                                    //const x1 = max(e0.x, e1.x);
                                     static if(ReverseX)
                                     {
                                         const x0 = e1.x;
@@ -1123,6 +1127,10 @@ private:
                                     }
                                 }
                                 ++y;
+                                if(y >= maxY)
+                                {
+                                    break;
+                                }
                                 e0.incY(1);
                                 e1.incY(1);
                             }
