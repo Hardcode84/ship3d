@@ -1023,6 +1023,12 @@ private:
                         currX += dx * val;
                     }
 
+                    void incY()
+                    {
+                        ++y;
+                        currX += dx;
+                    }
+
                     @property auto x() const { return cast(int)(currX + 1.0f); }
                 }
 
@@ -1131,8 +1137,8 @@ private:
                                 {
                                     break;
                                 }
-                                e0.incY(1);
-                                e1.incY(1);
+                                e0.incY();
+                                e1.incY();
                             }
                         }
                         return false;
