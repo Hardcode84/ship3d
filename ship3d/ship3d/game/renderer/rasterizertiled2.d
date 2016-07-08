@@ -1002,7 +1002,7 @@ private:
                     FP currX;
                     FP y;
                     FP ye;
-                    this(P)(in P p1, in P p2)
+                    this(P)(in P p1, in P p2, in FP xcorrect)
                     {
                         y  = p1.y;
                         ye = p2.y;
@@ -1010,7 +1010,7 @@ private:
                         const FP y1 = p1.y;
                         const FP x2 = p2.x;
                         const FP y2 = p2.y;
-                        currX = x1;
+                        currX = x1 + xcorrect;
 
                         assert(y2 >= y1);
                         dx = (x2 - x1) / (y2 - y1);
@@ -1029,24 +1029,28 @@ private:
                         currX += dx;
                     }
 
-                    @property auto x() const { return cast(int)(currX + 1.0f); }
+                    @property auto x() const { return cast(int)(currX); }
                 }
 
                 bool revX = void;
+                auto xcorr1 = 1.0f;
+                auto xcorr2 = 1.0f;
                 if(sortedPos[1].y < sortedPos[2].y)
                 {
                     revX = true;
                     swap(sortedPos[1],sortedPos[2]);
+                    xcorr1 = 2f;
                 }
                 else
                 {
                     revX = false;
+                    xcorr2 = 2f;
                 }
 
                 Edge[3] edges = [
-                    Edge(sortedPos[0],sortedPos[1]),
-                    Edge(sortedPos[0],sortedPos[2]),
-                    Edge(sortedPos[2],sortedPos[1])];
+                    Edge(sortedPos[0],sortedPos[1],xcorr1),
+                    Edge(sortedPos[0],sortedPos[2],xcorr2),
+                    Edge(sortedPos[2],sortedPos[1],xcorr2)];
 
                 const y0 = max(sortedPos[0].y.numericCast!int, minY);
                 const y1 = min(sortedPos[1].y.numericCast!int, maxY);
