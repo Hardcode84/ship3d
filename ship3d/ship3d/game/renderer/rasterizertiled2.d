@@ -1032,25 +1032,24 @@ private:
                     @property auto x() const { return cast(int)(currX + 1.0f); }
                 }
 
-                Edge[3] edges = void;
                 bool revX = void;
                 if(sortedPos[1].y < sortedPos[2].y)
                 {
                     revX = true;
-                    edges[0] = Edge(sortedPos[0],sortedPos[2]);
-                    edges[1] = Edge(sortedPos[0],sortedPos[1]);
-                    edges[2] = Edge(sortedPos[1],sortedPos[2]);
+                    swap(sortedPos[1],sortedPos[2]);
                 }
                 else
                 {
                     revX = false;
-                    edges[0] = Edge(sortedPos[0],sortedPos[1]);
-                    edges[1] = Edge(sortedPos[0],sortedPos[2]);
-                    edges[2] = Edge(sortedPos[2],sortedPos[1]);
                 }
 
-                const y0 = max(cast(int)sortedPos[0].y, minY);
-                const y1 = min(cast(int)max(sortedPos[1].y, sortedPos[2].y), maxY);
+                Edge[3] edges = [
+                    Edge(sortedPos[0],sortedPos[1]),
+                    Edge(sortedPos[0],sortedPos[2]),
+                    Edge(sortedPos[2],sortedPos[1])];
+
+                const y0 = max(sortedPos[0].y.numericCast!int, minY);
+                const y1 = min(sortedPos[1].y.numericCast!int, maxY);
                 assert(y0 >= 0);
                 if(y0 <= y1)
                 {
@@ -1059,28 +1058,37 @@ private:
 
                 void fillSpans(bool ReverseX)() nothrow
                 {
-                    int y = cast(int)edges[0].y;
+                    int y = sortedPos[0].y.numericCast!int;
                     bool iterate(bool Fill)()
                     {
-                        auto e0 = &edges[0];
+                        int currY = y;
+                        auto e0 = edges[0];
                         foreach(i;0..2)
                         {
-                            auto e1 = &edges[1 + i];
-                            if(y < minY)
+                            auto e1 = edges[1 + i];
+                            const ye = min(e1.ye.numericCast!int, maxY);
+                            if(currY < minY)
                             {
-                                const dy = minY - y;
-                                e0.incY(dy);
-                                e1.incY(dy);
-                                y = minY;
-                            }
-                            const ye = e1.ye;
-                            while(y <= ye)
-                            {
-                                assert(y >= minY);
-                                if(y >= maxY)
+                                if(ye < minY)
                                 {
-                                    return false;
+                                    const dy = ye - currY;
+                                    e0.incY(dy);
+                                    currY = ye;
+                                    continue;
                                 }
+                                else
+                                {
+                                    const dy = minY - currY;
+                                    e0.incY(dy);
+                                    e1.incY(dy);
+                                    currY = minY;
+                                }
+                            }
+
+                            while(currY < ye)
+                            {
+                                assert(currY >= minY);
+                                assert(currY <  maxY);
 
                                 static if(ReverseX)
                                 {
@@ -1095,8 +1103,8 @@ private:
 
                                 static if(ReadMask)
                                 {
-                                    const xc0 = max(x0, srcMask.spans[y].x0, minX);
-                                    const xc1 = min(x1, srcMask.spans[y].x1, maxX);
+                                    const xc0 = max(x0, srcMask.spans[currY].x0, minX);
+                                    const xc1 = min(x1, srcMask.spans[currY].x1, maxX);
                                 }
                                 else
                                 {
@@ -1108,6 +1116,9 @@ private:
                                 {
                                     if(xc1 > xc0)
                                     {
+                                        edges[0] = e0;
+                                        edges[1 + i] = e1;
+                                        y = currY;
                                         return true;
                                     }
                                 }
@@ -1115,20 +1126,22 @@ private:
                                 {
                                     if(xc0 > xc1)
                                     {
+                                        y = currY;
                                         return false;
                                     }
-                                    auto span = &spanrange.spans[y];
+                                    auto span = &spanrange.spans[currY];
                                     span.x0 = numericCast!SpanElemType(xc0);
                                     span.x1 = numericCast!SpanElemType(xc1);
                                     trueMinX = min(trueMinX, span.x0);
                                     trueMaxX = max(trueMaxX, span.x1);
                                 }
 
-                                ++y;
+                                ++currY;
                                 e0.incY();
                                 e1.incY();
                             }
                         }
+                        y = currY;
                         return false;
                     } //iterate
 
@@ -1236,8 +1249,8 @@ private:
                         int x;
                         TexT u;
                         TexT v;
-                        TexT dux;
-                        TexT dvx;
+                        const TexT dux;
+                        const TexT dvx;
                     }
                     Context ctx = {x: x1, u: span.u, v: span.v, dux: span.dux, dvx: span.dvx};
                     static if(HasLight)
