@@ -196,12 +196,9 @@ private:
 
         vec3[3] verts = void;
         vec2[3] tcoords = void;
-        bool external = void;
 
         this(VT)(in VT v1, in VT v2, in VT v3, in Size size, ref bool valid)
         {
-            verts = [v1.pos.xyw,v2.pos.xyw,v3.pos.xyw];
-
             const w1 = v1.pos.w;
             const w2 = v2.pos.w;
             const w3 = v3.pos.w;
@@ -222,13 +219,26 @@ private:
                 return;
             }
             valid = true;
+            verts = [v1.pos.xyw,v2.pos.xyw,v3.pos.xyw];
             tcoords = [v1.tpos,v2.tpos,v3.tpos];
+        }
 
+        auto external(in Size size) const
+        {
+            const w1 = verts[0].z;
+            const w2 = verts[1].z;
+            const w3 = verts[2].z;
+            const x1 = verts[0].x;
+            const x2 = verts[1].x;
+            const x3 = verts[2].x;
+            const y1 = verts[0].y;
+            const y2 = verts[1].y;
+            const y3 = verts[2].y;
             const dw = 0.0001f;
             const sizeLim = 10000;
             const bool big = max(max(abs(x1 / w1), abs(x2 / w2), abs(x3 / w3)) * size.w,
                 max(abs(y1 / w1), abs(y2 / w2), abs(y3 / w3)) * size.h) > sizeLim;
-            external = big || almost_equal(w1, 0, dw) || almost_equal(w2, 0, dw) || almost_equal(w3, 0, dw) || (w1 * w2 < 0) || (w1 * w3 < 0);
+            return big || almost_equal(w1, 0, dw) || almost_equal(w2, 0, dw) || almost_equal(w3, 0, dw) || (w1 * w2 < 0) || (w1 * w3 < 0);
         }
     }
 
@@ -256,12 +266,10 @@ private:
             vec3 normal = void;
         }
         vec3[3] verts = void;
-        bool external = void;
 
         this(VT)(in auto ref VT v, in Size size)
         {
             verts = v.verts;
-            external = v.external;
 
             const w1 = verts[0].z;
             const w2 = verts[1].z;
@@ -682,7 +690,7 @@ private:
                     trueMaxX = max(trueMaxX, span.x1);
                 }
             }
-            else if(prepared.pack.external)
+            else if(prepared.pack.external(size))
             {
                 fullSpansRange = true;
                 spanrange.spans = alloc.alloc!(SpanRange.Span)(maxY);
@@ -735,8 +743,8 @@ private:
                         const y = cast(int)((v.y / w) * size.h) + size.h / 2;
 
                         if(x >= minX && x < maxX &&
-                            y >= minY && y < maxY &&
-                            findStart(max(x - 2, minX), max(y - 2, minY), min(x + 3, maxX), min(y + 3, maxY), startPoint))
+                           y >= minY && y < maxY &&
+                           findStart(max(x - 2, minX), max(y - 2, minY), min(x + 3, maxX), min(y + 3, maxY), startPoint))
                         {
                             goto found;
                         }
@@ -776,11 +784,11 @@ private:
                         const cx = x0 + (x1 - x0) / 2;
                         const cy = y0 + (y1 - y0) / 2;
                         //outContext.surface[cy][cx] = ColorRed;
-                        auto ptc0 = PointT(cx, y0, lines);
-                        auto pt0c = PointT(x0, cy, lines);
-                        auto ptcc = PointT(cx, cy, lines);
-                        auto pt1c = PointT(x1, cy, lines);
-                        auto ptc1 = PointT(cx, y1, lines);
+                        const ptc0 = PointT(cx, y0, lines);
+                        const pt0c = PointT(x0, cy, lines);
+                        const ptcc = PointT(cx, cy, lines);
+                        const pt1c = PointT(x1, cy, lines);
+                        const ptc1 = PointT(cx, y1, lines);
                         return checkQuad(pt00, ptc0, pt0c, ptcc) ||
                                checkQuad(ptc0, pt10, ptcc, pt1c) ||
                                checkQuad(pt0c, ptcc, pt01, ptc1) ||
@@ -855,7 +863,7 @@ private:
                                     return newPt.currx + 1;
                                 }
                             }
-                            while(newPt.currx < (rightBound - 0) && newPt.check())
+                            while(newPt.currx < (rightBound) && newPt.check())
                             {
                                 newPt.incX(1);
                             }
