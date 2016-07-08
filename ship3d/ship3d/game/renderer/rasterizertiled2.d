@@ -781,14 +781,14 @@ private:
                         auto pt1c = PointT(x1, cy, lines);
                         auto ptc1 = PointT(cx, y1, lines);
                         return checkQuad(pt00, ptc0, pt0c, ptcc) ||
-                            checkQuad(ptc0, pt10, ptcc, pt1c) ||
-                                checkQuad(pt0c, ptcc, pt01, ptc1) ||
-                                checkQuad(ptcc, pt1c, ptc1, pt11);
+                               checkQuad(ptc0, pt10, ptcc, pt1c) ||
+                               checkQuad(pt0c, ptcc, pt01, ptc1) ||
+                               checkQuad(ptcc, pt1c, ptc1, pt11);
                     }
                     if(checkQuad(PointT(minX, minY, lines),
-                            PointT(maxX, minY, lines),
-                            PointT(minX, maxY, lines),
-                            PointT(maxX, maxY, lines)))
+                                 PointT(maxX, minY, lines),
+                                 PointT(minX, maxY, lines),
+                                 PointT(maxX, maxY, lines)))
                     {
                         goto found;
                     }
@@ -1057,22 +1057,15 @@ private:
                     spanrange.spans = (alloc.alloc!(SpanRange.Span)(y1 - y0).ptr - y0)[0..y1 + 1]; //hack to reduce allocated memory
                 }
 
-                void fillSpans(bool ReverseX)()
+                void fillSpans(bool ReverseX)() nothrow
                 {
                     int y = cast(int)edges[0].y;
                     bool iterate(bool Fill)()
                     {
                         auto e0 = &edges[0];
-                        foreach(i;TupleRange!(0,2))
+                        foreach(i;0..2)
                         {
-                            static if(0 == i)
-                            {
-                                auto e1 = &edges[1];
-                            }
-                            else
-                            {
-                                auto e1 = &edges[2];
-                            }
+                            auto e1 = &edges[1 + i];
                             if(y < minY)
                             {
                                 const dy = minY - y;
@@ -1081,62 +1074,57 @@ private:
                                 y = minY;
                             }
                             const ye = e1.ye;
-                            while(y < ye)
+                            while(y <= ye)
                             {
-                                assert(y >= 0);
+                                assert(y >= minY);
                                 if(y >= maxY)
                                 {
                                     return false;
                                 }
-                                else if(y >= minY)
+
+                                static if(ReverseX)
                                 {
-                                    static if(ReverseX)
-                                    {
-                                        const x0 = e1.x;
-                                        const x1 = e0.x;
-                                    }
-                                    else
-                                    {
-                                        const x0 = e0.x;
-                                        const x1 = e1.x;
-                                    }
+                                    const x0 = e1.x;
+                                    const x1 = e0.x;
+                                }
+                                else
+                                {
+                                    const x0 = e0.x;
+                                    const x1 = e1.x;
+                                }
 
-                                    static if(ReadMask)
-                                    {
-                                        const xc0 = max(x0, srcMask.spans[y].x0, minX);
-                                        const xc1 = min(x1, srcMask.spans[y].x1, maxX);
-                                    }
-                                    else
-                                    {
-                                        const xc0 = max(x0, minX);
-                                        const xc1 = min(x1, maxX);
-                                    }
+                                static if(ReadMask)
+                                {
+                                    const xc0 = max(x0, srcMask.spans[y].x0, minX);
+                                    const xc1 = min(x1, srcMask.spans[y].x1, maxX);
+                                }
+                                else
+                                {
+                                    const xc0 = max(x0, minX);
+                                    const xc1 = min(x1, maxX);
+                                }
 
-                                    static if(!Fill)
+                                static if(!Fill)
+                                {
+                                    if(xc1 > xc0)
                                     {
-                                        if(xc1 > xc0)
-                                        {
-                                            return true;
-                                        }
-                                    }
-                                    else
-                                    {
-                                        if(xc0 > xc1)
-                                        {
-                                            return false;
-                                        }
-                                        auto span = &spanrange.spans[y];
-                                        span.x0 = numericCast!SpanElemType(xc0);
-                                        span.x1 = numericCast!SpanElemType(xc1);
-                                        trueMinX = min(trueMinX, span.x0);
-                                        trueMaxX = max(trueMaxX, span.x1);
+                                        return true;
                                     }
                                 }
+                                else
+                                {
+                                    if(xc0 > xc1)
+                                    {
+                                        return false;
+                                    }
+                                    auto span = &spanrange.spans[y];
+                                    span.x0 = numericCast!SpanElemType(xc0);
+                                    span.x1 = numericCast!SpanElemType(xc1);
+                                    trueMinX = min(trueMinX, span.x0);
+                                    trueMaxX = max(trueMaxX, span.x1);
+                                }
+
                                 ++y;
-                                if(y >= maxY)
-                                {
-                                    break;
-                                }
                                 e0.incY();
                                 e1.incY();
                             }
