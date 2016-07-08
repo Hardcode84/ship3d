@@ -37,9 +37,17 @@ public:
 
     void getLine(int W, C, Range)(in ref C context, Range outLine) const pure nothrow
     {
-        assert(outLine.length == W);
-        static assert(W > 0);
-        static assert(ispow2(W));
+        static assert(W >= 0);
+        static if(W > 0)
+        {
+            assert(outLine.length == W);
+            enum len = W;
+        }
+        else
+        {
+            const len = outLine.length;
+        }
+        assert(len > 0);
         const w = width;
         const h = height;
         assert(ispow2(w));
@@ -58,6 +66,8 @@ public:
         {
             const data = mData.ptr;
         }
+        auto outPtr = outLine.ptr;
+
         enum Dither = false;
         static if(Dither)
         {
@@ -66,66 +76,46 @@ public:
             [0.75f,0.50f], [0.00f,0.25f]];
         }
 
-        static if(W > 1)
+        const TextT dux = cast(TextT)context.dux;
+        const TextT dvx = cast(TextT)context.dvx;
+        const TextT dux2 = cast(TextT)(dux * (w * 2));
+        const TextT dvx2 = cast(TextT)(dvx * (h * w * 2));
+        TextT u1 = cast(TextT)(context.u * w);
+        TextT v1 = cast(TextT)(context.v * (h * w));
+        TextT u2 = cast(TextT)((context.u + dux) * w);
+        TextT v2 = cast(TextT)((context.v + dvx) * (h * w));
+
+        static if(Dither)
         {
-            const TextT dux = cast(TextT)context.dux;
-            const TextT dvx = cast(TextT)context.dvx;
-            const TextT dux2 = cast(TextT)(dux * (w * 2));
-            const TextT dvx2 = cast(TextT)(dvx * (h * w * 2));
-            TextT u1 = cast(TextT)(context.u * w);
-            TextT v1 = cast(TextT)(context.v * (h * w));
-            TextT u2 = cast(TextT)((context.u + dux) * w);
-            TextT v2 = cast(TextT)((context.v + dvx) * (h * w));
-
-            static if(Dither)
-            {
-                const xoff = (startx & 1);
-                const yoff = (context.y & 1) << 1;
-                const dith1 = dithTable[xoff + yoff];
-                const dith2 = dithTable[xoff ^ 1 + yoff];
-                u1 += dith1[0];
-                v1 += dith1[1] * h;
-                u2 += dith2[0];
-                v2 += dith2[1] * h;
-            }
-
-            for(int i = 0; i != W; i += 2)
-            {
-                const x1 = cast(int)(u1) & wmask;
-                const y1 = cast(int)(v1) & hmask;
-                const x2 = cast(int)(u2) & wmask;
-                const y2 = cast(int)(v2) & hmask;
-                outLine[i + 0] = getColor(context.colorProxy(data[x1 | y1],startx + i + 0));
-                outLine[i + 1] = getColor(context.colorProxy(data[x2 | y2],startx + i + 1));
-                u1 += dux2;
-                v1 += dvx2;
-                u2 += dux2;
-                v2 += dvx2;
-            }
+            const xoff = (startx & 1);
+            const yoff = (context.y & 1) << 1;
+            const dith1 = dithTable[xoff + yoff];
+            const dith2 = dithTable[xoff ^ 1 + yoff];
+            u1 += dith1[0];
+            v1 += dith1[1] * h;
+            u2 += dith2[0];
+            v2 += dith2[1] * h;
         }
-        else
-        {
-            const TextT dux = cast(TextT)context.dux * w;
-            const TextT dvx = cast(TextT)context.dvx * (h * w);
-            TextT u = cast(TextT)(context.u * w);
-            TextT v = cast(TextT)(context.v * (h * w));
-            static if(Dither)
-            {
-                const xoff = (startx & 1);
-                const yoff = (context.y & 1) << 1;
-                const dith1 = dithTable[xoff + yoff];
-                u += dith1[0];
-                v += dith1[1] * h;
-            }
 
-            foreach(i;0..W)
-            {
-                const x = cast(int)(u) & wmask;
-                const y = cast(int)(v) & hmask;
-                outLine[i] = getColor(context.colorProxy(data[x | y],startx + i));
-                u += dux;
-                v += dvx;
-            }
+        foreach(i;0..(len >> 1))
+        {
+            const x1 = cast(int)(u1) & wmask;
+            const y1 = cast(int)(v1) & hmask;
+            const x2 = cast(int)(u2) & wmask;
+            const y2 = cast(int)(v2) & hmask;
+            outPtr[0] = getColor(context.colorProxy(data[x1 + y1],startx + i * 2 + 0));
+            outPtr[1] = getColor(context.colorProxy(data[x2 + y2],startx + i * 2 + 1));
+            u1 += dux2;
+            v1 += dvx2;
+            u2 += dux2;
+            v2 += dvx2;
+            outPtr += 2;
+        }
+        if(0 != (len & 1))
+        {
+            const x1 = cast(int)(u1) & wmask;
+            const y1 = cast(int)(v1) & hmask;
+            *outPtr = getColor(context.colorProxy(data[x1 + y1],startx + len - 1));
         }
     }
 }
