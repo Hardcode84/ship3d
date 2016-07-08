@@ -1247,12 +1247,13 @@ private:
                     {
                         Transform colorProxy;
                         int x;
+                        const int y;
                         TexT u;
                         TexT v;
                         const TexT dux;
                         const TexT dvx;
                     }
-                    Context ctx = {x: x1, u: span.u, v: span.v, dux: span.dux, dvx: span.dvx};
+                    Context ctx = {x: x1, y: y, u: span.u, v: span.v, dux: span.dux, dvx: span.dvx};
                     static if(HasLight)
                     {
                         ctx.colorProxy.view.assign(lightProx.buff[],lightProx.x);

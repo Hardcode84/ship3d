@@ -58,14 +58,37 @@ public:
         {
             const data = mData.ptr;
         }
+        enum Dither = false;
+        static if(Dither)
+        {
+        immutable TextT[2][4] dithTable = [
+            [0.25f,0.00f], [0.50f,0.75f],
+            [0.75f,0.50f], [0.00f,0.25f]];
+        }
+
         static if(W > 1)
         {
-            const TextT dux = cast(TextT)(context.dux * (w * 2));
-            const TextT dvx = cast(TextT)(context.dvx * (h * w * 2));
+            const TextT dux = cast(TextT)context.dux;
+            const TextT dvx = cast(TextT)context.dvx;
+            const TextT dux2 = cast(TextT)(dux * (w * 2));
+            const TextT dvx2 = cast(TextT)(dvx * (h * w * 2));
             TextT u1 = cast(TextT)(context.u * w);
             TextT v1 = cast(TextT)(context.v * (h * w));
-            TextT u2 = cast(TextT)((context.u + context.dux) * w);
-            TextT v2 = cast(TextT)((context.v + context.dvx) * (h * w));
+            TextT u2 = cast(TextT)((context.u + dux) * w);
+            TextT v2 = cast(TextT)((context.v + dvx) * (h * w));
+
+            static if(Dither)
+            {
+                const xoff = (startx & 1);
+                const yoff = (context.y & 1) << 1;
+                const dith1 = dithTable[xoff + yoff];
+                const dith2 = dithTable[xoff ^ 1 + yoff];
+                u1 += dith1[0];
+                v1 += dith1[1] * h;
+                u2 += dith2[0];
+                v2 += dith2[1] * h;
+            }
+
             for(int i = 0; i != W; i += 2)
             {
                 const x1 = cast(int)(u1) & wmask;
@@ -74,10 +97,10 @@ public:
                 const y2 = cast(int)(v2) & hmask;
                 outLine[i + 0] = getColor(context.colorProxy(data[x1 | y1],startx + i + 0));
                 outLine[i + 1] = getColor(context.colorProxy(data[x2 | y2],startx + i + 1));
-                u1 += dux;
-                v1 += dvx;
-                u2 += dux;
-                v2 += dvx;
+                u1 += dux2;
+                v1 += dvx2;
+                u2 += dux2;
+                v2 += dvx2;
             }
         }
         else
@@ -86,7 +109,15 @@ public:
             const TextT dvx = cast(TextT)context.dvx * (h * w);
             TextT u = cast(TextT)(context.u * w);
             TextT v = cast(TextT)(context.v * (h * w));
-            //foreach(i;TupleRange!(0,W))
+            static if(Dither)
+            {
+                const xoff = (startx & 1);
+                const yoff = (context.y & 1) << 1;
+                const dith1 = dithTable[xoff + yoff];
+                u += dith1[0];
+                v += dith1[1] * h;
+            }
+
             foreach(i;0..W)
             {
                 const x = cast(int)(u) & wmask;
