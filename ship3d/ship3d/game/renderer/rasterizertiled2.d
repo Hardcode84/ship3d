@@ -361,20 +361,22 @@ private:
         }
     }
 
-    struct Span(PosT)
+    struct Span(PosT, bool UseX)
     {
-        pure nothrow @nogc:
-        PosT wStart = void, wCurr = void;
+    pure nothrow @nogc:
         immutable PosT dwx, dwy;
+        immutable PosT dsux, dsuy;
+        immutable PosT dsvx, dsvy;
+
+        PosT wStart = void, wCurr = void;
 
         PosT suStart = void, svStart = void;
         PosT suCurr  = void, svCurr  = void;
-        immutable PosT dsux, dsuy;
-        immutable PosT dsvx, dsvy;
+
         PosT u  = void, v  = void;
         PosT u1 = void, v1 = void;
         PosT dux = void, dvx = void;
-        pure nothrow:
+
         this(PackT)(in ref PackT pack, int x, int y)
         {
             suStart = pack.uplane.get(x, y);
@@ -395,21 +397,20 @@ private:
 
         void incX(int dx)
         {
-            suCurr += dsux * dx;
-            svCurr += dsvx * dx;
+            const PosT fdx = dx;
+            suCurr += dsux * fdx;
+            svCurr += dsvx * fdx;
             u = u1;
             v = v1;
-            wCurr += dwx * dx;
+            wCurr += dwx * fdx;
             u1 = suCurr / wCurr;
             v1 = svCurr / wCurr;
-            dux = (u1 - u) / dx;
-            dvx = (v1 - v) / dx;
+            dux = (u1 - u) / fdx;
+            dvx = (v1 - v) / fdx;
         }
 
         void initX()
         {
-            u = u1;
-            v = v1;
             u1 = suCurr / wCurr;
             v1 = svCurr / wCurr;
         }
@@ -1201,7 +1202,7 @@ private:
         enum Full = (TWidth > 0);
         static assert(!Full || (TWidth >= AffineLength && 0 == (TWidth % AffineLength)));
         //alias FP = FixedPoint!(16,16,int);
-        alias SpanT   = Span!(prepared.pack.pos_t);
+        alias SpanT   = Span!(prepared.pack.pos_t,!Full);
         //alias SpanT   = Span!FP;
         alias PackT = prepared.pack.pack_t;
         const size = outContext.size;
@@ -1539,10 +1540,12 @@ private:
         {
             const ty0 = y * TileSize.h;
             const ty1 = min(ty0 + TileSize.h, clipRect.y + clipRect.h);
+
             assert(ty1 > ty0);
             const sy0 = max(spanrange.y0, ty0);
             const sy1 = min(spanrange.y1, ty1);
             assert(sy1 > sy0);
+            const bool yEdge = (TileSize.h != (sy1 - sy0));
 
             const sx = (spanrange.x0 / TileSize.w) * TileSize.w;
             auto pt1 = PointT(cast(int)sx, cast(int)ty0, lines);
@@ -1550,7 +1553,9 @@ private:
             uint val = (pt1.vals() << 0) | (pt2.vals() << 8);
 
             bool hadOne = false;
-            foreach(x; (spanrange.x0 / TileSize.w)..((spanrange.x1 + TileSize.w - 1) / TileSize.w))
+            const tx1 = (max(spanrange.x0, clipRect.x) / TileSize.w);
+            const tx2 = ((min(spanrange.x1, clipRect.x + clipRect.w) + TileSize.w - 1) / TileSize.w);
+            foreach(x; tx1..tx2)
             {
                 pt1.incX(TileSize.w);
                 pt2.incX(TileSize.w);
@@ -1591,7 +1596,7 @@ private:
                 }
                 else
                 {
-                    void checkTile(Size TSize, int Level)(int tx, int ty, in ubyte[4] prevVals)
+                    void checkTile(Size TSize, int Level, bool Full)(int tx, int ty, in ubyte[4] prevVals)
                     {
                         static assert(TSize.w > 0 && TSize.h > 0);
                         static assert(Level >= 0);
@@ -1637,7 +1642,7 @@ private:
                                 else if(!none(vals[i]))
                                 {
                                     const U temp = {oldval: vals[i] };
-                                    checkTile!(Size(TSize.w >> 1, TSize.h >> 1), Level + 1)(currPt.x * 2, currPt.y * 2, temp.vals);
+                                    checkTile!(Size(TSize.w >> 1, TSize.h >> 1), Level + 1,Full)(currPt.x * 2, currPt.y * 2, temp.vals);
                                     tile.setChildren();
                                 }
                             }
@@ -1653,19 +1658,45 @@ private:
                                     continue;
                                 }
 
-                                const int x0 = currPt.x * TSize.w;
-                                const int x1 = min(x0 + TSize.w, clipRect.x + clipRect.w);
-                                //assert(x1 > x0);
-
-                                const int y0 = currPt.y * TSize.h;
-                                const int y1 = min(y0 + TSize.h, clipRect.y + clipRect.h);
-                                //assert(y1 > y0);
-
-                                if(spanrange.x1 <= x0 || spanrange.x0 >= x1 ||
-                                   spanrange.y1 <= y0 || spanrange.y0 >= y1)
+                                static if(Full)
                                 {
-                                    continue;
+                                    const int x0 = currPt.x * TSize.w;
+                                    const int x1 = x0 + TSize.w;
+
+                                    const int y0 = currPt.y * TSize.h;
+                                    const int y1 = y0 + TSize.h;
                                 }
+                                else
+                                {
+                                    const int x0 = currPt.x * TSize.w;
+                                    const int x1 = min(x0 + TSize.w, clipRect.x + clipRect.w);
+
+                                    const int y0 = currPt.y * TSize.h;
+                                    const int y1 = min(y0 + TSize.h, clipRect.y + clipRect.h);
+
+                                    if(x0 >= x1)
+                                    {
+                                        continue;
+                                    }
+
+                                    if(y0 >= y1)
+                                    {
+                                        break;
+                                    }
+
+                                    if(spanrange.x1 <= x0 || spanrange.x0 >= x1 || spanrange.y0 >= y1)
+                                    {
+                                        continue;
+                                    }
+
+                                    if(spanrange.y1 <= y0)
+                                    {
+                                        break;
+                                    }
+                                }
+
+                                assert(x1 > x0);
+                                assert(y1 > y0);
 
                                 if(none(vals[i]))
                                 {
@@ -1743,7 +1774,14 @@ private:
                         else static assert(false);
                     }
 
-                    checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1)(x * 2, y * 2, u.vals);
+                    if(yEdge || (x == (tx2 - 1)))
+                    {
+                        checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,false)(x * 2, y * 2, u.vals);
+                    }
+                    else
+                    {
+                        checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,true)(x * 2, y * 2, u.vals);
+                    }
                     tile.setChildren();
                 }
             }
@@ -1751,19 +1789,9 @@ private:
 
         auto yrange = iota((spanrange.y0 / TileSize.h), ((spanrange.y1 + TileSize.h - 1) / TileSize.h));
 
-        /*if(params.context.myTaskPool !is null && yrange.length > 1)
+        foreach(y; yrange)
         {
-            foreach(y; params.context.myTaskPool.parallel(yrange, 1))
-            {
-                updateLine(y);
-            }
-        }
-        else*/
-        {
-            foreach(y; yrange)
-            {
-                updateLine(y);
-            }
+            updateLine(y);
         }
     }
 
