@@ -39,6 +39,7 @@ public:
     {
         assert(outLine.length == W);
         static assert(W > 0);
+        static assert(ispow2(W));
         const w = width;
         const h = height;
         assert(ispow2(w));
@@ -47,10 +48,7 @@ public:
         const hmask = (h * w - 1) & ~wmask;
         alias TextT = Unqual!(typeof(context.u));
         //alias TextT = FixedPoint!(16,16,int);
-        TextT u = cast(TextT)context.u * w;
-        TextT v = cast(TextT)context.v * (h * w);
-        const TextT dux = cast(TextT)context.dux * w;
-        const TextT dvx = cast(TextT)context.dvx * (h * w);
+
         const startx = context.x;
         debug
         {
@@ -60,15 +58,43 @@ public:
         {
             const data = mData.ptr;
         }
-
-        //foreach(i;TupleRange!(0,W))
-        foreach(i;0..W)
+        static if(W > 1)
         {
-            const x = cast(int)(u) & wmask;
-            const y = cast(int)(v) & hmask;
-            outLine[i] = getColor(context.colorProxy(data[x | y],startx + i));
-            u += dux;
-            v += dvx;
+            const TextT dux = cast(TextT)(context.dux * (w * 2));
+            const TextT dvx = cast(TextT)(context.dvx * (h * w * 2));
+            TextT u1 = cast(TextT)(context.u * w);
+            TextT v1 = cast(TextT)(context.v * (h * w));
+            TextT u2 = cast(TextT)((context.u + context.dux) * w);
+            TextT v2 = cast(TextT)((context.v + context.dvx) * (h * w));
+            for(int i = 0; i != W; i += 2)
+            {
+                const x1 = cast(int)(u1) & wmask;
+                const y1 = cast(int)(v1) & hmask;
+                const x2 = cast(int)(u2) & wmask;
+                const y2 = cast(int)(v2) & hmask;
+                outLine[i + 0] = getColor(context.colorProxy(data[x1 | y1],startx + i + 0));
+                outLine[i + 1] = getColor(context.colorProxy(data[x2 | y2],startx + i + 1));
+                u1 += dux;
+                v1 += dvx;
+                u2 += dux;
+                v2 += dvx;
+            }
+        }
+        else
+        {
+            const TextT dux = cast(TextT)context.dux * w;
+            const TextT dvx = cast(TextT)context.dvx * (h * w);
+            TextT u = cast(TextT)(context.u * w);
+            TextT v = cast(TextT)(context.v * (h * w));
+            //foreach(i;TupleRange!(0,W))
+            foreach(i;0..W)
+            {
+                const x = cast(int)(u) & wmask;
+                const y = cast(int)(v) & hmask;
+                outLine[i] = getColor(context.colorProxy(data[x | y],startx + i));
+                u += dux;
+                v += dvx;
+            }
         }
     }
 }
