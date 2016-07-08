@@ -258,7 +258,7 @@ private:
     mixin GenerateAutoDispose;
 }
 
-private class Core
+private final class Core
 {
     this()
     {
