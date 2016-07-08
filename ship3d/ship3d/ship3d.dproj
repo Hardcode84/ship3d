@@ -9,7 +9,7 @@
     <UseDefaultCompiler>true</UseDefaultCompiler>
     <IncrementalLinking>true</IncrementalLinking>
     <PreferOneStepBuild>true</PreferOneStepBuild>
-    <Compiler>DMD2</Compiler>
+    <Compiler>ldc2</Compiler>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -88,7 +88,7 @@
     </Libs>
     <DebugLevel>0</DebugLevel>
     <ObjectsDirectory>obj\Release</ObjectsDirectory>
-    <ExtraCompilerArguments>-oq -singleobj -boundscheck=off -d-version=NativeBlit -mattr=+mmx,+sse,+sse2,+sse3,+sse4.1,+sse4.2</ExtraCompilerArguments>
+    <ExtraCompilerArguments>-oq -singleobj -boundscheck=off -d-version=NativeBlit -mcpu=corei7 -mattr=+mmx,+sse,+sse2,+sse3,+sse4.1,+sse4.2</ExtraCompilerArguments>
     <Target>Executable</Target>
     <Externalconsole>true</Externalconsole>
     <UnittestMode>false</UnittestMode>
@@ -149,7 +149,7 @@
     <Target>Executable</Target>
     <OutputName>ship3d</OutputName>
     <UnittestMode>false</UnittestMode>
-    <ExtraCompilerArguments>-oq -singleobj -boundscheck=off -d-version=NativeBlit -mattr=+mmx,+sse,+sse2,+sse3,+sse4.1,+sse4.2 -gc</ExtraCompilerArguments>
+    <ExtraCompilerArguments>-oq -singleobj -boundscheck=off -d-version=NativeBlit -mcpu=corei7 -mattr=+mmx,+sse,+sse2,+sse3,+sse4.1,+sse4.2 -gc</ExtraCompilerArguments>
     <Libs>
       <Libs>
         <Lib>gdi32.lib</Lib>
