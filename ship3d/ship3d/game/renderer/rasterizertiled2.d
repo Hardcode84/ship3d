@@ -328,7 +328,7 @@ private:
         {
             foreach(i;0..NumLines)
             {
-                const val = lines[i].val(x, y);
+                const val = lines[i].val(x, y + 1);
                 cx[i] = val;
                 dx[i] = -lines[i].dx;
                 dy[i] =  lines[i].dy;
