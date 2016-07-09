@@ -36,6 +36,8 @@ struct RasterizerTiled2(bool HasTextures, bool WriteMask, bool ReadMask, bool Ha
     }
 
 private:
+    enum FillBackground = true;
+
     enum AffineLength = 32;
     enum TileSize = Size(64,64);
     enum HighTileLevelCount = 1;
@@ -369,17 +371,24 @@ private:
         }
     }
 
-    struct Span(PosT, bool UseX)
+    align(16) struct Span(PosT, bool UseX)
     {
     pure nothrow @nogc:
-        immutable PosT dwx, dwy;
-        immutable PosT dsux, dsuy;
-        immutable PosT dsvx, dsvy;
+        immutable PosT dwx;
+        immutable PosT dsux;
+        immutable PosT dsvx;
 
-        PosT wStart = void, wCurr = void;
+        immutable PosT dwy;
+        immutable PosT dsuy;
+        immutable PosT dsvy;
 
-        PosT suStart = void, svStart = void;
-        PosT suCurr  = void, svCurr  = void;
+        PosT wStart = void;
+        PosT suStart = void;
+        PosT svStart = void;
+
+        PosT wCurr = void;
+        PosT suCurr  = void;
+        PosT svCurr  = void;
 
         PosT u  = void, v  = void;
         PosT u1 = void, v1 = void;
@@ -406,11 +415,13 @@ private:
         void incX(int dx)
         {
             const PosT fdx = dx;
+            wCurr += dwx * fdx;
             suCurr += dsux * fdx;
             svCurr += dsvx * fdx;
+
             u = u1;
             v = v1;
-            wCurr += dwx * fdx;
+
             u1 = suCurr / wCurr;
             v1 = svCurr / wCurr;
             dux = (u1 - u) / fdx;
@@ -425,12 +436,12 @@ private:
 
         void incY()
         {
-            wStart += dwy;
-            wCurr  = wStart;
-
+            wStart  += dwy;
             suStart += dsuy;
-            suCurr  = suStart;
             svStart += dsvy;
+
+            wCurr   = wStart;
+            suCurr  = suStart;
             svCurr  = svStart;
         }
     }
@@ -1204,10 +1215,27 @@ private:
         assert(prepared.spanrange.spns.ptr == ptr);
     }
 
-    static void drawPreparedTriangle(size_t TWidth, AllocT,CtxT1,CtxT2,PrepT)
+    static void fillBackground(CtxT1)
+        (in Rect clipRect, auto ref CtxT1 outContext)
+    {
+        const color = outContext.backColor;
+        const y0 = clipRect.y;
+        const y1 = clipRect.y + clipRect.h;
+        const x0 = clipRect.x;
+        const x1 = clipRect.x + clipRect.w;
+        auto line = outContext.surface[y0];
+        foreach(y;y0..y1)
+        {
+            line[x0..x1] = color;
+            ++line;
+        }
+    }
+
+    static void drawPreparedTriangle(size_t TWidth, bool FillBack, AllocT,CtxT1,CtxT2,PrepT)
         (auto ref AllocT alloc, in Rect clipRect, auto ref CtxT1 outContext, auto ref CtxT2 extContext, in auto ref PrepT prepared)
     {
         enum Full = (TWidth > 0);
+        static assert(!(Full && FillBack));
         static assert(!Full || (TWidth >= AffineLength && 0 == (TWidth % AffineLength)));
         //alias FP = FixedPoint!(16,16,int);
         alias SpanT   = Span!(prepared.pack.pos_t,!Full);
@@ -1306,7 +1334,27 @@ private:
             }
             auto span = SpanT(pack, sx, sy);
 
-            auto line = outContext.surface[sy];
+            static if(FillBack)
+            {
+                const backColor = outContext.backColor;
+                const beginLine = clipRect.x;
+                const endLine   = clipRect.x + clipRect.w;
+            }
+
+            static if(FillBack)
+            {
+                auto line = outContext.surface[clipRect.y];
+                foreach(y;clipRect.y..sy)
+                {
+                    line[beginLine..endLine] = backColor;
+                    ++line;
+                }
+            }
+            else
+            {
+                auto line = outContext.surface[sy];
+            }
+
             foreach(y;sy..ey)
             {
                 static if(!Full)
@@ -1330,51 +1378,77 @@ private:
                     span.initX();
                 }
 
-                static if(HasLight)
+                if(x1 > x0)
                 {
-                    lightProx.setXY(x0, y);
-                }
-                int x = x0;
-
-                static if(!Full)
-                {
-                    const nx = (x + (AffineLength - 1)) & ~(AffineLength - 1);
-                    if(nx > x && nx < x1)
+                    static if(FillBack)
                     {
-                        static if(HasLight) lightProx.incX();
-                        span.incX(nx - x - 1);
-                        drawSpan!false(y, x, nx, span, line);
-                        x = nx;
+                        line[beginLine..x0] = backColor;
                     }
-                    const affParts = ((x1-x) / AffineLength);
-                }
-                else
-                {
-                    //Full
-                    enum affParts = TWidth / AffineLength;
-                }
 
-                foreach(i;0..affParts)
-                {
-                    span.incX(AffineLength);
-                    static if(HasLight) lightProx.incX();
-                    drawSpan!true(y, x, x + AffineLength, span, line);
-                    x += AffineLength;
-                }
-
-                static if(!Full)
-                {
-                    const rem = (x1 - x);
-                    if(rem > 0)
+                    static if(HasLight)
                     {
-                        span.incX(rem);
-                        static if(HasLight) lightProx.incX();
-                        drawSpan!false(y, x, x1, span, line);
+                        lightProx.setXY(x0, y);
                     }
+                    int x = x0;
+
+                    static if(!Full)
+                    {
+                        const nx = (x + (AffineLength - 1)) & ~(AffineLength - 1);
+                        if(nx > x && nx < x1)
+                        {
+                            static if(HasLight) lightProx.incX();
+                            span.incX(nx - x - 1);
+                            drawSpan!false(y, x, nx, span, line);
+                            x = nx;
+                        }
+                        const affParts = ((x1-x) / AffineLength);
+                    }
+                    else
+                    {
+                        //Full
+                        enum affParts = TWidth / AffineLength;
+                    }
+
+                    foreach(i;0..affParts)
+                    {
+                        span.incX(AffineLength);
+                        static if(HasLight) lightProx.incX();
+                        drawSpan!true(y, x, x + AffineLength, span, line);
+                        x += AffineLength;
+                    }
+
+                    static if(!Full)
+                    {
+                        const rem = (x1 - x);
+                        if(rem > 0)
+                        {
+                            span.incX(rem);
+                            static if(HasLight) lightProx.incX();
+                            drawSpan!false(y, x, x1, span, line);
+                        }
+                    }
+
+                    static if(FillBack)
+                    {
+                        line[x1..endLine] = backColor;
+                    }
+                }
+                else static if(FillBack)
+                {
+                    line[beginLine..endLine] = backColor;
                 }
 
                 span.incY();
                 ++line;
+            }
+
+            static if(FillBack)
+            {
+                foreach(y;ey..(clipRect.y + clipRect.h))
+                {
+                    line[beginLine..endLine] = backColor;
+                    ++line;
+                }
             }
         }
 
@@ -1811,11 +1885,23 @@ private:
             Unqual!(typeof(cache[0].pack)) pack;
             RelSpanRange spanrange;
         }
+        const clipRect = params.context.clipRect;
         void drawTile(Size TSize, int Level)(int tx, int ty)
         {
             static assert(TSize.w > 0 && TSize.h > 0);
             static assert(Level >= 0);
             enum FullDrawWidth = TSize.w;
+
+            const x0 = tx * TSize.w;
+            if(x0 >= (clipRect.x + clipRect.w))
+            {
+                return;
+            }
+            const y0 = ty * TSize.h;
+            if(y0 >= (clipRect.y + clipRect.h))
+            {
+                return;
+            }
 
             static if(Level < HighTileLevelCount)
             {
@@ -1835,10 +1921,8 @@ private:
                 }
                 else if(tile.used)
                 {
-                    const x0 = tx * TSize.w;
                     const x1 = min(x0 + TSize.w, clipRect.x + clipRect.w);
                     assert(x1 > x0);
-                    const y0 = ty * TSize.h;
                     const y1 = min(y0 + TSize.h, clipRect.y + clipRect.h);
                     assert(y1 > y0);
                     const rect = Rect(x0, y0, x1 - x0, y1 - y0);
@@ -1846,12 +1930,22 @@ private:
                     const index = tile.index;
                     if(rect.w == TSize.w)
                     {
-                        drawPreparedTriangle!FullDrawWidth(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
+                        drawPreparedTriangle!(FullDrawWidth, false)(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
                     }
                     else
                     {
-                        drawPreparedTriangle!0(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
+                        drawPreparedTriangle!(0,false)(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
                     }
+                }
+                else static if(FillBackground)
+                {
+                    const x1 = min(x0 + TSize.w, clipRect.x + clipRect.w);
+                    assert(x1 > x0);
+                    const y1 = min(y0 + TSize.h, clipRect.y + clipRect.h);
+                    assert(y1 > y0);
+                    const rect = Rect(x0, y0, x1 - x0, y1 - y0);
+
+                    fillBackground(rect, params.context);
                 }
             }
             else static if(Level == HighTileLevelCount)
@@ -1859,12 +1953,19 @@ private:
                 auto tile = &tiles[tx + ty * tilesSizes[Level].w];
                 if(tile.empty)
                 {
+                    static if(FillBackground)
+                    {
+                        const x1 = min(x0 + TSize.w, clipRect.x + clipRect.w);
+                        assert(x1 > x0);
+                        const y1 = min(y0 + TSize.h, clipRect.y + clipRect.h);
+                        assert(y1 > y0);
+                        const rect = Rect(x0, y0, x1 - x0, y1 - y0);
+                        fillBackground(rect, params.context);
+                    }
                     return;
                 }
-                const x0 = tx * TSize.w;
                 const x1 = min(x0 + TSize.w, clipRect.x + clipRect.w);
                 assert(x1 > x0);
-                const y0 = ty * TSize.h;
                 const y1 = min(y0 + TSize.h, clipRect.y + clipRect.h);
                 assert(y1 > y0);
                 const rect = Rect(x0, y0, x1 - x0, y1 - y0);
@@ -1877,7 +1978,15 @@ private:
                     const index = buff.back;
                     assert(index >= 0);
                     assert(index < cache.length);
-                    drawPreparedTriangle!FullDrawWidth(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
+                    drawPreparedTriangle!(FullDrawWidth,false)(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
+                    buff.popBack;
+                }
+                else static if(FillBackground)
+                {
+                    const index = buff.back;
+                    assert(index >= 0);
+                    assert(index < cache.length);
+                    drawPreparedTriangle!(0,true)(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
                     buff.popBack;
                 }
 
@@ -1885,12 +1994,11 @@ private:
                 {
                     assert(index >= 0);
                     assert(index < cache.length);
-                    drawPreparedTriangle!0(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
+                    drawPreparedTriangle!(0,false)(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
                 }
             }
             else static assert(false);
         }
-        const clipRect = params.context.clipRect;
 
         auto xyrange = cartesianProduct(iota(0, tilesSizes[0].h), iota(0, tilesSizes[0].w));
 
@@ -1964,7 +2072,7 @@ private:
                 return;
             }
 
-            drawPreparedTriangle!0(alloc, outContext.clipRect, outContext, extContext, prepared);
+            drawPreparedTriangle!(0,false)(alloc, outContext.clipRect, outContext, extContext, prepared);
         }
     }
 

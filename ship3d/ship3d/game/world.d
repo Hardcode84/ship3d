@@ -53,6 +53,7 @@ private:
         SpanMask mask;
         SpanMask dstMask;
         TaskPool myTaskPool;
+        ColorT backColor;
 
         void[] rasterizerCache;
         uint rasterizerCacheUsed = 0;
@@ -201,7 +202,7 @@ public:
 
     void draw(SurfT surf)
     {
-        /*debug*/ surf.fill(ColorBlue);
+        debug surf.fill(ColorGreen);
         surf.lock();
         scope(exit) surf.unlock();
 
@@ -211,6 +212,7 @@ public:
         const clipRect = Rect(0, 0, surf.width, surf.height);
         const mat = mProjMat;
         OutContext octx = {mSize, surf, clipRect, mat, SpanMask(mSize, allocator)};
+        octx.backColor = ColorBlue;
         if(mMultithreadedRendering)
         {
             octx.myTaskPool = mTaskPool;
