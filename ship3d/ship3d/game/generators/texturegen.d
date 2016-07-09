@@ -68,8 +68,8 @@ private:
     auto generateTexture(in ref TextureDesc desc)
     {
         auto ret = new texture_t(desc.width, desc.height);
-        ret.palette = mPalette;
-        ret.fillChess(cast(ubyte)((1 << PaletteBits) - 1), cast(ubyte)(desc.i), desc.wcell, desc.hcell);
+        //ret.palette = mPalette;
+        //ret.fillChess(cast(ubyte)((1 << PaletteBits) - 1), cast(ubyte)(desc.i), desc.wcell, desc.hcell);
         //ret.fill(cast(ubyte)(desc.i));
         return ret;
     }

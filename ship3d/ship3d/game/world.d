@@ -256,6 +256,8 @@ private:
         auto lpalette = new light_palette_t(data1[0..(1 << LightPaletteBits)]);*/
 
         const ColorT[] colors2 = [
+            ColorSilver,
+            ColorGray,
             ColorYellow,
             ColorCyan,
             ColorRed,
@@ -263,22 +265,22 @@ private:
             ColorGreen,
             ColorMagenta,
             ColorWhite];
-        ColorT[256] data2 = ColorBlack;
+        /*ColorT[256] data2 = ColorBlack;
         foreach(i,c; colors2[])
         {
             data2[i] = c;
         }
+        auto palette = new palette_t(data2[0..(1 << LightPaletteBits)]);*/
         import game.renderer.texture;
         texture_t[] textures;
         textures.length = colors2.length;
 
-        auto palette = new palette_t(data2[0..(1 << LightPaletteBits)]);
-
         foreach(i,ref tex; textures)
         {
             tex = new texture_t(16,16);
-            tex.palette = palette;
-            tex.fillChess(cast(ubyte)((1 << PaletteBits) - 1), cast(ubyte)(i), 1, 1);
+            //tex.palette = palette;
+            //tex.fillChess(cast(ubyte)((1 << PaletteBits) - 1), cast(ubyte)(i), 1, 1);
+            tex.fillChess(ColorBlack, colors2[i], 1, 1);
         }
         import std.algorithm;
         import std.array;

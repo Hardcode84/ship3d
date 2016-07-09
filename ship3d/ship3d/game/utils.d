@@ -47,7 +47,7 @@ struct NtsRange(T)
 {
     pure nothrow @nogc:
     T[] dstRange;
-    
+
     void opIndexAssign(in T val, size_t ind)
     {
         static assert(T.sizeof == 4);

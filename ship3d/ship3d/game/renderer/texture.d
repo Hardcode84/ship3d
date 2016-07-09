@@ -66,7 +66,6 @@ public:
         {
             const data = mData.ptr;
         }
-        auto outPtr = outLine.ptr;
 
         enum Dither = false;
         static if(Dither)
@@ -89,7 +88,7 @@ public:
         {
             const xoff = (startx & 1);
             const yoff = (context.y & 1) << 1;
-            const dith1 = dithTable[xoff + yoff];
+            const dith1 = dithTable[xoff ^ 0 + yoff];
             const dith2 = dithTable[xoff ^ 1 + yoff];
             u1 += dith1[0];
             v1 += dith1[1] * h;
@@ -103,19 +102,18 @@ public:
             const y1 = cast(int)(v1) & hmask;
             const x2 = cast(int)(u2) & wmask;
             const y2 = cast(int)(v2) & hmask;
-            outPtr[0] = getColor(context.colorProxy(data[x1 + y1],cast(int)(startx + i * 2 + 0)));
-            outPtr[1] = getColor(context.colorProxy(data[x2 + y2],cast(int)(startx + i * 2 + 1)));
+            outLine[i * 2 + 0] = getColor(context.colorProxy(data[x1 + y1],cast(int)(startx + i * 2 + 0)));
+            outLine[i * 2 + 1] = getColor(context.colorProxy(data[x2 + y2],cast(int)(startx + i * 2 + 1)));
             u1 += dux2;
             v1 += dvx2;
             u2 += dux2;
             v2 += dvx2;
-            outPtr += 2;
         }
         if(0 != (len & 1))
         {
             const x1 = cast(int)(u1) & wmask;
             const y1 = cast(int)(v1) & hmask;
-            *outPtr = getColor(context.colorProxy(data[x1 + y1],cast(int)(startx + len - 1)));
+            outLine[len - 1] = getColor(context.colorProxy(data[x1 + y1],cast(int)(startx + len - 1)));
         }
     }
 }
