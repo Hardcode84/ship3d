@@ -1,5 +1,9 @@
 ﻿module game.utils;
 
+import std.traits;
+import std.range;
+import std.algorithm;
+
 import game.units;
 
 @nogc TransformedVertex transformVertex(in Vertex v, in mat4_t mat) pure nothrow @safe
@@ -73,4 +77,47 @@ version(LDC)
 {
     pragma(LDC_intrinsic, "llvm.assume")
         void assume(bool);
+}
+
+struct AllocatorsState(AllocT)
+{
+    AllocT[] mAllocs;
+    alias AllocState = Unqual!(typeof(AllocT.state));
+    AllocState[] mStates;
+
+    this(AllocT[] allocs)
+    {
+        assert(allocs.length > 0);
+        auto alloc = allocs[0];
+        auto firstState = alloc.state;
+        mStates = alloc.alloc!AllocState(allocs.length);
+        mStates[0] = firstState;
+        foreach(i; 1..allocs.length)
+        {
+            mStates[i] = allocs[i].state();
+        }
+        mAllocs = allocs;
+        assert(mAllocs.length == mStates.length);
+    }
+
+    auto allocs() inout
+    {
+        return mAllocs;
+    }
+
+    auto restore()
+    {
+        assert(mAllocs.length == mStates.length);
+        foreach_reverse(i;0..mAllocs.length)
+        {
+            mAllocs[i].restoreState(mStates[i]);
+        }
+        mAllocs = mAllocs.init;
+        mStates = mStates.init;
+    }
+}
+
+auto saveAllocsStates(AllocT)(AllocT[] allocs)
+{
+    return AllocatorsState!AllocT(allocs);
 }

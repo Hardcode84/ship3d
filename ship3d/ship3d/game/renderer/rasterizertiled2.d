@@ -572,6 +572,11 @@ private:
             assert(index < y1);
             return spns[index - y0];
         }
+
+        @property auto empty() const
+        {
+            return 0 == spns.length;
+        }
     }
 
     struct PreparedData(PosT,TextT)
@@ -1562,38 +1567,93 @@ private:
         alias PackT = Unqual!(typeof(cache[0]));
         auto tiles = alloc.alloc(tilesSizes[HighTileLevelCount].w * tilesSizes[HighTileLevelCount].h,Tile());
         auto spans = alloc.alloc!RelSpanRange(cache.length);
+        const cacheLen = cache.length;
 
+        enum MaskW = LowTileSize.w;
+        enum MaskH = LowTileSize.h;
+        alias MaskT = TileMask!(MaskW, MaskH);
+
+        auto pool = param.context.myTaskPool;
+        if(pool !is null)
         {
-            auto allocState2 = alloc.state;
-            scope(exit) alloc.restoreState(allocState2);
-            //static assert(LowTileSize.w == LowTileSize.h);
-            enum MaskW = LowTileSize.w;
-            enum MaskH = LowTileSize.h;
-            alias MaskT = TileMask!(MaskW, MaskH);
+            auto allocState2 = saveAllocsStates(param.context.allocators);
+            scope(exit) allocState2.restore();
             auto masks = alloc.alloc!MaskT(tilesSizes[HighTileLevelCount].w * tilesSizes[HighTileLevelCount].h);
 
-            foreach(i;iota(0,cache.length).retro)
+            foreach(i;pool.parallel(iota(0,cacheLen), 4))
             {
+                const workerIndex = pool.workerIndex;
                 auto prepared = PreparedT(cache[i].pack);
-                createTriangleSpans(alloc, param.context, cache[i].extContext, prepared);
+                createTriangleSpans(allocState2.allocs[workerIndex], param.context, cache[i].extContext, prepared);
 
-                if(!prepared.valid)
+                if(prepared.valid)
                 {
-                    continue;
+                    spans[i] = prepared.spanrange;
                 }
-                updateTiles(param, highTiles, tiles, masks, tilesSizes, prepared.spanrange, cache[i].pack, cast(int)i);
-                spans[i] = prepared.spanrange;
-
-                //drawPreparedTriangle(param.alloc, param.context.clipRect, param.context, cache[i].extContext, prepared);
+                else
+                {
+                    spans[i].spns = spans[i].spns.init;
+                }
             }
 
-        }
+            enum Xstep = 4;
+            enum Ystep = 4;
+            auto xyrange = cartesianProduct(iota(0, tilesSizes[0].h, Xstep), iota(0, tilesSizes[0].w, Ystep));
 
-        drawTiles(param, highTiles, tiles, tilesSizes, cache, spans);
+            foreach(pos; pool.parallel(xyrange, 1))
+            {
+                const workerIndex = pool.workerIndex;
+                const y = pos[0];
+                const x = pos[1];
+                const x0 = max(x * TileSize.w, clipRect.x);
+                const x1 = min(x0 + TileSize.w * Xstep, clipRect.x + clipRect.w);
+                assert(x1 > x0);
+                const y0 = max(y * TileSize.h, clipRect.y);
+                const y1 = min(y0 + TileSize.h * Ystep, clipRect.y + clipRect.h);
+                assert(y1 > y0);
+                const rect = Rect(x0, y0, x1 - x0, y1 - y0);
+                foreach_reverse(i;0..cacheLen)
+                {
+                    if(!spans[i].empty)
+                    {
+                        updateTiles(param, rect, highTiles, tiles, masks, tilesSizes, spans[i], cache[i].pack, cast(int)i);
+                    }
+                }
+                const tx1 = x;
+                const tx2 = min(tx1 + Xstep, tilesSizes[0].w);
+                assert(tx2 > tx1);
+                const ty1 = y;
+                const ty2 = min(ty1 + Ystep, tilesSizes[0].h);
+                assert(ty2 > ty1);
+                drawTiles(param, alloc, Rect(tx1,ty1,tx2,ty2), highTiles, tiles, tilesSizes, cache, spans);
+            }
+        }
+        else
+        {
+            {
+                auto allocState2 = alloc.state;
+                scope(exit) alloc.restoreState(allocState2);
+                auto masks = alloc.alloc!MaskT(tilesSizes[HighTileLevelCount].w * tilesSizes[HighTileLevelCount].h);
+
+                foreach_reverse(i;0..cacheLen)
+                {
+                    auto prepared = PreparedT(cache[i].pack);
+                    createTriangleSpans(alloc, param.context, cache[i].extContext, prepared);
+
+                    if(!prepared.valid)
+                    {
+                        continue;
+                    }
+                    updateTiles(param, clipRect, highTiles, tiles, masks, tilesSizes, prepared.spanrange, cache[i].pack, cast(int)i);
+                    spans[i] = prepared.spanrange;
+                }
+            }
+            drawTiles(param, alloc, Rect(0,0,tilesSizes[0].w,tilesSizes[0].h), highTiles, tiles, tilesSizes, cache, spans);
+        }
     }
 
     static void updateTiles(ParamsT,HTileT,TileT,MaskT,SpanT,PackT)
-        (auto ref ParamsT params, HTileT[][] htiles, TileT[] tiles, MaskT[] masks, in Size[] tilesSizes, auto ref SpanT spanrange, in auto ref PackT pack, int index)
+        (auto ref ParamsT params, in Rect clipRect, HTileT[][] htiles, TileT[] tiles, MaskT[] masks, in Size[] tilesSizes, auto ref SpanT spanrange, in auto ref PackT pack, int index)
     {
         assert(index >= 0);
 
@@ -1601,12 +1661,12 @@ private:
         alias LineT   = Line!(PosT);
         alias PointT  = Point!(PosT);
 
+        const size = params.context.size;
         const LineT[3] lines = [
-            LineT(pack.verts[0], pack.verts[1], pack.verts[2], params.context.size),
-            LineT(pack.verts[1], pack.verts[2], pack.verts[0], params.context.size),
-            LineT(pack.verts[2], pack.verts[0], pack.verts[1], params.context.size)];
+            LineT(pack.verts[0], pack.verts[1], pack.verts[2], size),
+            LineT(pack.verts[1], pack.verts[2], pack.verts[0], size),
+            LineT(pack.verts[2], pack.verts[0], pack.verts[1], size)];
 
-        const clipRect = params.context.clipRect;
         bool none(in uint val) pure nothrow const
         {
             return 0x0 == (val & 0b00000001_00000001_00000001_00000001) ||
@@ -1620,25 +1680,30 @@ private:
 
         void updateLine(int y)
         {
+            assert(y >= 0);
+            assert(y < tilesSizes[0].h);
             const ty0 = y * TileSize.h;
-            const ty1 = min(ty0 + TileSize.h, clipRect.y + clipRect.h);
-
+            const ty1 = ty0 + TileSize.h;
             assert(ty1 > ty0);
-            const sy0 = max(spanrange.y0, ty0);
-            const sy1 = min(spanrange.y1, ty1);
+
+            const sy0 = max(spanrange.y0, ty0, clipRect.y);
+            const sy1 = min(spanrange.y1, ty1, clipRect.y + clipRect.h);
             assert(sy1 > sy0);
             const bool yEdge = (TileSize.h != (sy1 - sy0));
 
-            const sx = (spanrange.x0 / TileSize.w) * TileSize.w;
+            const tx1 = (max(spanrange.x0, clipRect.x) / TileSize.w);
+            const tx2 = ((min(spanrange.x1, clipRect.x + clipRect.w) + TileSize.w - 1) / TileSize.w);
+            const sx = tx1 * TileSize.w;
             auto pt1 = PointT(cast(int)sx, cast(int)ty0, lines);
             auto pt2 = PointT(cast(int)sx, cast(int)ty1, lines);
             uint val = (pt1.vals() << 0) | (pt2.vals() << 8);
 
             bool hadOne = false;
-            const tx1 = (max(spanrange.x0, clipRect.x) / TileSize.w);
-            const tx2 = ((min(spanrange.x1, clipRect.x + clipRect.w) + TileSize.w - 1) / TileSize.w);
+
             foreach(x; tx1..tx2)
             {
+                assert(x >= 0);
+                assert(x < tilesSizes[0].w);
                 pt1.incX(TileSize.w);
                 pt2.incX(TileSize.w);
                 val = val | (pt1.vals() << 16) | (pt2.vals() << 24);
@@ -1711,6 +1776,10 @@ private:
                             foreach(i;0..4)
                             {
                                 const currPt = gamelib.types.Point(tx + tpoints[i].x, ty + tpoints[i].y);
+                                assert(currPt.x >= 0);
+                                assert(currPt.x < tilesSizes[Level].w);
+                                assert(currPt.y >= 0);
+                                assert(currPt.y < tilesSizes[Level].h);
                                 auto tile = &htiles[Level][currPt.x + currPt.y * tilesSizes[Level].w];
                                 if(tile.used)
                                 {
@@ -1734,6 +1803,10 @@ private:
                             foreach(i;0..4)
                             {
                                 const currPt = gamelib.types.Point(tx + tpoints[i].x, ty + tpoints[i].y);
+                                assert(currPt.x >= 0);
+                                assert(currPt.x < tilesSizes[Level].w);
+                                assert(currPt.y >= 0);
+                                assert(currPt.y < tilesSizes[Level].h);
                                 auto tile = &tiles[currPt.x + currPt.y * tilesSizes[Level].w];
                                 if(tile.full)
                                 {
@@ -1856,7 +1929,7 @@ private:
                         else static assert(false);
                     }
 
-                    if(yEdge || (x == (tx2 - 1)))
+                    if(yEdge || (x == (tx2 - 1)) || ((x * TileSize.w) < clipRect.x))
                     {
                         checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,false)(x * 2, y * 2, u.vals);
                     }
@@ -1869,7 +1942,9 @@ private:
             }
         }
 
-        auto yrange = iota((spanrange.y0 / TileSize.h), ((spanrange.y1 + TileSize.h - 1) / TileSize.h));
+        auto yrange = iota(
+            (max(spanrange.y0, clipRect.y) / TileSize.h),
+            ((min(spanrange.y1, clipRect.y + clipRect.h) + TileSize.h - 1) / TileSize.h));
 
         foreach(y; yrange)
         {
@@ -1877,8 +1952,8 @@ private:
         }
     }
 
-    static void drawTiles(ParamsT,HTileT,TileT,CacheT,SpansT)
-        (auto ref ParamsT params, HTileT[][] htiles, TileT[] tiles, in Size[] tilesSizes, CacheT[] cache, SpansT[] spans)
+    static void drawTiles(ParamsT,AllocT,HTileT,TileT,CacheT,SpansT)
+        (auto ref ParamsT params, auto ref AllocT alloc, in Rect tilesDim, HTileT[][] htiles, TileT[] tiles, in Size[] tilesSizes, CacheT[] cache, SpansT[] spans)
     {
         struct TilePrepared
         {
@@ -2055,26 +2130,10 @@ private:
             }
         }
 
-        auto xyrange = cartesianProduct(iota(0, tilesSizes[0].h), iota(0, tilesSizes[0].w));
-
-        auto pool = params.context.myTaskPool;
-        if(pool !is null)
+        foreach(y;tilesDim.y..tilesDim.h)
         {
-            foreach(pos; pool.parallel(xyrange, 8))
+            foreach(x;tilesDim.x..tilesDim.w)
             {
-                auto alloc = params.context.allocators[pool.workerIndex];
-                const y = pos[0];
-                const x = pos[1];
-                drawTileDispatch(x,y, alloc);
-            }
-        }
-        else
-        {
-            foreach(pos; xyrange)
-            {
-                auto alloc = params.context.allocators[0];
-                const y = pos[0];
-                const x = pos[1];
                 drawTileDispatch(x,y,alloc);
             }
         }
