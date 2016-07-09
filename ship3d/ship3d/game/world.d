@@ -208,7 +208,16 @@ public:
 
     void draw(SurfT surf)
     {
-        debug surf.fill(ColorGreen);
+        debug
+        {
+            const ColorT[] colors = [
+                ColorGreen,
+                ColorBlue,
+                ColorRed
+            ];
+            import std.random;
+            surf.fill(colors[uniform(0,colors.length)]);
+        }
         surf.lock();
         scope(exit) surf.unlock();
 

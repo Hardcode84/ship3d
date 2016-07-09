@@ -18,7 +18,7 @@ import game.utils;
 
 @nogc:
 
-struct RasterizerTiled2(bool HasTextures, bool WriteMask, bool ReadMask, bool HasLight, bool UseCache = true)
+struct RasterizerTiled2(bool HasTextures, bool WriteMask, bool ReadMask, bool HasLight)
 {
     version(LDC)
     {
@@ -36,6 +36,7 @@ struct RasterizerTiled2(bool HasTextures, bool WriteMask, bool ReadMask, bool Ha
     }
 
 private:
+    enum TiledRendering = true;
     enum FillBackground = true;
 
     enum AffineLength = 32;
@@ -48,7 +49,7 @@ private:
         alias type_t = ushort;
         type_t used = 0;
         type_t[TileBufferSize - 1] buffer = void;
-        enum EndFlag = 1 << (used.sizeof * 8 - 1);
+        enum EndFlag = 1 << (type_t.sizeof * 8 - 1);
 
         @property auto empty() const
         {
@@ -215,7 +216,8 @@ private:
                 x2, y2, w2,
                 x3, y3, w3);
             const d = mat.det;
-            if(d <= 0 || (w1 > 0 && w2 > 0 && w3 > 0))
+            enum tol = 0.001f;
+            if(d < tol || (w1 > tol && w2 > tol && w3 > tol))
             {
                 valid = false;
                 return;
@@ -613,7 +615,6 @@ private:
             alias TextT = void;
         }
         alias PrepDataT = PreparedData!(PosT,TextT);
-        pragma(msg, PrepDataT.sizeof);
 
         const size = outContext.size;
         PrepDataT ret = PrepDataT(pverts[0], pverts[1], pverts[2], size);
@@ -666,13 +667,14 @@ private:
         int trueMinX = maxY;
         int trueMaxX = minX;
         int offset = 0;
+        int realHgt = 0;
         int hgt = 0;
-        bool fullSpansRange = false;
         {
+            bool fullSpansRange = false;
             auto allocState = alloc.state;
             scope(exit) alloc.restoreState(allocState);
-
             SpanRange spanrange;
+
             const LineT[3] lines = [
                 LineT(prepared.pack.verts[0], prepared.pack.verts[1], prepared.pack.verts[2], size),
                 LineT(prepared.pack.verts[1], prepared.pack.verts[2], prepared.pack.verts[0], size),
@@ -705,10 +707,13 @@ private:
                     trueMinX = min(trueMinX, span.x0);
                     trueMaxX = max(trueMaxX, span.x1);
                 }
+                hgt = (maxY - minY);
+                realHgt = hgt;
             }
             else if(prepared.pack.external(size))
             {
                 fullSpansRange = true;
+                assert(maxY > 0);
                 spanrange.spans = alloc.alloc!(SpanRange.Span)(maxY);
                 //find first valid point
                 bool findStart(int x0, int y0, int x1, int y1, ref PointT start)
@@ -799,7 +804,7 @@ private:
                         }
                         const cx = x0 + (x1 - x0) / 2;
                         const cy = y0 + (y1 - y0) / 2;
-                        //outContext.surface[cy][cx] = ColorRed;
+
                         const ptc0 = PointT(cx, y0, lines);
                         const pt0c = PointT(x0, cy, lines);
                         const ptcc = PointT(cx, cy, lines);
@@ -1001,6 +1006,8 @@ private:
                 const bounds = fillLine(startPoint);
                 spanrange.y1 = search!true(bounds, sy);
                 spanrange.y0 = search!false(bounds, sy) + 1;
+                hgt = (spanrange.y1 - spanrange.y0);
+                realHgt = hgt;
             }
             else //external
             {
@@ -1010,8 +1017,10 @@ private:
                 int minElem;
                 foreach(int i,const ref v; prepared.pack.verts[])
                 {
+                    assert(v.z < -0.01f);
                     const pos = (v.xy / v.z);
-                    sortedPos[i] = Vec2(cast(PosT)((pos.x * size.w) + size.w / 2),
+                    sortedPos[i] = Vec2(
+                        cast(PosT)((pos.x * size.w) + size.w / 2),
                         cast(PosT)((pos.y * size.h) + size.h / 2));
                     if(sortedPos[i].y < upperY)
                     {
@@ -1083,6 +1092,10 @@ private:
                 if(y0 <= y1)
                 {
                     spanrange.spans = (alloc.alloc!(SpanRange.Span)(y1 - y0).ptr - y0)[0..y1 + 1]; //hack to reduce allocated memory
+                }
+                else
+                {
+                    spanrange.spans = spanrange.spans.init;
                 }
 
                 void fillSpans(bool ReverseX)() nothrow
@@ -1158,7 +1171,11 @@ private:
                                         y = currY;
                                         return false;
                                     }
+                                    assert(currY >= y0);
+                                    assert(currY < y1);
                                     auto span = &spanrange.spans[currY];
+                                    assert(xc0 >= SpanElemType.min && xc0 <= SpanElemType.max);
+                                    assert(xc1 >= SpanElemType.min && xc1 <= SpanElemType.max);
                                     span.x0 = numericCast!SpanElemType(xc0);
                                     span.x1 = numericCast!SpanElemType(xc1);
                                     trueMinX = min(trueMinX, span.x0);
@@ -1179,18 +1196,33 @@ private:
                         spanrange.y0 = y;
                         iterate!true();
                         spanrange.y1 = y;
+
+                        assert(spanrange.y0 >= y0);
+                        assert(spanrange.y1 <= y1);
+                        assert(spanrange.y1 > spanrange.y0);
+                        assert((spanrange.y1 - spanrange.y0) <= (y1 - y0));
                     }
                 } //fillspans
 
-                if(revX)
+                if(y1 > y0)
                 {
-                    fillSpans!true();
+                    if(revX)
+                    {
+                        fillSpans!true();
+                    }
+                    else
+                    {
+                        fillSpans!false();
+                    }
+                    realHgt = y1 - y0;
+                    offset = spanrange.y0 - y0;
+                    hgt = spanrange.y1 - spanrange.y0;
                 }
                 else
                 {
-                    fillSpans!false();
+                    spanrange.y0 = 0;
+                    spanrange.y1 = 0;
                 }
-                offset = spanrange.y0 - y0;
             } //external
 
             if(spanrange.y0 >= spanrange.y1)
@@ -1200,8 +1232,7 @@ private:
             }
 
             prepared.spanrange.y0 = spanrange.y0;
-            hgt = spanrange.y1 - spanrange.y0;
-            if(fullSpansRange && 0 != spanrange.y0)
+            if(fullSpansRange && spanrange.y0 > 0)
             {
                 ptr = spanrange.spans.ptr;
                 foreach(i,span;spanrange.spans[spanrange.y0..spanrange.y1])
@@ -1214,7 +1245,10 @@ private:
                 ptr = spanrange.spans.ptr + spanrange.y0;
             }
         }
-        prepared.spanrange.spns = alloc.alloc!(RelSpanRange.Span)(hgt).ptr[offset..offset + hgt]; //should be same data as in previous spanrange
+        assert(prepared.valid);
+        assert(realHgt > 0);
+        assert(hgt > 0);
+        prepared.spanrange.spns = alloc.alloc!(RelSpanRange.Span)(realHgt).ptr[offset..offset + hgt]; //should be same data as in previous spanrange
         prepared.spanrange.x0 = trueMinX;
         prepared.spanrange.x1 = trueMaxX;
         assert(prepared.spanrange.spns.ptr == ptr);
@@ -1267,7 +1301,7 @@ private:
                 auto ref L line)
             {
                 assert((x2 - x1) <= AffineLength);
-                if(x1 >= x2) return;
+                assert(x2 > x1);
                 static if(HasTextures)
                 {
                     struct Transform
@@ -1279,7 +1313,6 @@ private:
                             ArrayView!int view;
                             auto opCall(T)(in T val,int x) const
                             {
-                                //debugOut(view[x]);
                                 return val + view[x] * (1 << LightPaletteBits);
                             }
                         }
@@ -1334,7 +1367,10 @@ private:
             else
             {
                 const sy = max(clipRect.y, prepared.spanrange.y0);
-                const sx = max(clipRect.x, prepared.spanrange.spans(sy).x0);
+                const sx = clipRect.x;
+                //const sx = max(clipRect.x, prepared.spanrange.x0);
+                //const sx = max(clipRect.x, prepared.spanrange.spans(sy).x0);
+                //const sx = prepared.spanrange.spans(sy).x0;
                 const ey = min(clipRect.y + clipRect.h, prepared.spanrange.y1);
             }
             auto span = SpanT(pack, sx, sy);
@@ -1344,10 +1380,6 @@ private:
                 const backColor = outContext.backColor;
                 const beginLine = clipRect.x;
                 const endLine   = clipRect.x + clipRect.w;
-            }
-
-            static if(FillBack)
-            {
                 auto line = outContext.surface[clipRect.y];
                 foreach(y;clipRect.y..sy)
                 {
@@ -1368,7 +1400,7 @@ private:
                     const x0 = max(clipRect.x, yspan.x0);
                     const x1 = min(clipRect.x + clipRect.w, yspan.x1);
                     const dx = x0 - sx;
-                    assert(!Full || (0 == dx));
+
                     if(0 == dx)
                     {
                         span.initX();
@@ -1398,9 +1430,11 @@ private:
 
                     static if(!Full)
                     {
-                        const nx = (x + (AffineLength - 1)) & ~(AffineLength - 1);
+                        const nx = (x + ((AffineLength - 1)) & ~(AffineLength - 1));
+                        assert(x >= clipRect.x);
                         if(nx > x && nx < x1)
                         {
+                            assert(nx <= (clipRect.x + clipRect.w));
                             static if(HasLight) lightProx.incX();
                             span.incX(nx - x - 1);
                             drawSpan!false(y, x, nx, span, line);
@@ -1416,6 +1450,8 @@ private:
 
                     foreach(i;0..affParts)
                     {
+                        assert(x >= clipRect.x);
+                        assert((x + AffineLength) <= (clipRect.x + clipRect.w));
                         span.incX(AffineLength);
                         static if(HasLight) lightProx.incX();
                         drawSpan!true(y, x, x + AffineLength, span, line);
@@ -1424,7 +1460,9 @@ private:
 
                     static if(!Full)
                     {
+                        assert(x <= (clipRect.x + clipRect.w));
                         const rem = (x1 - x);
+                        assert(rem >= 0);
                         if(rem > 0)
                         {
                             span.incX(rem);
@@ -1682,6 +1720,7 @@ private:
 
             const sy0 = max(spanrange.y0, ty0, clipRect.y);
             const sy1 = min(spanrange.y1, ty1, clipRect.y + clipRect.h);
+            //debugOut(sy0," ",sy1, " ", clipRect," ",spanrange.y0," ",spanrange.y1);
             assert(sy1 > sy0);
             const bool yEdge = (TileSize.h != (sy1 - sy0));
 
@@ -1862,6 +1901,7 @@ private:
                                     const sy1 = min(spanrange.y1, y1);
 
                                     auto mask = &masks[currPt.x + currPt.y * tilesSizes[Level].w];
+                                    assert(mask.data.length == TSize.h);
                                     if(tile.empty)
                                     {
                                         foreach(myr;0..TSize.h)
@@ -1962,6 +2002,11 @@ private:
             static assert(TSize.w > 0 && TSize.h > 0);
             static assert(Level >= 0);
             enum FullDrawWidth = TSize.w;
+
+            assert(tx >= 0);
+            assert(tx < tilesSizes[Level].w);
+            assert(ty >= 0);
+            assert(ty < tilesSizes[Level].h);
 
             const x0 = tx * TSize.w;
             assert(x0 >= clipRect.x);
@@ -2073,6 +2118,7 @@ private:
                     }
                     return;
                 }
+
                 static if(Full)
                 {
                     const x1 = x0 + TSize.w;
@@ -2157,8 +2203,7 @@ private:
             return;
         }
 
-        if(UseCache)
-        //if(false)
+        if(TiledRendering)
         {
             alias CacheElemT = CacheElem!(Unqual!(typeof(prepared.pack)), Unqual!CtxT2);
             enum CacheElemSize = CacheElemT.sizeof;
