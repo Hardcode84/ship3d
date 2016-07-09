@@ -1064,12 +1064,12 @@ private:
                 {
                     revX = true;
                     swap(sortedPos[1],sortedPos[2]);
-                    xcorr1 = 2f;
+                    xcorr1 = 2.0f;
                 }
                 else
                 {
                     revX = false;
-                    xcorr2 = 2f;
+                    xcorr2 = 2.0f;
                 }
 
                 Edge[3] edges = [
@@ -1572,13 +1572,13 @@ private:
         enum MaskW = LowTileSize.w;
         enum MaskH = LowTileSize.h;
         alias MaskT = TileMask!(MaskW, MaskH);
+        auto masks = alloc.alloc!MaskT(tilesSizes[HighTileLevelCount].w * tilesSizes[HighTileLevelCount].h);
 
         auto pool = param.context.myTaskPool;
         if(pool !is null)
         {
             auto allocState2 = saveAllocsStates(param.context.allocators);
             scope(exit) allocState2.restore();
-            auto masks = alloc.alloc!MaskT(tilesSizes[HighTileLevelCount].w * tilesSizes[HighTileLevelCount].h);
 
             foreach(i;pool.parallel(iota(0,cacheLen), 4))
             {
@@ -1630,23 +1630,17 @@ private:
         }
         else
         {
+            foreach_reverse(i;0..cacheLen)
             {
-                auto allocState2 = alloc.state;
-                scope(exit) alloc.restoreState(allocState2);
-                auto masks = alloc.alloc!MaskT(tilesSizes[HighTileLevelCount].w * tilesSizes[HighTileLevelCount].h);
+                auto prepared = PreparedT(cache[i].pack);
+                createTriangleSpans(alloc, param.context, cache[i].extContext, prepared);
 
-                foreach_reverse(i;0..cacheLen)
+                if(!prepared.valid)
                 {
-                    auto prepared = PreparedT(cache[i].pack);
-                    createTriangleSpans(alloc, param.context, cache[i].extContext, prepared);
-
-                    if(!prepared.valid)
-                    {
-                        continue;
-                    }
-                    updateTiles(param, clipRect, highTiles, tiles, masks, tilesSizes, prepared.spanrange, cache[i].pack, cast(int)i);
-                    spans[i] = prepared.spanrange;
+                    continue;
                 }
+                updateTiles(param, clipRect, highTiles, tiles, masks, tilesSizes, prepared.spanrange, cache[i].pack, cast(int)i);
+                spans[i] = prepared.spanrange;
             }
             drawTiles(param, alloc, Rect(0,0,tilesSizes[0].w,tilesSizes[0].h), highTiles, tiles, tilesSizes, cache, spans);
         }
@@ -1929,7 +1923,9 @@ private:
                         else static assert(false);
                     }
 
-                    if(yEdge || (x == (tx2 - 1)) || ((x * TileSize.w) < clipRect.x))
+                    if(yEdge ||
+                        ((x * TileSize.w + TileSize.w) > (clipRect.x + clipRect.w)) ||
+                        ((x * TileSize.w) < clipRect.x))
                     {
                         checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,false)(x * 2, y * 2, u.vals);
                     }
@@ -2010,6 +2006,8 @@ private:
                     }
                     assert(x1 > x0);
                     assert(y1 > y0);
+                    assert(x0 >= clipRect.x);
+                    assert(y0 >= clipRect.y);
                     assert(x1 <= clipRect.x + clipRect.w);
                     assert(y1 <= clipRect.y + clipRect.h);
                     const rect = Rect(x0, y0, x1 - x0, y1 - y0);
@@ -2038,6 +2036,8 @@ private:
                     }
                     assert(x1 > x0);
                     assert(y1 > y0);
+                    assert(x0 >= clipRect.x);
+                    assert(y0 >= clipRect.y);
                     assert(x1 <= clipRect.x + clipRect.w);
                     assert(y1 <= clipRect.y + clipRect.h);
                     const rect = Rect(x0, y0, x1 - x0, y1 - y0);
@@ -2064,6 +2064,8 @@ private:
                         }
                         assert(x1 > x0);
                         assert(y1 > y0);
+                        assert(x0 >= clipRect.x);
+                        assert(y0 >= clipRect.y);
                         assert(x1 <= clipRect.x + clipRect.w);
                         assert(y1 <= clipRect.y + clipRect.h);
                         const rect = Rect(x0, y0, x1 - x0, y1 - y0);
@@ -2083,6 +2085,8 @@ private:
                 }
                 assert(x1 > x0);
                 assert(y1 > y0);
+                assert(x0 >= clipRect.x);
+                assert(y0 >= clipRect.y);
                 assert(x1 <= clipRect.x + clipRect.w);
                 assert(y1 <= clipRect.y + clipRect.h);
                 const rect = Rect(x0, y0, x1 - x0, y1 - y0);
@@ -2090,7 +2094,7 @@ private:
                 auto buff = tile.buffer[0..tile.length];
                 assert(buff.length > 0);
 
-                if(tile.covered && (Full || (rect.w == TSize.w)))
+                if(tile.covered && (Full || (rect.w == FullDrawWidth)))
                 {
                     const index = buff.back;
                     assert(index >= 0);
