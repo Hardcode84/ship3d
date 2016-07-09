@@ -37,7 +37,7 @@ private:
     StaticMesh[] mCubes;
 
     TaskPool mTaskPool;
-    StackAlloc mAllocator;
+    StackAlloc[] mAllocators;
     RefAllocator mRefAlloc;
 
     enum ThreadTileSize = Size(320,240);
@@ -58,6 +58,8 @@ private:
         void[] rasterizerCache;
         uint rasterizerCacheUsed = 0;
         void function(void[]) flushFunc = null;
+
+        StackAlloc[] allocators;
     }
 
     LightController mLightController = null;
@@ -79,7 +81,11 @@ public:
         assert(numThreads > 0);
         mTaskPool = new TaskPool(max(1, numThreads - 1));
         mTaskPool.isDaemon = true;
-        mAllocator = new StackAlloc(0xFFFFFF);
+        mAllocators.length = (mTaskPool.size + 1);
+        foreach(ref alloc; mAllocators[])
+        {
+            alloc = new StackAlloc(0xFFFFFF);
+        }
         mRefAlloc =  new RefAllocator(0xFF);
         mSize = sz;
         mProjMat = mat4_t.perspective(sz.w,sz.h,155,0.1,1000);
@@ -206,13 +212,14 @@ public:
         surf.lock();
         scope(exit) surf.unlock();
 
-        auto allocator = mAllocator;
+        auto allocator = mAllocators[0];
         auto allocState = allocator.state;
         scope(exit) allocator.restoreState(allocState);
         const clipRect = Rect(0, 0, surf.width, surf.height);
         const mat = mProjMat;
         OutContext octx = {mSize, surf, clipRect, mat, SpanMask(mSize, allocator)};
         octx.backColor = ColorBlue;
+        octx.allocators = mAllocators;
         if(mMultithreadedRendering)
         {
             octx.myTaskPool = mTaskPool;

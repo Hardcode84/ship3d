@@ -32,7 +32,7 @@ struct RasterizerTiled2(bool HasTextures, bool WriteMask, bool ReadMask, bool Ha
         assert(indices.length == 3);
         const(VertT)*[3] pverts;
         foreach(i,ind; indices) pverts[i] = verts.ptr + ind;
-        drawTriangle(alloc, outputContext, extContext, pverts);
+        drawTriangle(outputContext, extContext, pverts);
     }
 
 private:
@@ -593,8 +593,8 @@ private:
         }
     }
 
-    static auto prepareTriangle(AllocT,CtxT1,CtxT2,VertT)
-        (auto ref AllocT alloc, auto ref CtxT1 outContext, auto ref CtxT2 extContext, in VertT[] pverts)
+    static auto prepareTriangle(CtxT1,CtxT2,VertT)
+        (auto ref CtxT1 outContext, auto ref CtxT2 extContext, in VertT[] pverts)
     {
         assert(pverts.length == 3);
         alias PosT = Unqual!(typeof(VertT.pos.x));
@@ -1522,9 +1522,8 @@ private:
         ContextT extContext;
     }
 
-    struct FlushParam(Alloc, Context)
+    struct FlushParam(Context)
     {
-        Alloc alloc;
         Context* context;
     }
 
@@ -1536,8 +1535,9 @@ private:
         FlushParam* param = (cast(FlushParam*)data.ptr);
         const(CacheElem)[] cache = (cast(const(CacheElem)*)(data.ptr + FlushParam.sizeof))[0..(data.length - FlushParam.sizeof) / CacheElem.sizeof];
 
-        auto allocState1 = param.alloc.state;
-        scope(exit) param.alloc.restoreState(allocState1);
+        auto alloc = param.context.allocators[0];
+        auto allocState1 = alloc.state;
+        scope(exit) alloc.restoreState(allocState1);
 
         const clipRect = param.context.clipRect;
         auto CalcTileSize(in Size tileSize)
@@ -1549,7 +1549,7 @@ private:
         Size[HighTileLevelCount + 1] tilesSizes = void;
         HighTile[][HighTileLevelCount] highTiles;
         tilesSizes[0] = CalcTileSize(TileSize);
-        highTiles[0] = param.alloc.alloc(tilesSizes[0].w * tilesSizes[0].h, HighTile());
+        highTiles[0] = alloc.alloc(tilesSizes[0].w * tilesSizes[0].h, HighTile());
         foreach(i; TupleRange!(1,HighTileLevelCount + 1))
         {
             tilesSizes[i] = Size(tilesSizes[i - 1].w * 2, tilesSizes[i - 1].h * 2);
@@ -1560,22 +1560,22 @@ private:
         }
 
         alias PackT = Unqual!(typeof(cache[0]));
-        auto tiles = param.alloc.alloc(tilesSizes[HighTileLevelCount].w * tilesSizes[HighTileLevelCount].h,Tile());
-        auto spans = param.alloc.alloc!RelSpanRange(cache.length);
+        auto tiles = alloc.alloc(tilesSizes[HighTileLevelCount].w * tilesSizes[HighTileLevelCount].h,Tile());
+        auto spans = alloc.alloc!RelSpanRange(cache.length);
 
         {
-            auto allocState2 = param.alloc.state;
-            scope(exit) param.alloc.restoreState(allocState2);
+            auto allocState2 = alloc.state;
+            scope(exit) alloc.restoreState(allocState2);
             //static assert(LowTileSize.w == LowTileSize.h);
             enum MaskW = LowTileSize.w;
             enum MaskH = LowTileSize.h;
             alias MaskT = TileMask!(MaskW, MaskH);
-            auto masks = param.alloc.alloc!MaskT(tilesSizes[HighTileLevelCount].w * tilesSizes[HighTileLevelCount].h);
+            auto masks = alloc.alloc!MaskT(tilesSizes[HighTileLevelCount].w * tilesSizes[HighTileLevelCount].h);
 
             foreach(i;iota(0,cache.length).retro)
             {
                 auto prepared = PreparedT(cache[i].pack);
-                createTriangleSpans(param.alloc, param.context, cache[i].extContext, prepared);
+                createTriangleSpans(alloc, param.context, cache[i].extContext, prepared);
 
                 if(!prepared.valid)
                 {
@@ -1886,19 +1886,21 @@ private:
             RelSpanRange spanrange;
         }
         const clipRect = params.context.clipRect;
-        void drawTile(Size TSize, int Level)(int tx, int ty)
+        void drawTile(Size TSize, int Level, bool Full, AllocT)(int tx, int ty, auto ref AllocT alloc)
         {
             static assert(TSize.w > 0 && TSize.h > 0);
             static assert(Level >= 0);
             enum FullDrawWidth = TSize.w;
 
             const x0 = tx * TSize.w;
-            if(x0 >= (clipRect.x + clipRect.w))
+            assert(x0 >= clipRect.x);
+            if(!Full && x0 >= (clipRect.x + clipRect.w))
             {
                 return;
             }
             const y0 = ty * TSize.h;
-            if(y0 >= (clipRect.y + clipRect.h))
+            assert(y0 >= clipRect.y);
+            if(!Full && y0 >= (clipRect.y + clipRect.h))
             {
                 return;
             }
@@ -1916,33 +1918,53 @@ private:
                           gamelib.types.Point(tx * 2 + 1,ty * 2 + 1)];
                     foreach(i;0..4)
                     {
-                        drawTile!(Size(TSize.w >> 1, TSize.h >> 1), Level + 1)(tpoints[i].x,tpoints[i].y);
+                        drawTile!(Size(TSize.w >> 1, TSize.h >> 1), Level + 1, Full)(tpoints[i].x,tpoints[i].y, alloc);
                     }
                 }
                 else if(tile.used)
                 {
-                    const x1 = min(x0 + TSize.w, clipRect.x + clipRect.w);
+                    static if(Full)
+                    {
+                        const x1 = x0 + TSize.w;
+                        const y1 = y0 + TSize.h;
+                    }
+                    else
+                    {
+                        const x1 = min(x0 + TSize.w, clipRect.x + clipRect.w);
+                        const y1 = min(y0 + TSize.h, clipRect.y + clipRect.h);
+                    }
                     assert(x1 > x0);
-                    const y1 = min(y0 + TSize.h, clipRect.y + clipRect.h);
                     assert(y1 > y0);
+                    assert(x1 <= clipRect.x + clipRect.w);
+                    assert(y1 <= clipRect.y + clipRect.h);
                     const rect = Rect(x0, y0, x1 - x0, y1 - y0);
 
                     const index = tile.index;
                     if(rect.w == TSize.w)
                     {
-                        drawPreparedTriangle!(FullDrawWidth, false)(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
+                        drawPreparedTriangle!(FullDrawWidth, false)(alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
                     }
                     else
                     {
-                        drawPreparedTriangle!(0,false)(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
+                        drawPreparedTriangle!(0,false)(alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
                     }
                 }
                 else static if(FillBackground)
                 {
-                    const x1 = min(x0 + TSize.w, clipRect.x + clipRect.w);
+                    static if(Full)
+                    {
+                        const x1 = x0 + TSize.w;
+                        const y1 = y0 + TSize.h;
+                    }
+                    else
+                    {
+                        const x1 = min(x0 + TSize.w, clipRect.x + clipRect.w);
+                        const y1 = min(y0 + TSize.h, clipRect.y + clipRect.h);
+                    }
                     assert(x1 > x0);
-                    const y1 = min(y0 + TSize.h, clipRect.y + clipRect.h);
                     assert(y1 > y0);
+                    assert(x1 <= clipRect.x + clipRect.w);
+                    assert(y1 <= clipRect.y + clipRect.h);
                     const rect = Rect(x0, y0, x1 - x0, y1 - y0);
 
                     fillBackground(rect, params.context);
@@ -1955,30 +1977,50 @@ private:
                 {
                     static if(FillBackground)
                     {
-                        const x1 = min(x0 + TSize.w, clipRect.x + clipRect.w);
+                        static if(Full)
+                        {
+                            const x1 = x0 + TSize.w;
+                            const y1 = y0 + TSize.h;
+                        }
+                        else
+                        {
+                            const x1 = min(x0 + TSize.w, clipRect.x + clipRect.w);
+                            const y1 = min(y0 + TSize.h, clipRect.y + clipRect.h);
+                        }
                         assert(x1 > x0);
-                        const y1 = min(y0 + TSize.h, clipRect.y + clipRect.h);
                         assert(y1 > y0);
+                        assert(x1 <= clipRect.x + clipRect.w);
+                        assert(y1 <= clipRect.y + clipRect.h);
                         const rect = Rect(x0, y0, x1 - x0, y1 - y0);
                         fillBackground(rect, params.context);
                     }
                     return;
                 }
-                const x1 = min(x0 + TSize.w, clipRect.x + clipRect.w);
+                static if(Full)
+                {
+                    const x1 = x0 + TSize.w;
+                    const y1 = y0 + TSize.h;
+                }
+                else
+                {
+                    const x1 = min(x0 + TSize.w, clipRect.x + clipRect.w);
+                    const y1 = min(y0 + TSize.h, clipRect.y + clipRect.h);
+                }
                 assert(x1 > x0);
-                const y1 = min(y0 + TSize.h, clipRect.y + clipRect.h);
                 assert(y1 > y0);
+                assert(x1 <= clipRect.x + clipRect.w);
+                assert(y1 <= clipRect.y + clipRect.h);
                 const rect = Rect(x0, y0, x1 - x0, y1 - y0);
 
                 auto buff = tile.buffer[0..tile.length];
                 assert(buff.length > 0);
 
-                if(tile.covered && (rect.w == TSize.w))
+                if(tile.covered && (Full || (rect.w == TSize.w)))
                 {
                     const index = buff.back;
                     assert(index >= 0);
                     assert(index < cache.length);
-                    drawPreparedTriangle!(FullDrawWidth,false)(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
+                    drawPreparedTriangle!(FullDrawWidth,false)(alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
                     buff.popBack;
                 }
                 else static if(FillBackground)
@@ -1986,7 +2028,7 @@ private:
                     const index = buff.back;
                     assert(index >= 0);
                     assert(index < cache.length);
-                    drawPreparedTriangle!(0,true)(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
+                    drawPreparedTriangle!(0,true)(alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
                     buff.popBack;
                 }
 
@@ -1994,41 +2036,57 @@ private:
                 {
                     assert(index >= 0);
                     assert(index < cache.length);
-                    drawPreparedTriangle!(0,false)(params.alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
+                    drawPreparedTriangle!(0,false)(alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
                 }
             }
             else static assert(false);
         }
 
+        void drawTileDispatch(AllocT)(int x, int y, auto ref AllocT alloc)
+        {
+            if(((x * TileSize.w + TileSize.w) < (clipRect.x + clipRect.w)) &&
+               ((y * TileSize.h + TileSize.h) < (clipRect.y + clipRect.h)))
+            {
+                drawTile!(TileSize,0,true)(x,y,alloc);
+            }
+            else
+            {
+                drawTile!(TileSize,0,false)(x,y,alloc);
+            }
+        }
+
         auto xyrange = cartesianProduct(iota(0, tilesSizes[0].h), iota(0, tilesSizes[0].w));
 
-        if(params.context.myTaskPool !is null)
+        auto pool = params.context.myTaskPool;
+        if(pool !is null)
         {
-            foreach(pos; params.context.myTaskPool.parallel(xyrange, 8))
+            foreach(pos; pool.parallel(xyrange, 8))
             {
+                auto alloc = params.context.allocators[pool.workerIndex];
                 const y = pos[0];
                 const x = pos[1];
-                drawTile!(TileSize,0)(x,y);
+                drawTileDispatch(x,y, alloc);
             }
         }
         else
         {
             foreach(pos; xyrange)
             {
+                auto alloc = params.context.allocators[0];
                 const y = pos[0];
                 const x = pos[1];
-                drawTile!(TileSize,0)(x,y);
+                drawTileDispatch(x,y,alloc);
             }
         }
     }
 
-    static void drawTriangle(AllocT,CtxT1,CtxT2,VertT)
-        (auto ref AllocT alloc, auto ref CtxT1 outContext, auto ref CtxT2 extContext, in VertT[] pverts)
+    static void drawTriangle(CtxT1,CtxT2,VertT)
+        (auto ref CtxT1 outContext, auto ref CtxT2 extContext, in VertT[] pverts)
     {
         assert(pverts.length == 3);
         alias PosT = Unqual!(typeof(VertT.pos.x));
 
-        auto prepared = prepareTriangle(alloc, outContext, extContext, pverts);
+        auto prepared = prepareTriangle(outContext, extContext, pverts);
         alias PreparedT = Unqual!(typeof(prepared));
 
         if(!prepared.valid)
@@ -2041,7 +2099,7 @@ private:
         {
             alias CacheElemT = CacheElem!(Unqual!(typeof(prepared.pack)), Unqual!CtxT2);
             enum CacheElemSize = CacheElemT.sizeof;
-            alias FlushParamT = FlushParam!(Unqual!AllocT,Unqual!CtxT1);
+            alias FlushParamT = FlushParam!(Unqual!CtxT1);
             assert(outContext.rasterizerCache.length > (CacheElemSize + FlushParamT.sizeof));
 
             auto ownFunc = &flushData!(PreparedT,FlushParamT,CacheElemT);
@@ -2053,7 +2111,7 @@ private:
                     outContext.flushFunc(outContext.rasterizerCache[0..outContext.rasterizerCacheUsed]);
                 }
                 outContext.rasterizerCacheUsed = FlushParamT.sizeof;
-                *(cast(FlushParamT*)outContext.rasterizerCache.ptr) = FlushParamT(alloc,&outContext);
+                *(cast(FlushParamT*)outContext.rasterizerCache.ptr) = FlushParamT(&outContext);
                 outContext.flushFunc = ownFunc;
             }
 
@@ -2063,6 +2121,7 @@ private:
         }
         else
         {
+            auto alloc = outContext.allocators[0];
             auto allocState1 = alloc.state;
             scope(exit) alloc.restoreState(allocState1);
             createTriangleSpans(alloc, outContext, extContext, prepared);
