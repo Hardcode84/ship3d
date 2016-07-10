@@ -67,8 +67,6 @@ public:
             const data = mData.ptr;
         }
 
-        enum Dither = false;
-
         const TextT dux = cast(TextT)context.dux;
         const TextT dvx = cast(TextT)context.dvx;
         const TextT dux2 = cast(TextT)(dux * (w * 2));
@@ -78,7 +76,7 @@ public:
         TextT u2 = cast(TextT)((context.u + dux) * w);
         TextT v2 = cast(TextT)((context.v + dvx) * (h * w));
 
-        static if(Dither)
+        static if(context.dither)
         {
             immutable TextT[2][4] dithTable = [
                 [0.25f,0.00f], [0.50f,0.75f],

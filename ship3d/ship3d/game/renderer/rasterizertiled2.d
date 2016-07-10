@@ -164,7 +164,7 @@ private:
             c  = (x2 * y1 - x1 * y2) - dy * (size.h / 2) + dx * (size.w / 2);
         }
 
-        auto val(int x, int y) const
+        auto val(T)(in T x, in T y) const
         {
             return c + dy * y - dx * x;
         }
@@ -238,11 +238,12 @@ private:
             const y1 = verts[0].y;
             const y2 = verts[1].y;
             const y3 = verts[2].y;
-            const dw = 0.0001f;
-            const sizeLim = 10000;
-            const bool big = max(max(abs(x1 / w1), abs(x2 / w2), abs(x3 / w3)) * size.w,
+            const dw = 0.001f;
+            const sizeLim = 100000;
+            const bool big = max(
+                max(abs(x1 / w1), abs(x2 / w2), abs(x3 / w3)) * size.w,
                 max(abs(y1 / w1), abs(y2 / w2), abs(y3 / w3)) * size.h) > sizeLim;
-            return big || almost_equal(w1, 0, dw) || almost_equal(w2, 0, dw) || almost_equal(w3, 0, dw) || (w1 * w2 < 0) || (w1 * w3 < 0);
+            return big || almost_equal(w1, 0, dw) || almost_equal(w2, 0, dw) || almost_equal(w3, 0, dw) || (w1 * w2 < dw) || (w1 * w3 < dw);
         }
     }
 
@@ -328,7 +329,7 @@ private:
         {
             foreach(i;0..NumLines)
             {
-                const val = lines[i].val(x, y + 1);
+                const val = lines[i].val(x, y);
                 cx[i] = val;
                 dx[i] = -lines[i].dx;
                 dy[i] =  lines[i].dy;
@@ -890,8 +891,8 @@ private:
                             }
                             return newPt.currx;
                         }
-                        const x0 = findLeft();
-                        const x1 = findRight();
+                        const x0 = findLeft() - 1;
+                        const x1 = findRight() + 1;
 
                         auto span = &spanrange.spans[pt.curry];
                         span.x0 = numericCast!SpanElemType(max(x0, leftBound));
@@ -1067,18 +1068,18 @@ private:
                 }
 
                 bool revX = void;
-                auto xcorr1 = 1.0f;
-                auto xcorr2 = 1.0f;
+                auto xcorr1 = 0.0f;
+                auto xcorr2 = 0.0f;
                 if(sortedPos[1].y < sortedPos[2].y)
                 {
                     revX = true;
                     swap(sortedPos[1],sortedPos[2]);
-                    xcorr1 = 2.0f;
+                    xcorr1 = 2.5f;
                 }
                 else
                 {
                     revX = false;
-                    xcorr2 = 2.0f;
+                    xcorr2 = 2.5f;
                 }
 
                 Edge[3] edges = [
@@ -1331,6 +1332,7 @@ private:
                         TexT v;
                         const TexT dux;
                         const TexT dvx;
+                        enum dither = false;
                     }
                     Context ctx = {x: x1, y: y, u: span.u, v: span.v, dux: span.dux, dvx: span.dvx};
                     static if(HasLight)
@@ -1367,9 +1369,9 @@ private:
             else
             {
                 const sy = max(clipRect.y, prepared.spanrange.y0);
-                const sx = clipRect.x;
+                //const sx = clipRect.x;
                 //const sx = max(clipRect.x, prepared.spanrange.x0);
-                //const sx = max(clipRect.x, prepared.spanrange.spans(sy).x0);
+                const sx = max(clipRect.x, prepared.spanrange.spans(sy).x0);
                 //const sx = prepared.spanrange.spans(sy).x0;
                 const ey = min(clipRect.y + clipRect.h, prepared.spanrange.y1);
             }
