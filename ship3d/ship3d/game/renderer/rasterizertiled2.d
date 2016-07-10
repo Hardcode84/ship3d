@@ -375,6 +375,13 @@ private:
         }
     }
 
+    static auto pointPlanesVals(LineT)(int x, int y, in ref LineT lines)
+    {
+        return (cast(uint)(lines[0].val(x, y) > 0) << 0) |
+               (cast(uint)(lines[1].val(x, y) > 0) << 1) |
+               (cast(uint)(lines[2].val(x, y) > 0) << 2);
+    }
+
     align(16) struct Span(PosT)
     {
     pure nothrow @nogc:
@@ -1821,15 +1828,15 @@ private:
                         const x = tx * TSize.w;
                         const y = ty * TSize.h;
 
-                        const pt1 = cast(uint)prevVals[0];//*/PointT(cast(int)x              , cast(int)y              , lines).vals();
-                        const pt2 = PointT(cast(int)x + TSize.w    , cast(int)y              , lines).vals();
-                        const pt3 = cast(uint)prevVals[2];//*/PointT(cast(int)x + TSize.w * 2, cast(int)y              , lines).vals();
-                        const pt4 = PointT(cast(int)x              , cast(int)y + TSize.h    , lines).vals();
-                        const pt5 = PointT(cast(int)x + TSize.w    , cast(int)y + TSize.h    , lines).vals();
-                        const pt6 = PointT(cast(int)x + TSize.w * 2, cast(int)y + TSize.h    , lines).vals();
-                        const pt7 = cast(uint)prevVals[1];//*/PointT(cast(int)x              , cast(int)y + TSize.h * 2, lines).vals();
-                        const pt8 = PointT(cast(int)x + TSize.w    , cast(int)y + TSize.h * 2, lines).vals();
-                        const pt9 = cast(uint)prevVals[3];//*/PointT(cast(int)x + TSize.w * 2, cast(int)y + TSize.h * 2, lines).vals();
+                        const pt1 = cast(uint)prevVals[0];//*/pointPlanesVals(cast(int)x              , cast(int)y              , lines)
+                        const pt2 = pointPlanesVals(cast(int)x + TSize.w    , cast(int)y              , lines);
+                        const pt3 = cast(uint)prevVals[2];//*/pointPlanesVals(cast(int)x + TSize.w * 2, cast(int)y              , lines);
+                        const pt4 = pointPlanesVals(cast(int)x              , cast(int)y + TSize.h    , lines);
+                        const pt5 = pointPlanesVals(cast(int)x + TSize.w    , cast(int)y + TSize.h    , lines);
+                        const pt6 = pointPlanesVals(cast(int)x + TSize.w * 2, cast(int)y + TSize.h    , lines);
+                        const pt7 = cast(uint)prevVals[1];//*/pointPlanesVals(cast(int)x              , cast(int)y + TSize.h * 2, lines);
+                        const pt8 = pointPlanesVals(cast(int)x + TSize.w    , cast(int)y + TSize.h * 2, lines);
+                        const pt9 = cast(uint)prevVals[3];//*/pointPlanesVals(cast(int)x + TSize.w * 2, cast(int)y + TSize.h * 2, lines);
                         const uint[4] vals = [
                             (pt1 << 0) | (pt4 << 8) | (pt2 << 16) | (pt5 << 24),
                             (pt2 << 0) | (pt5 << 8) | (pt3 << 16) | (pt6 << 24),
