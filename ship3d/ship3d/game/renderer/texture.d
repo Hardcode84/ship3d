@@ -68,24 +68,22 @@ public:
         }
 
         enum Dither = false;
-        static if(Dither)
-        {
-        immutable TextT[2][4] dithTable = [
-            [0.25f,0.00f], [0.50f,0.75f],
-            [0.75f,0.50f], [0.00f,0.25f]];
-        }
 
         const TextT dux = cast(TextT)context.dux;
         const TextT dvx = cast(TextT)context.dvx;
         const TextT dux2 = cast(TextT)(dux * (w * 2));
         const TextT dvx2 = cast(TextT)(dvx * (h * w * 2));
-        TextT u1 = cast(TextT)(context.u * w);
-        TextT v1 = cast(TextT)(context.v * (h * w));
+        TextT u1 = cast(TextT)((context.u) * w);
+        TextT v1 = cast(TextT)((context.v) * (h * w));
         TextT u2 = cast(TextT)((context.u + dux) * w);
         TextT v2 = cast(TextT)((context.v + dvx) * (h * w));
 
         static if(Dither)
         {
+            immutable TextT[2][4] dithTable = [
+                [0.25f,0.00f], [0.50f,0.75f],
+                [0.75f,0.50f], [0.00f,0.25f]];
+
             const xoff = (startx & 1);
             const yoff = (context.y & 1) << 1;
             const dith1 = dithTable[xoff ^ 0 + yoff];

@@ -172,18 +172,18 @@ private:
 
     struct Plane(PosT)
     {
-        pure nothrow @nogc:
+    pure nothrow @nogc:
         Unqual!PosT dx;
         Unqual!PosT dy;
         Unqual!PosT c;
         this(V,S)(in V vec, in S size)
         {
-            dx = vec.x / size.w;
-            dy = vec.y / size.h;
-            c = vec.z - dx * (size.w / 2) - dy * (size.h / 2);
+            dx = vec.x / (size.w);
+            dy = vec.y / (size.h);
+            c = vec.z - dx * ((size.w) / cast(PosT)2) - dy * ((size.h) / cast(PosT)2);
         }
 
-        auto get(int x, int y) const
+        auto get(T)(in T x, in T y) const
         {
             return c + dx * x + dy * y;
         }
@@ -417,7 +417,7 @@ private:
         void incX(int dx)
         {
             const PosT fdx = dx;
-            wCurr += dwx * fdx;
+            wCurr  += dwx * fdx;
             suCurr += dsux * fdx;
             svCurr += dsvx * fdx;
 
@@ -1783,11 +1783,6 @@ private:
                         assert(4 == prevVals.length);
                         const x = tx * TSize.w;
                         const y = ty * TSize.h;
-                        enum gamelib.types.Point[4] tpoints = [
-                             gamelib.types.Point(0, 0),
-                             gamelib.types.Point(1, 0),
-                             gamelib.types.Point(0, 1),
-                             gamelib.types.Point(1, 1)];
 
                         const pt1 = cast(uint)prevVals[0];//*/PointT(cast(int)x              , cast(int)y              , lines).vals();
                         const pt2 = PointT(cast(int)x + TSize.w    , cast(int)y              , lines).vals();
@@ -1808,7 +1803,7 @@ private:
                         {
                             foreach(i;0..4)
                             {
-                                const currPt = gamelib.types.Point(tx + tpoints[i].x, ty + tpoints[i].y);
+                                const currPt = gamelib.types.Point(tx + (i & 1), ty + ((i >> 1) & 1));
                                 assert(currPt.x >= 0);
                                 assert(currPt.x < tilesSizes[Level].w);
                                 assert(currPt.y >= 0);
@@ -1835,7 +1830,7 @@ private:
                         {
                             foreach(i;0..4)
                             {
-                                const currPt = gamelib.types.Point(tx + tpoints[i].x, ty + tpoints[i].y);
+                                const currPt = gamelib.types.Point(tx + (i & 1), ty + ((i >> 1) & 1));
                                 assert(currPt.x >= 0);
                                 assert(currPt.x < tilesSizes[Level].w);
                                 assert(currPt.y >= 0);
@@ -2027,14 +2022,9 @@ private:
 
                 if(tile.hasChildren)
                 {
-                    const gamelib.types.Point[4] tpoints = [
-                          gamelib.types.Point(tx * 2    ,ty * 2),
-                          gamelib.types.Point(tx * 2 + 1,ty * 2),
-                          gamelib.types.Point(tx * 2    ,ty * 2 + 1),
-                          gamelib.types.Point(tx * 2 + 1,ty * 2 + 1)];
                     foreach(i;0..4)
                     {
-                        drawTile!(Size(TSize.w >> 1, TSize.h >> 1), Level + 1, Full)(tpoints[i].x,tpoints[i].y, alloc);
+                        drawTile!(Size(TSize.w >> 1, TSize.h >> 1), Level + 1, Full)(tx * 2 + (i & 1), ty * 2 + ((i >> 1) & 1), alloc);
                     }
                 }
                 else if(tile.used)
