@@ -364,9 +364,17 @@ private:
 
         uint vals() const
         {
-            return (cast(uint)(cx[0] > 0) << 0) |
-                   (cast(uint)(cx[1] > 0) << 1) |
-                   (cast(uint)(cx[2] > 0) << 2);
+            const val = (floatInvSign(cx[0]) >> 31) |
+                        (floatInvSign(cx[1]) >> 30) |
+                        (floatInvSign(cx[2]) >> 29);
+            debug
+            {
+                const val2 = (cast(uint)(cx[0] > 0) << 0) |
+                             (cast(uint)(cx[1] > 0) << 1) |
+                             (cast(uint)(cx[2] > 0) << 2);
+                assert(val == val2);
+            }
+            return val;
         }
 
         auto val(int i) const
@@ -377,9 +385,18 @@ private:
 
     static auto pointPlanesVals(LineT)(int x, int y, in ref LineT lines)
     {
-        return (cast(uint)(lines[0].val(x, y) > 0) << 0) |
-               (cast(uint)(lines[1].val(x, y) > 0) << 1) |
-               (cast(uint)(lines[2].val(x, y) > 0) << 2);
+        const val = (floatInvSign(lines[0].val(x, y)) >> 31) |
+                    (floatInvSign(lines[1].val(x, y)) >> 30) |
+                    (floatInvSign(lines[2].val(x, y)) >> 29);
+        debug
+        {
+            const val2 = (
+                (cast(uint)(lines[0].val(x, y) > 0) << 0) |
+                (cast(uint)(lines[1].val(x, y) > 0) << 1) |
+                (cast(uint)(lines[2].val(x, y) > 0) << 2));
+            assert(val == val2);
+        }
+        return val;
     }
 
     align(16) struct Span(PosT)

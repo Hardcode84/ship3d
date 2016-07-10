@@ -72,6 +72,27 @@ auto numericCast(DstT,SrcT)(in SrcT src)
     return cast(DstT)src;
 }
 
+auto reinterpret(DstT,SrcT)(in SrcT src) pure nothrow @nogc
+{
+    union U
+    {
+        DstT dst = void;
+        SrcT src = void;
+    }
+    U u = {src: src};
+    return u.dst;
+}
+
+auto floatSign(in float src) pure nothrow @nogc
+{
+    const val = reinterpret!uint(src);
+    return (val & (1 << 31));
+}
+
+auto floatInvSign(in float src) pure nothrow @nogc
+{
+    return floatSign(src) ^ (1 << 31);
+}
 
 version(LDC)
 {
