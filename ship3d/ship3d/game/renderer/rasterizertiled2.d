@@ -913,10 +913,12 @@ private:
                         const x1 = findRight() + 1;
 
                         auto span = &spanrange.spans[pt.curry];
-                        span.x0 = numericCast!SpanElemType(max(x0, leftBound));
-                        span.x1 = numericCast!SpanElemType(min(x1, rightBound));
-                        trueMinX = min(trueMinX, span.x0);
-                        trueMaxX = max(trueMaxX, span.x1);
+                        const sx0 = max(x0, leftBound);
+                        const sx1 = min(x1, rightBound);
+                        span.x0 = numericCast!SpanElemType(sx0);
+                        span.x1 = numericCast!SpanElemType(sx1);
+                        trueMinX = min(trueMinX, sx0);
+                        trueMaxX = max(trueMaxX, sx1);
                         return vec2i(x0, x1);
                     }
                     assert(false);
@@ -1197,8 +1199,8 @@ private:
                                     assert(xc1 >= SpanElemType.min && xc1 <= SpanElemType.max);
                                     span.x0 = numericCast!SpanElemType(xc0);
                                     span.x1 = numericCast!SpanElemType(xc1);
-                                    trueMinX = min(trueMinX, span.x0);
-                                    trueMaxX = max(trueMaxX, span.x1);
+                                    trueMinX = min(trueMinX, xc0);
+                                    trueMaxX = max(trueMaxX, xc1);
                                 }
 
                                 ++currY;
@@ -1858,13 +1860,14 @@ private:
                                     continue;
                                 }
 
-                                if(!tile.hasChildren && all(vals[i]))
+                                const val = vals[i];
+                                if(!tile.hasChildren && all(val))
                                 {
                                     tile.set(index);
                                 }
-                                else if(!none(vals[i]))
+                                else if(!none(val))
                                 {
-                                    const U temp = {oldval: vals[i] };
+                                    const U temp = {oldval: val };
                                     checkTile!(Size(TSize.w >> 1, TSize.h >> 1), Level + 1,Full)(currPt.x * 2, currPt.y * 2, temp.vals);
                                     tile.setChildren();
                                 }
