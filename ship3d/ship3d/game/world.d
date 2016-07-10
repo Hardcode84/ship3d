@@ -63,6 +63,7 @@ private:
     }
 
     LightController mLightController = null;
+    immutable uint mTaskPoolThreads = 0;
     bool mMultithreadedRendering = false;
 
     alias InputListenerT = void delegate(in ref InputEvent);
@@ -79,9 +80,8 @@ public:
     this(in Size sz, uint seed, uint numThreads)
     {
         assert(numThreads > 0);
-        mTaskPool = new TaskPool(max(1, numThreads - 1));
-        mTaskPool.isDaemon = true;
-        mAllocators.length = (mTaskPool.size + 1);
+        mTaskPoolThreads = max(1, numThreads - 1);
+        mAllocators.length = (mTaskPoolThreads + 1);
         foreach(ref alloc; mAllocators[])
         {
             alloc = new StackAlloc(0xFFFFFF);
@@ -231,6 +231,11 @@ public:
         octx.allocators = mAllocators;
         if(mMultithreadedRendering)
         {
+            if(mTaskPool is null)
+            {
+                mTaskPool = new TaskPool(mTaskPoolThreads);
+                mTaskPool.isDaemon = true;
+            }
             octx.myTaskPool = mTaskPool;
         }
         octx.rasterizerCache = allocator.alloc!void(1024 * 500);
