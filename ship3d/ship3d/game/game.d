@@ -37,6 +37,7 @@ private:
     uint mFPSCounter = 0;
     uint mLastFPSTicks = 0;
     uint mUpdateCounter = 0;
+    uint mFramesCounter = 0;
 
     float mFPS = 0.0f;
 
@@ -100,7 +101,7 @@ public:
             {
                 draw();
                 ++mFPSCounter;
-                if((newTicks - mLastFPSTicks) > 2000)
+                if((newTicks - mLastFPSTicks) > 3000)
                 {
                     mFPS = 1000.0f * cast(float)mFPSCounter / cast(float)(newTicks - mLastFPSTicks);
                     mLastFPSTicks = newTicks;
@@ -108,13 +109,14 @@ public:
 
                     auto totalSeconds = mUpdateCounter * UpdateInterval / 1000.0f;
                     import std.string: format;
-                    auto str = format("%s %s %s", mFPS, totalSeconds, mUpdateCounter);
+                    auto str = format("%s %s %s %s", mFPS, totalSeconds, mUpdateCounter, mFramesCounter);
                     mWindow.title = str;
                     import std.stdio;
                     debug {}
                     else writeln(str);
                 }
                 present();
+                ++mFramesCounter;
             }
         }
     }
