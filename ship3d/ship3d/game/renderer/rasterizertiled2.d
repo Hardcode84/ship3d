@@ -375,7 +375,7 @@ private:
         }
     }
 
-    align(16) struct Span(PosT, bool UseX)
+    align(16) struct Span(PosT)
     {
     pure nothrow @nogc:
         immutable PosT dwx;
@@ -1289,7 +1289,7 @@ private:
         static assert(!(Full && FillBack));
         static assert(!Full || (TWidth >= AffineLength && 0 == (TWidth % AffineLength)));
         //alias FP = FixedPoint!(16,16,int);
-        alias SpanT   = Span!(prepared.pack.pos_t,!Full);
+        alias SpanT   = Span!(prepared.pack.pos_t);
         //alias SpanT   = Span!FP;
         alias PackT = prepared.pack.pack_t;
         const size = outContext.size;
@@ -1386,6 +1386,9 @@ private:
                 const sx = max(clipRect.x, prepared.spanrange.spans(sy).x0);
                 //const sx = prepared.spanrange.spans(sy).x0;
                 const ey = min(clipRect.y + clipRect.h, prepared.spanrange.y1);
+                const minX = clipRect.x;
+                const maxX = clipRect.x + clipRect.w;
+                const spans = prepared.spanrange.spns.ptr - prepared.spanrange.y0; //optimization
             }
             auto span = SpanT(pack, sx, sy);
 
@@ -1412,9 +1415,11 @@ private:
                 {
                     static if(!Full)
                     {
-                        const yspan = prepared.spanrange.spans(y);
-                        const x0 = max(clipRect.x, yspan.x0);
-                        const x1 = min(clipRect.x + clipRect.w, yspan.x1);
+                        //const yspan = prepared.spanrange.spans(y);
+                        const yspan = spans[y];
+                        const x0 = max(minX, yspan.x0);
+                        const x1 = min(maxX, yspan.x1);
+
                         const dx = x0 - sx;
 
                         if(0 == dx)
@@ -1425,13 +1430,15 @@ private:
                         {
                             span.incX(dx);
                         }
+                        const validLine = (x1 > x0);
                     }
                     else
                     {
                         span.initX();
+                        enum validLine = true;
                     }
 
-                    if(x1 > x0)
+                    if(validLine)
                     {
                         static if(FillBack)
                         {
