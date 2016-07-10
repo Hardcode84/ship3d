@@ -254,25 +254,6 @@ private:
 
     void generateCubes(uint seed)
     {
-        /*enum GradNum = 1 << LightBrightnessBits;
-        const ColorT[] colors1 = [
-            ColorWhite,
-            ColorRed,
-            ColorGreen,
-            ColorBlue,
-            ColorYellow,
-            ColorCyan,
-            ColorMagenta];
-        ColorT[256] data1= ColorBlack;
-        foreach(i,c; colors1[])
-        {
-            const startInd = i * GradNum;
-            const endInd = startInd + GradNum;
-            auto line = data1[startInd..endInd];
-            ColorT.interpolateLine!GradNum(line, ColorWhite, c);
-        }
-        auto lpalette = new light_palette_t(data1[0..(1 << LightPaletteBits)]);*/
-
         const ColorT[] colors2 = [
             ColorSilver,
             ColorGray,
@@ -283,12 +264,7 @@ private:
             ColorGreen,
             ColorMagenta,
             ColorWhite];
-        /*ColorT[256] data2 = ColorBlack;
-        foreach(i,c; colors2[])
-        {
-            data2[i] = c;
-        }
-        auto palette = new palette_t(data2[0..(1 << LightPaletteBits)]);*/
+
         import game.renderer.texture;
         texture_t[] textures;
         textures.length = 10;
@@ -296,7 +272,6 @@ private:
         foreach(i,ref tex; textures)
         {
             tex = new texture_t(16,16);
-            //tex.palette = palette;
             //tex.fillChess(cast(ubyte)((1 << PaletteBits) - 1), cast(ubyte)(i), 1, 1);
             //tex.fillChess(ColorBlack, colors2[i], 1, 1);
             import game.texture;
@@ -381,7 +356,6 @@ private:
                     auto ent = new StaticMesh(this, mesh);
 
                     enum offset = Dim / 2 - 0.5f;
-                    //addEntity(ent, mRooms[0], vec3_t((x - offset) * Scale, (y - offset) * Scale, (z - offset) * Scale), quat_t.identity);
 
                     //if(z == 9)
                     {
@@ -394,25 +368,65 @@ private:
 
     void sortEntities()
     {
-        auto playerCon  = mPlayer.mainConnection;
-        auto playerPos  = playerCon.pos + playerCon.correction;
+        const playerCon  = mPlayer.mainConnection;
+        const playerPos  = playerCon.pos + playerCon.correction;
+        const playerDir  = playerCon.dir * vec3_t(0,0,1);
+        const v = mRooms[0].staticEntities[0].pos;
+        /*debugOut(dot((v - playerPos).normalized, playerDir));
+        debugOut(cast(int)((
+                    (v.x - playerPos.x) * (v.x - playerPos.x) + 
+                    (v.y - playerPos.y) * (v.y - playerPos.y) +
+                    (v.z - playerPos.z) * (v.z - playerPos.z)) * 10.0f));*/
+        foreach(ent; mRooms[0].staticEntities[])
+        {
+            const vec = ent.pos;
+            const d = dot((vec - playerPos).normalized, playerDir);
+            auto val = cast(int)((
+                    (vec.x - playerPos.x) * (vec.x - playerPos.x) + 
+                    (vec.y - playerPos.y) * (vec.y - playerPos.y) +
+                    (vec.z - playerPos.z) * (vec.z - playerPos.z)) * 10.0f);
+            ent.ent.visible = true;
+            if(d < -0.5f && val > 500)
+            {
+                ent.ent.visible = false;
+            }
+            if(d < 0.00f && val > 7500)
+            {
+                ent.ent.visible = false;
+            }
+        }
 
         auto distSquared(in vec3_t vec)
         {
-            return cast(int)((
+            auto val = cast(int)((
                 (vec.x - playerPos.x) * (vec.x - playerPos.x) + 
                 (vec.y - playerPos.y) * (vec.y - playerPos.y) +
                 (vec.z - playerPos.z) * (vec.z - playerPos.z)) * 10.0f);
+
+            const d = dot((vec - playerPos).normalized, playerDir);
+            if(d < -0.5f && val > 500)
+            {
+                val += 1000000;
+            }
+            if(d < 0.00f && val > 7500)
+            {
+                val += 1000000;
+            }
+            if(d < 0.10f && val > 15000)
+            {
+                val += 1000000;
+            }
+            if(d < 0.20f && val > 25000)
+            {
+                val += 1000000;
+            }
+            return val;
         }
-        
+
         bool myComp(in StaticEntityRef a, in StaticEntityRef b)
         {
             const res     = distSquared(a.pos) > distSquared(b.pos);
             const antires = distSquared(b.pos) > distSquared(a.pos);
-            //debugOut("==");
-            //debugfOut("%s %s",a.pos,distSquared(a.pos));
-            //debugfOut("%s %s",b.pos,distSquared(b.pos));
-            //assert(res == !antires);
             return antires;
         }
 

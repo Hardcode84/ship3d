@@ -21,6 +21,10 @@ public:
 
     override void draw(ref RendererT renderer, DrawParams params) const
     {
+        if(!visible)
+        {
+            return;
+        }
         import std.algorithm;
         import game.renderer.light;
 

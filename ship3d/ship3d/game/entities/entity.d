@@ -23,6 +23,7 @@ private:
     vec3_t       mPosDelta = vec3_t(0,0,0);
     quat_t       mRefDir = quat_t.identity;
     IntrusiveList!(EntityRef,"entityLink") mConnections;
+    bool         mVisisble = true;
 public:
     import game.world;
     alias RendererT = World.RendererT;
@@ -39,12 +40,17 @@ public:
 
     void dispose() {}
 
-    final @property world()   inout { return mWorld; }
-    final @property radius()  const { return mRadius; }
-    final @property pos()     const { return mRefPos; }
-    final @property posDelta()const { return mPosDelta; }
-    final @property dir()     const { return mRefDir; }
-    final @property isAlive() const { return mIsAlive; }
+    final @property
+    {
+        auto world()   inout { return mWorld; }
+        auto radius()  const { return mRadius; }
+        auto pos()     const { return mRefPos; }
+        auto posDelta()const { return mPosDelta; }
+        auto dir()     const { return mRefDir; }
+        auto isAlive() const { return mIsAlive; }
+        auto visible() const { return mVisisble; }
+        auto visible(bool val ) { mVisisble = val; }
+    }
 
     final @property connections()
     {

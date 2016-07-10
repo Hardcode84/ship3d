@@ -118,7 +118,7 @@ public:
             entity.draw(renderer, Entity.DrawParams(this, alloc));
         }
 
-        foreach(const ref e; mStaticEntities[0..min($,900)].retro)
+        foreach(const ref e; mStaticEntities[0..min($,750)].retro)
         {
             auto entity = e.ent;
             renderer.state.matrix = mat * mat4_t.translation(e.pos.x,e.pos.y,e.pos.z) * e.dir.to_matrix!(4,4)();
