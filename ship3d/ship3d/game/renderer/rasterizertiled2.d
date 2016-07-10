@@ -1931,19 +1931,24 @@ private:
                                 {
                                     const sy0 = max(spanrange.y0, y0);
                                     const sy1 = min(spanrange.y1, y1);
+                                    assert(sy1 > sy0);
 
                                     auto mask = &masks[currPt.x + currPt.y * tilesSizes[Level].w];
                                     assert(mask.data.length == TSize.h);
                                     if(tile.empty)
                                     {
+                                        const spans = spanrange.spns.ptr + (y0 - spanrange.y0);
                                         foreach(myr;0..TSize.h)
                                         {
                                             mask.type_t newMaskVal = 0;
                                             const my = y0 + myr;
                                             if(my >= sy0 && my < sy1)
                                             {
-                                                const sx0 = max(spanrange.spans(my).x0, x0);
-                                                const sx1 = min(spanrange.spans(my).x1, x1);
+                                                //const sx0 = max(spanrange.spans(my).x0, x0);
+                                                //const sx1 = min(spanrange.spans(my).x1, x1);
+                                                const span = spans[myr];
+                                                const sx0 = max(span.x0, x0);
+                                                const sx1 = min(span.x1, x1);
                                                 if(sx1 > sx0)
                                                 {
                                                     enum FullMask = mask.FullMask;
@@ -1962,12 +1967,15 @@ private:
                                     else
                                     {
                                         assert(!mask.full);
-
-                                        bool visible = false;
+                                        mask.type_t visible = 0;
+                                        const spans = spanrange.spns.ptr - spanrange.y0;
                                         foreach(my; sy0..sy1)
                                         {
-                                            const sx0 = max(spanrange.spans(my).x0, x0);
-                                            const sx1 = min(spanrange.spans(my).x1, x1);
+                                            //const sx0 = max(spanrange.spans(my).x0, x0);
+                                            //const sx1 = min(spanrange.spans(my).x1, x1);
+                                            const span = spans[my];
+                                            const sx0 = max(span.x0, x0);
+                                            const sx1 = min(span.x1, x1);
                                             if(sx1 > sx0)
                                             {
                                                 const myr = my - y0;
@@ -1976,15 +1984,12 @@ private:
                                                 const sh1 = (x0 + TSize.w - sx1);
                                                 const val = (FullMask >> sh0) & (FullMask << sh1);
                                                 assert(0 != val);
-                                                if(0 != (val & ~mask.data[myr]))
-                                                {
-                                                    mask.data[myr] |= val;
-                                                    visible = true;
-                                                }
+                                                visible |= (val & ~mask.data[myr]);
+                                                mask.data[myr] |= val;
                                             }
                                         }
 
-                                        if(visible)
+                                        if(0 != visible)
                                         {
                                             tile.addTriangle(index, mask.full);
                                         }
