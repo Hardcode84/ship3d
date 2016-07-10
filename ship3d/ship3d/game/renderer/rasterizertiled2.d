@@ -42,10 +42,11 @@ private:
     enum AffineLength = 32;
     enum TileSize = Size(64,64);
     enum HighTileLevelCount = 1;
-    enum TileBufferSize = 128;
+    enum TileBufferSize = 64;
     enum LowTileSize = Size(TileSize.w >> HighTileLevelCount, TileSize.h >> HighTileLevelCount);
     struct Tile
     {
+        static assert(TileBufferSize > 1);
         alias type_t = ushort;
         type_t used = 0;
         type_t[TileBufferSize - 1] buffer = void;
@@ -1514,7 +1515,6 @@ private:
 
         const maxD = span.calcMaxD(3.0f);
         const D = 1.0f / min(extContext.texture.width,extContext.texture.height);
-        //debugOut(D, " ",maxD);
         if(maxD < D)
         {
             outerLoop!true();
