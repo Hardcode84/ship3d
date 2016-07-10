@@ -329,7 +329,7 @@ private:
         {
             foreach(i;0..NumLines)
             {
-                const val = lines[i].val(x, y);
+                const val = lines[i].val(x, y + 1);
                 cx[i] = val;
                 dx[i] = -lines[i].dx;
                 dy[i] =  lines[i].dy;
@@ -446,6 +446,16 @@ private:
             wCurr   = wStart;
             suCurr  = suStart;
             svCurr  = svStart;
+        }
+
+        auto calcMaxD(T)(in T dx) const
+        {
+            const du0 = suCurr / wCurr;
+            const dv0 = svCurr / wCurr;
+            const newW = (wCurr + dwx * dx);
+            const du1 = (suCurr + dsux * dx) / newW;
+            const dv1 = (svCurr + dsux * dx) / newW;
+            return max(abs(du1 - du0),abs(dv1 - dv0));
         }
     }
 
@@ -1018,7 +1028,7 @@ private:
                 int minElem;
                 foreach(int i,const ref v; prepared.pack.verts[])
                 {
-                    assert(v.z < -0.01f);
+                    //assert(v.z < -0.01f);
                     const pos = (v.xy / v.z);
                     sortedPos[i] = Vec2(
                         cast(PosT)((pos.x * size.w) + size.w / 2),
@@ -1295,7 +1305,7 @@ private:
                 auto lightProx = LightProxT(alloc,pack,prepared.spanrange,extContext);
             }
 
-            void drawSpan(bool FixedLen,L)(
+            void drawSpan(bool FixedLen, bool UseDither, L)(
                 int y,
                 int x1, int x2,
                 in ref SpanT span,
@@ -1332,7 +1342,7 @@ private:
                         TexT v;
                         const TexT dux;
                         const TexT dvx;
-                        enum dither = false;
+                        enum dither = UseDither;
                     }
                     Context ctx = {x: x1, y: y, u: span.u, v: span.v, dux: span.dux, dvx: span.dvx};
                     static if(HasLight)
@@ -1355,6 +1365,7 @@ private:
                     {
                         extContext.texture.getLine!0(ctx,line[x1..x2]);
                     }
+                    //line[x1..x2] = (UseDither ? ColorRed : ColorGreen);
                 }
             }
 
@@ -1394,108 +1405,125 @@ private:
                 auto line = outContext.surface[sy];
             }
 
-            foreach(y;sy..ey)
+            void outerLoop(bool UseDither)()
             {
-                static if(!Full)
+                foreach(y;sy..ey)
                 {
-                    const yspan = prepared.spanrange.spans(y);
-                    const x0 = max(clipRect.x, yspan.x0);
-                    const x1 = min(clipRect.x + clipRect.w, yspan.x1);
-                    const dx = x0 - sx;
+                    static if(!Full)
+                    {
+                        const yspan = prepared.spanrange.spans(y);
+                        const x0 = max(clipRect.x, yspan.x0);
+                        const x1 = min(clipRect.x + clipRect.w, yspan.x1);
+                        const dx = x0 - sx;
 
-                    if(0 == dx)
+                        if(0 == dx)
+                        {
+                            span.initX();
+                        }
+                        else
+                        {
+                            span.incX(dx);
+                        }
+                    }
+                    else
                     {
                         span.initX();
                     }
-                    else
-                    {
-                        span.incX(dx);
-                    }
-                }
-                else
-                {
-                    span.initX();
-                }
 
-                if(x1 > x0)
-                {
-                    static if(FillBack)
+                    if(x1 > x0)
                     {
-                        line[beginLine..x0] = backColor;
-                    }
-
-                    static if(HasLight)
-                    {
-                        lightProx.setXY(x0, y);
-                    }
-                    int x = x0;
-
-                    static if(!Full)
-                    {
-                        const nx = (x + ((AffineLength - 1)) & ~(AffineLength - 1));
-                        assert(x >= clipRect.x);
-                        if(nx > x && nx < x1)
+                        static if(FillBack)
                         {
-                            assert(nx <= (clipRect.x + clipRect.w));
-                            static if(HasLight) lightProx.incX();
-                            span.incX(nx - x - 1);
-                            drawSpan!false(y, x, nx, span, line);
-                            x = nx;
+                            line[beginLine..x0] = backColor;
                         }
-                        const affParts = ((x1-x) / AffineLength);
-                    }
-                    else
-                    {
-                        //Full
-                        enum affParts = TWidth / AffineLength;
-                    }
 
-                    foreach(i;0..affParts)
-                    {
-                        assert(x >= clipRect.x);
-                        assert((x + AffineLength) <= (clipRect.x + clipRect.w));
-                        span.incX(AffineLength);
-                        static if(HasLight) lightProx.incX();
-                        drawSpan!true(y, x, x + AffineLength, span, line);
-                        x += AffineLength;
-                    }
-
-                    static if(!Full)
-                    {
-                        assert(x <= (clipRect.x + clipRect.w));
-                        const rem = (x1 - x);
-                        assert(rem >= 0);
-                        if(rem > 0)
+                        static if(HasLight)
                         {
-                            span.incX(rem);
+                            lightProx.setXY(x0, y);
+                        }
+                        int x = x0;
+
+                        static if(!Full)
+                        {
+                            /*const nx = (x + ((AffineLength - 1)) & ~(AffineLength - 1));
+                            assert(x >= clipRect.x);
+                            if(nx > x && nx < x1)
+                            {
+                                assert(nx <= (clipRect.x + clipRect.w));
+                                static if(HasLight) lightProx.incX();
+                                span.incX(nx - x - 1);
+                                drawSpan!(false,UseDither)(y, x, nx, span, line);
+                                x = nx;
+                            }
+                            const affParts = ((x1-x) / AffineLength);*/
+                            const affParts = ((x1-x0) / AffineLength);
+                        }
+                        else
+                        {
+                            //Full
+                            enum affParts = TWidth / AffineLength;
+                        }
+
+                        foreach(i;0..affParts)
+                        {
+                            assert(x >= clipRect.x);
+                            assert((x + AffineLength) <= (clipRect.x + clipRect.w));
+                            span.incX(AffineLength);
                             static if(HasLight) lightProx.incX();
-                            drawSpan!false(y, x, x1, span, line);
+                            drawSpan!(true,UseDither)(y, x, x + AffineLength, span, line);
+                            x += AffineLength;
+                        }
+
+                        static if(!Full)
+                        {
+                            assert(x <= (clipRect.x + clipRect.w));
+                            const rem = (x1 - x);
+                            assert(rem >= 0);
+                            if(rem > 0)
+                            {
+                                span.incX(rem);
+                                static if(HasLight) lightProx.incX();
+                                drawSpan!(false,UseDither)(y, x, x1, span, line);
+                            }
+                        }
+
+                        static if(FillBack)
+                        {
+                            line[x1..endLine] = backColor;
                         }
                     }
-
-                    static if(FillBack)
+                    else static if(FillBack)
                     {
-                        line[x1..endLine] = backColor;
+                        line[beginLine..endLine] = backColor;
                     }
-                }
-                else static if(FillBack)
-                {
-                    line[beginLine..endLine] = backColor;
-                }
 
-                span.incY();
-                ++line;
-            }
-
-            static if(FillBack)
-            {
-                foreach(y;ey..(clipRect.y + clipRect.h))
-                {
-                    line[beginLine..endLine] = backColor;
+                    span.incY();
                     ++line;
+                }
+
+                static if(FillBack)
+                {
+                    foreach(y;ey..(clipRect.y + clipRect.h))
+                    {
+                        line[beginLine..endLine] = backColor;
+                        ++line;
+                    }
                 }
             }
         }
+
+        const maxD = span.calcMaxD(3.0f);
+        const D = 1.0f / min(extContext.texture.width,extContext.texture.height);
+        //debugOut(D, " ",maxD);
+        if(maxD < D)
+        {
+            outerLoop!true();
+        }
+        else
+        {
+            outerLoop!false();
+        }
+        //outerLoop!false();
 
         static if(WriteMask)
         {

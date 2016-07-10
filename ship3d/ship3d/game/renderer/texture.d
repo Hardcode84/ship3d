@@ -76,11 +76,11 @@ public:
         TextT u2 = cast(TextT)((context.u + dux) * w);
         TextT v2 = cast(TextT)((context.v + dvx) * (h * w));
 
-        static if(context.dither)
+        if(context.dither)
         {
-            immutable TextT[2][4] dithTable = [
-                [0.25f,0.00f], [0.50f,0.75f],
-                [0.75f,0.50f], [0.00f,0.25f]];
+            enum TextT[2][4] dithTable = [
+                [0.25f-0.5f,0.00f-0.5f], [0.50f-0.5f,0.75f-0.5f],
+                [0.75f-0.5f,0.50f-0.5f], [0.00f-0.5f,0.25f-0.5f]];
 
             const xoff = (startx & 1);
             const yoff = (context.y & 1) << 1;

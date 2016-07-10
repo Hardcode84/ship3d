@@ -291,7 +291,7 @@ private:
         auto palette = new palette_t(data2[0..(1 << LightPaletteBits)]);*/
         import game.renderer.texture;
         texture_t[] textures;
-        textures.length = colors2.length;
+        textures.length = 10;
 
         foreach(i,ref tex; textures)
         {
@@ -313,8 +313,8 @@ private:
                     ColorT col;
                     const dat = data[x + y * tex.width];
                     col.r = dat[0];
-                    col.g = dat[0];
-                    col.b = dat[0];
+                    col.g = dat[1];
+                    col.b = dat[2];
                     view[y][x] = col * multCol;
                 }
             }
@@ -325,7 +325,7 @@ private:
         enum CubeScale = 2.5f;
         enum Dim = 10;
 
-        enum texCorrect = 0.01f;
+        enum texCorrect = 0.015f;
         import game.topology.mesh;
         Mesh mesh;
         mesh.addTriangles([
