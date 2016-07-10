@@ -125,24 +125,29 @@ private:
         static assert(H > 0);
         static assert(ispow2(W));
         static assert(ispow2(H));
-        static      if(1*8 == W) alias type_t = ubyte;
-        else static if(2*8 == W) alias type_t = ushort;
-        else static if(4*8 == W) alias type_t = uint;
-        else static if(8*8 == W) alias type_t = ulong;
-        else static assert(false);
+        enum width  = W;
+        enum height = H;
+        alias type_t  = SizeToUint!W;
+        alias fmask_t = SizeToUint!H;
 
         enum FullMask = type_t.max;
 
+        fmask_t  fmask = void;
         type_t[H] data = void;
 
         @property auto full() const
         {
-            auto val = FullMask;
-            foreach(m;data[])
+            debug
             {
-                val &= m;
+                auto val = FullMask;
+                foreach(i,m;data[])
+                {
+                    assert((m == FullMask) == (0 != (fmask & (1 << i))));
+                    val &= m;
+                }
+                assert((FullMask == val) == (FullMask == fmask));
             }
-            return FullMask == val;
+            return FullMask == fmask;
         }
     }
 
@@ -1775,15 +1780,15 @@ private:
 
         void updateLine(int y)
         {
+            const firstTilesSize = tilesSizes[0];
             assert(y >= 0);
-            assert(y < tilesSizes[0].h);
+            assert(y < firstTilesSize.h);
             const ty0 = y * TileSize.h;
             const ty1 = ty0 + TileSize.h;
             assert(ty1 > ty0);
 
             const sy0 = max(spanrange.y0, ty0, clipRect.y);
             const sy1 = min(spanrange.y1, ty1, clipRect.y + clipRect.h);
-            //debugOut(sy0," ",sy1, " ", clipRect," ",spanrange.y0," ",spanrange.y1);
             assert(sy1 > sy0);
             const bool yEdge = (TileSize.h != (sy1 - sy0));
 
@@ -1799,7 +1804,7 @@ private:
             foreach(x; tx1..tx2)
             {
                 assert(x >= 0);
-                assert(x < tilesSizes[0].w);
+                assert(x < firstTilesSize.w);
                 pt1.incX(TileSize.w);
                 pt2.incX(TileSize.w);
                 val = val | (pt1.vals() << 16) | (pt2.vals() << 24);
@@ -1813,7 +1818,7 @@ private:
                 assert((u.oldval & 0xff) == u.vals[0]);
                 val >>= 16;
 
-                auto tile = &htiles[0][x + y * tilesSizes[0].w];
+                auto tile = &htiles[0][x + y * firstTilesSize.w];
 
                 if(tile.used)
                 {
@@ -1862,16 +1867,17 @@ private:
                             (pt4 << 0) | (pt7 << 8) | (pt5 << 16) | (pt8 << 24),
                             (pt5 << 0) | (pt8 << 8) | (pt6 << 16) | (pt9 << 24)];
 
+                        const tilesSize = tilesSizes[Level];
                         static if(Level < HighTileLevelCount)
                         {
                             foreach(i;0..4)
                             {
                                 const currPt = gamelib.types.Point(tx + (i & 1), ty + ((i >> 1) & 1));
                                 assert(currPt.x >= 0);
-                                assert(currPt.x < tilesSizes[Level].w);
+                                assert(currPt.x < tilesSize.w);
                                 assert(currPt.y >= 0);
-                                assert(currPt.y < tilesSizes[Level].h);
-                                auto tile = &htiles[Level][currPt.x + currPt.y * tilesSizes[Level].w];
+                                assert(currPt.y < tilesSize.h);
+                                auto tile = &htiles[Level][currPt.x + currPt.y * tilesSize.w];
                                 if(tile.used)
                                 {
                                     continue;
@@ -1896,10 +1902,10 @@ private:
                             {
                                 const currPt = gamelib.types.Point(tx + (i & 1), ty + ((i >> 1) & 1));
                                 assert(currPt.x >= 0);
-                                assert(currPt.x < tilesSizes[Level].w);
+                                assert(currPt.x < tilesSize.w);
                                 assert(currPt.y >= 0);
-                                assert(currPt.y < tilesSizes[Level].h);
-                                auto tile = &tiles[currPt.x + currPt.y * tilesSizes[Level].w];
+                                assert(currPt.y < tilesSize.h);
+                                auto tile = &tiles[currPt.x + currPt.y * tilesSize.w];
                                 if(tile.full)
                                 {
                                     continue;
@@ -1960,66 +1966,84 @@ private:
                                     const sy1 = min(spanrange.y1, y1);
                                     assert(sy1 > sy0);
 
-                                    auto mask = &masks[currPt.x + currPt.y * tilesSizes[Level].w];
+                                    auto mask = &masks[currPt.x + currPt.y * tilesSize.w];
                                     assert(mask.data.length == TSize.h);
                                     if(tile.empty)
                                     {
-                                        const spans = spanrange.spns.ptr + (y0 - spanrange.y0);
-                                        foreach(myr;0..TSize.h)
-                                        {
-                                            mask.type_t newMaskVal = 0;
-                                            const my = y0 + myr;
-                                            if(my >= sy0 && my < sy1)
-                                            {
-                                                //const sx0 = max(spanrange.spans(my).x0, x0);
-                                                //const sx1 = min(spanrange.spans(my).x1, x1);
-                                                const span = spans[myr];
-                                                const sx0 = max(span.x0, x0);
-                                                const sx1 = min(span.x1, x1);
-                                                if(sx1 > sx0)
-                                                {
-                                                    enum FullMask = mask.FullMask;
-                                                    const sh0 = (sx0 - x0);
-                                                    const sh1 = (x0 + TSize.w - sx1);
-                                                    const val = (FullMask >> sh0) & (FullMask << sh1);
-                                                    assert(0 != val);
-                                                    newMaskVal = val;
-                                                }
-                                            }
-                                            mask.data[myr] = newMaskVal;
-                                        }
+                                        enum FullMask = mask.FullMask;
+                                        const dy0 = sy0 - y0;
+                                        assert(dy0 >= 0);
+                                        mask.data[0..dy0] = 0;
+                                        mask.fmask_t fmask = 0;
 
-                                        tile.addTriangle(index, mask.full);
-                                    }
-                                    else
-                                    {
-                                        assert(!mask.full);
-                                        mask.type_t visible = 0;
                                         const spans = spanrange.spns.ptr - spanrange.y0;
                                         foreach(my; sy0..sy1)
                                         {
-                                            //const sx0 = max(spanrange.spans(my).x0, x0);
-                                            //const sx1 = min(spanrange.spans(my).x1, x1);
                                             const span = spans[my];
                                             const sx0 = max(span.x0, x0);
                                             const sx1 = min(span.x1, x1);
+                                            const myr = my - y0;
                                             if(sx1 > sx0)
                                             {
-                                                const myr = my - y0;
-                                                enum FullMask = mask.FullMask;
                                                 const sh0 = (sx0 - x0);
                                                 const sh1 = (x0 + TSize.w - sx1);
                                                 const val = (FullMask >> sh0) & (FullMask << sh1);
                                                 assert(0 != val);
-                                                visible |= (val & ~mask.data[myr]);
-                                                mask.data[myr] |= val;
+                                                mask.data[myr] = val;
+                                                fmask |= ((cast(mask.fmask_t)(FullMask == val)) << myr);
+                                            }
+                                            else
+                                            {
+                                                mask.data[myr] = 0;
+                                            }
+                                        }
+
+                                        tile.addTriangle(index, FullMask == fmask);
+
+                                        const dy1 = (y0 + mask.height) - sy1;
+                                        assert(dy1 >= 0);
+                                        mask.data[$ - dy1..$] = 0;
+                                        mask.fmask = fmask;
+                                        assert((FullMask == fmask) == mask.full);
+                                    }
+                                    else //tile.empty
+                                    {
+                                        assert(!mask.full);
+                                        enum FullMask = mask.FullMask;
+                                        mask.type_t visible = 0;
+                                        const dy0 = sy0 - y0;
+                                        assert(dy0 >= 0);
+                                        mask.fmask_t fmask = mask.fmask;
+
+                                        const spans = spanrange.spns.ptr - spanrange.y0;
+                                        foreach(my; sy0..sy1)
+                                        {
+                                            const span = spans[my];
+                                            const sx0 = max(span.x0, x0);
+                                            const sx1 = min(span.x1, x1);
+                                            const myr = my - y0;
+                                            if(sx1 > sx0)
+                                            {
+                                                const sh0 = (sx0 - x0);
+                                                const sh1 = (x0 + TSize.w - sx1);
+                                                const val = (FullMask >> sh0) & (FullMask << sh1);
+                                                assert(0 != val);
+                                                const oldMaskVal = mask.data[myr];
+                                                visible |= (val & ~oldMaskVal);
+                                                const newMaskVal = oldMaskVal | val;
+                                                mask.data[myr] = newMaskVal;
+                                                fmask |= ((cast(mask.fmask_t)(FullMask == newMaskVal)) << myr);
                                             }
                                         }
 
                                         if(0 != visible)
                                         {
-                                            tile.addTriangle(index, mask.full);
+                                            tile.addTriangle(index, FullMask == fmask);
                                         }
+                                        const dy1 = (y0 + mask.height) - sy1;
+                                        assert(dy1 >= 0);
+                                        mask.fmask = fmask;
+                                        assert((FullMask == fmask) == mask.full);
                                     }
                                 }
                             }

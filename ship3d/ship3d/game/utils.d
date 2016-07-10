@@ -94,6 +94,15 @@ auto floatInvSign(in float src) pure nothrow @nogc
     return floatSign(src) ^ (1 << 31);
 }
 
+template SizeToUint(size_t size)
+{
+    static      if(1*8 == size) alias SizeToUint = ubyte;
+    else static if(2*8 == size) alias SizeToUint = ushort;
+    else static if(4*8 == size) alias SizeToUint = uint;
+    else static if(8*8 == size) alias SizeToUint = ulong;
+    else static assert(false);
+}
+
 version(LDC)
 {
     pragma(LDC_intrinsic, "llvm.assume")
