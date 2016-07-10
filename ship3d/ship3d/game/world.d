@@ -298,7 +298,26 @@ private:
             tex = new texture_t(16,16);
             //tex.palette = palette;
             //tex.fillChess(cast(ubyte)((1 << PaletteBits) - 1), cast(ubyte)(i), 1, 1);
-            tex.fillChess(ColorBlack, colors2[i], 1, 1);
+            //tex.fillChess(ColorBlack, colors2[i], 1, 1);
+            import game.texture;
+            const size = 16 * 16 * 3;
+            const offset = size * i;
+            const data = cast(immutable(ubyte[3])[])image.pixel_data[offset..offset + size];
+            const multCol = colors2[i % colors2.length];
+            auto view = tex.lock();
+            scope(exit) tex.unlock();
+            foreach(y;0..tex.height)
+            {
+                foreach(x;0..tex.width)
+                {
+                    ColorT col;
+                    const dat = data[x + y * tex.width];
+                    col.r = dat[0];
+                    col.g = dat[0];
+                    col.b = dat[0];
+                    view[y][x] = col * multCol;
+                }
+            }
         }
         import std.algorithm;
         import std.array;
