@@ -2012,14 +2012,14 @@ private:
                                     continue;
                                 }
 
-                                const val = vals[i];
-                                if(!tile.hasChildren && all(val))
+                                const valLocal = vals[i];
+                                if(!tile.hasChildren && all(valLocal))
                                 {
                                     tile.set(index);
                                 }
-                                else if(!none(val))
+                                else if(!none(valLocal))
                                 {
-                                    const U temp = {oldval: val };
+                                    const U temp = {oldval: valLocal };
                                     checkTile!(Size(TSize.w >> 1, TSize.h >> 1), Level + 1,Full)(currPt.x * 2, currPt.y * 2, temp.vals);
                                     tile.setChildren();
                                 }
@@ -2029,6 +2029,7 @@ private:
                         {
                             auto tilesLocal = tiles.ptr + initialTileOffset;
                             auto masksLocal = masks.ptr + initialTileOffset;
+                            const spanrangeLocal = spanrange;
                             foreach(i;0..4)
                             {
                                 const tileOffset = (i & 1) + ((i >> 1) & 1) * tilesSize.w;
@@ -2074,12 +2075,12 @@ private:
                                         break;
                                     }
 
-                                    if(spanrange.x1 <= x0 || spanrange.x0 >= x1 || spanrange.y0 >= y1)
+                                    if(spanrangeLocal.x1 <= x0 || spanrangeLocal.x0 >= x1 || spanrangeLocal.y0 >= y1)
                                     {
                                         continue;
                                     }
 
-                                    if(spanrange.y1 <= y0)
+                                    if(spanrangeLocal.y1 <= y0)
                                     {
                                         break;
                                     }
@@ -2088,19 +2089,20 @@ private:
                                 assert(x1 > x0);
                                 assert(y1 > y0);
 
-                                if(none(vals[i]))
+                                const valLocal = vals[i];
+                                if(none(valLocal))
                                 {
                                     continue;
                                 }
 
-                                if(all(vals[i]))
+                                if(all(valLocal))
                                 {
                                     tile.addTriangle(index, true);
                                 }
                                 else
                                 {
-                                    const sy0 = max(spanrange.y0, y0);
-                                    const sy1 = min(spanrange.y1, y1);
+                                    const sy0 = max(spanrangeLocal.y0, y0);
+                                    const sy1 = min(spanrangeLocal.y1, y1);
                                     assert(sy1 > sy0);
 
                                     auto mask = &masksLocal[tileOffset];
@@ -2113,7 +2115,7 @@ private:
                                         mask.data[0..dy0] = 0;
                                         mask.fmask_t fmask = 0;
 
-                                        const spans = spanrange.spns.ptr - spanrange.y0;
+                                        const spans = spanrangeLocal.spns.ptr - spanrangeLocal.y0;
                                         foreach(my; sy0..sy1)
                                         {
                                             const span = spans[my];
@@ -2152,7 +2154,7 @@ private:
                                         assert(dy0 >= 0);
                                         mask.fmask_t fmask = mask.fmask;
 
-                                        const spans = spanrange.spns.ptr - spanrange.y0;
+                                        const spans = spanrangeLocal.spns.ptr - spanrangeLocal.y0;
                                         foreach(my; sy0..sy1)
                                         {
                                             const span = spans[my];
