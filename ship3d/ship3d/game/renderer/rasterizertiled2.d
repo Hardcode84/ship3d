@@ -277,7 +277,7 @@ private:
             vec3 normal = void;
         }
         vec3[3] verts = void;
-        bool affine = void;
+        PosT wDiff = void;
 
         this(VT)(in auto ref VT v, in Size size)
         {
@@ -323,8 +323,8 @@ private:
 
             const minW = min(w1,w2,w3);
             const maxW = max(w1,w2,w3);
-            enum MaxAffWDiff = 0.75f;
-            affine = ((maxW - minW) < MaxAffWDiff);
+            wDiff = (maxW - minW);
+            assert(wDiff >= 0);
         }
     }
 
@@ -1474,6 +1474,7 @@ private:
                 }
             }
 
+            const clipSize = Size(clipRect.w,clipRect.h);
             void outerLoop(bool Affine)()
             {
                 static if(Full)
@@ -1496,7 +1497,6 @@ private:
                     const maxX = clipRect.x + clipRect.w;
                     const spans = prepared.spans.spns.ptr - prepared.spans.y0; //optimization
                 }
-                const clipSize = Size(clipRect.w,clipRect.h);
 
                 static if(FillBack)
                 {
@@ -1657,7 +1657,8 @@ private:
                 }
             }
 
-            if(prepared.pack.affine)
+            const affineThresh = (24.0f / max(clipSize.w, clipSize.h));
+            if(prepared.pack.wDiff < affineThresh)
             {
                 outerLoop!(true)();
             }
