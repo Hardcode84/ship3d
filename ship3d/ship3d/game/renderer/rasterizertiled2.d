@@ -323,7 +323,7 @@ private:
 
             const minW = min(w1,w2,w3);
             const maxW = max(w1,w2,w3);
-            enum MaxAffWDiff = 0.5f;
+            enum MaxAffWDiff = 0.75f;
             affine = ((maxW - minW) < MaxAffWDiff);
         }
     }
@@ -410,88 +410,158 @@ private:
         return val;
     }
 
-    align(16) struct Span(PosT)
+    align(16) struct Span(PosT, bool Affine)
     {
     pure nothrow @nogc:
-        align(16) immutable PosT dwx;
-        immutable PosT dsux;
-        immutable PosT dsvx;
-
-        align(16) immutable PosT dwy;
-        immutable PosT dsuy;
-        immutable PosT dsvy;
-
-        align(16) PosT wStart = void;
-        PosT suStart = void;
-        PosT svStart = void;
-
-        align(16) PosT wCurr = void;
-        PosT suCurr  = void;
-        PosT svCurr  = void;
-
-        align(16) PosT u  = void, v  = void;
-        PosT u1 = void, v1 = void;
-        PosT dux = void, dvx = void;
-
-        this(PackT)(in ref PackT pack, int x, int y)
+        static if(!Affine)
         {
-            suStart = pack.uplane.get(x, y);
-            suCurr  = suStart;
-            dsux    = pack.uplane.dx;
-            dsuy    = pack.uplane.dy;
+            align(16) immutable PosT dwx;
+            immutable PosT dsux;
+            immutable PosT dsvx;
 
-            svStart = pack.vplane.get(x, y);
-            svCurr  = svStart;
-            dsvx    = pack.vplane.dx;
-            dsvy    = pack.vplane.dy;
+            align(16) immutable PosT dwy;
+            immutable PosT dsuy;
+            immutable PosT dsvy;
 
-            wStart = pack.wplane.get(x, y);
-            wCurr  = wStart;
-            dwx    = pack.wplane.dx;
-            dwy    = pack.wplane.dy;
+            align(16) PosT wStart = void;
+            PosT suStart = void;
+            PosT svStart = void;
+
+            align(16) PosT wCurr = void;
+            PosT suCurr  = void;
+            PosT svCurr  = void;
+
+            align(16) PosT u  = void, v  = void;
+            PosT u1 = void, v1 = void;
+            PosT dux = void, dvx = void;
+        }
+        else
+        {
+            align(16) immutable PosT dux;
+            immutable PosT dvx;
+            immutable PosT duy;
+            immutable PosT dvy;
+
+            align(16) PosT uStart = void;
+            PosT vStart = void;
+            PosT u = void;
+            PosT v = void;
+            PosT u1 = void;
+            PosT v1 = void;
+        }
+
+        this(PackT)(in ref PackT pack, int x, int y, in Size size)
+        {
+            static if(!Affine)
+            {
+                suStart = pack.uplane.get(x, y);
+                suCurr  = suStart;
+                dsux    = pack.uplane.dx;
+                dsuy    = pack.uplane.dy;
+
+                svStart = pack.vplane.get(x, y);
+                svCurr  = svStart;
+                dsvx    = pack.vplane.dx;
+                dsvy    = pack.vplane.dy;
+
+                wStart = pack.wplane.get(x, y);
+                wCurr  = wStart;
+                dwx    = pack.wplane.dx;
+                dwy    = pack.wplane.dy;
+            }
+            else
+            {
+                const wdt = size.w / 2;
+                const hgt = size.h / 2;
+                const x1 = x + wdt;
+                const y1 = y + hgt;
+                const w = pack.wplane.get(x1, y1);
+                dux    = pack.uplane.dx / w;
+                dvx    = pack.vplane.dx / w;
+                duy    = pack.uplane.dy / w;
+                dvy    = pack.vplane.dy / w;
+
+                uStart = pack.uplane.get(x1, y1) / w - (dux * wdt + duy * hgt);
+                vStart = pack.vplane.get(x1, y1) / w - (dvx * wdt + dvy * hgt);
+                u = uStart;
+                v = vStart;
+            }
         }
 
         void incX(int dx)
         {
             const PosT fdx = dx;
-            wCurr  += dwx * fdx;
-            suCurr += dsux * fdx;
-            svCurr += dsvx * fdx;
+            static if(!Affine)
+            {
+                wCurr  += dwx * fdx;
+                suCurr += dsux * fdx;
+                svCurr += dsvx * fdx;
 
-            u = u1;
-            v = v1;
+                u = u1;
+                v = v1;
 
-            u1 = suCurr / wCurr;
-            v1 = svCurr / wCurr;
-            dux = (u1 - u) / fdx;
-            dvx = (v1 - v) / fdx;
+                u1 = suCurr / wCurr;
+                v1 = svCurr / wCurr;
+                dux = (u1 - u) / fdx;
+                dvx = (v1 - v) / fdx;
+            }
+            else
+            {
+                u = u1;
+                v = v1;
+                u1 = uStart + dux * fdx;
+                v1 = vStart + dvx * fdx;
+            }
         }
 
         void initX()
         {
-            u1 = suCurr / wCurr;
-            v1 = svCurr / wCurr;
+            static if(!Affine)
+            {
+                u1 = suCurr / wCurr;
+                v1 = svCurr / wCurr;
+            }
+            else
+            {
+                u1 = uStart;
+                v1 = vStart;
+            }
         }
 
         void incY()
         {
-            wStart  += dwy;
-            suStart += dsuy;
-            svStart += dsvy;
+            static if(!Affine)
+            {
+                wStart  += dwy;
+                suStart += dsuy;
+                svStart += dsvy;
 
-            wCurr   = wStart;
-            suCurr  = suStart;
-            svCurr  = svStart;
+                wCurr   = wStart;
+                suCurr  = suStart;
+                svCurr  = svStart;
+            }
+            else
+            {
+                uStart += duy;
+                vStart += dvy;
+            }
         }
 
         auto calcMaxD(T)(in T dx) const
         {
-            const du0 = suCurr / wCurr;
-            const dv0 = svCurr / wCurr;
-            const newW = (wCurr + dwx * dx);
-            const du1 = (suCurr + dsux * dx) / newW;
-            const dv1 = (svCurr + dsux * dx) / newW;
-            return max(abs(du1 - du0),abs(dv1 - dv0));
+            static if(!Affine)
+            {
+                const du0 = suCurr / wCurr;
+                const dv0 = svCurr / wCurr;
+                const newW = (wCurr + dwx * dx);
+                const du1 = (suCurr + dsux * dx) / newW;
+                const dv1 = (svCurr + dsux * dx) / newW;
+                return max(abs(du1 - du0),abs(dv1 - dv0));
+            }
+            else
+            {
+                return max(abs(dux * dx),abs(dvx * dx));
+            }
         }
     }
 
@@ -1353,8 +1423,7 @@ private:
                 {
                     struct Transform
                     {
-                    @nogc:
-                        pure nothrow:
+                    @nogc pure nothrow:
                         static if(HasLight)
                         {
                             ArrayView!int view;
@@ -1420,13 +1489,14 @@ private:
                     const sy = max(clipRect.y, prepared.spans.y0);
                     //const sx = clipRect.x;
                     //const sx = max(clipRect.x, prepared.spans.x0);
-                    const sx = max(clipRect.x, prepared.spans.spans(sy).x0);
+                    const sx = max(clipRect.x, prepared.spans.x0);
                     //const sx = prepared.spans.spans(sy).x0;
                     const ey = min(clipRect.y + clipRect.h, prepared.spans.y1);
                     const minX = clipRect.x;
                     const maxX = clipRect.x + clipRect.w;
                     const spans = prepared.spans.spns.ptr - prepared.spans.y0; //optimization
                 }
+                const clipSize = Size(clipRect.w,clipRect.h);
 
                 static if(FillBack)
                 {
@@ -1445,9 +1515,9 @@ private:
                     auto line = outContext.surface[sy];
                 }
 
-                alias SpanT = Span!(prepared.pack.pos_t);
+                alias SpanT = Span!(prepared.pack.pos_t, Affine);
 
-                auto span = SpanT(prepared.pack, sx, sy);
+                auto span = SpanT(prepared.pack, sx, sy, clipSize);
                 void innerLoop(uint AffLen, bool UseDither)()
                 {
                     foreach(y;sy..ey)
