@@ -1920,6 +1920,7 @@ private:
 
             bool hadOne = false;
 
+            auto htiles0Local = htiles[0].ptr + y * firstTilesSize.w;
             foreach(x; tx1..tx2)
             {
                 assert(x >= 0);
@@ -1937,8 +1938,8 @@ private:
                 assert((u.oldval & 0xff) == u.vals[0]);
                 val >>= 16;
 
-                auto tile = &htiles[0][x + y * firstTilesSize.w];
-
+                auto tile = &htiles0Local[x];
+                assert(tile is &htiles[0][x + y * firstTilesSize.w]);
                 if(tile.used)
                 {
                     continue;
@@ -1987,16 +1988,25 @@ private:
                             (pt5 << 0) | (pt8 << 8) | (pt6 << 16) | (pt9 << 24)];
 
                         const tilesSize = tilesSizes[Level];
+                        const initialTileOffset = tx + ty * tilesSize.w;
                         static if(Level < HighTileLevelCount)
                         {
+                            auto htilesLocal = htiles[Level].ptr + initialTileOffset;
                             foreach(i;0..4)
                             {
-                                const currPt = gamelib.types.Point(tx + (i & 1), ty + ((i >> 1) & 1));
-                                assert(currPt.x >= 0);
-                                assert(currPt.x < tilesSize.w);
-                                assert(currPt.y >= 0);
-                                assert(currPt.y < tilesSize.h);
-                                auto tile = &htiles[Level][currPt.x + currPt.y * tilesSize.w];
+
+                                const tileOffset = (i & 1) + ((i >> 1) & 1) * tilesSize.w;
+                                debug
+                                {
+                                    const currPt = gamelib.types.Point(tx + (i & 1), ty + ((i >> 1) & 1));
+                                    assert(currPt.x >= 0);
+                                    assert(currPt.x < tilesSize.w);
+                                    assert(currPt.y >= 0);
+                                    assert(currPt.y < tilesSize.h);
+                                    assert((initialTileOffset + tileOffset) == (currPt.x + currPt.y * tilesSize.w));
+                                }
+                                assert((initialTileOffset + tileOffset) < htiles[Level].length);
+                                auto tile = &htilesLocal[tileOffset];
                                 if(tile.used)
                                 {
                                     continue;
@@ -2017,18 +2027,26 @@ private:
                         }
                         else static if(Level == HighTileLevelCount)
                         {
+                            auto tilesLocal = tiles.ptr + initialTileOffset;
+                            auto masksLocal = masks.ptr + initialTileOffset;
                             foreach(i;0..4)
                             {
+                                const tileOffset = (i & 1) + ((i >> 1) & 1) * tilesSize.w;
+
+                                assert((initialTileOffset + tileOffset) < tiles.length);
+                                assert((initialTileOffset + tileOffset) < masks.length);
+                                auto tile = &tilesLocal[tileOffset];
+                                if(tile.full)
+                                {
+                                    continue;
+                                }
+
                                 const currPt = gamelib.types.Point(tx + (i & 1), ty + ((i >> 1) & 1));
                                 assert(currPt.x >= 0);
                                 assert(currPt.x < tilesSize.w);
                                 assert(currPt.y >= 0);
                                 assert(currPt.y < tilesSize.h);
-                                auto tile = &tiles[currPt.x + currPt.y * tilesSize.w];
-                                if(tile.full)
-                                {
-                                    continue;
-                                }
+                                assert((initialTileOffset + tileOffset) == (currPt.x + currPt.y * tilesSize.w));
 
                                 static if(Full)
                                 {
@@ -2085,7 +2103,7 @@ private:
                                     const sy1 = min(spanrange.y1, y1);
                                     assert(sy1 > sy0);
 
-                                    auto mask = &masks[currPt.x + currPt.y * tilesSize.w];
+                                    auto mask = &masksLocal[tileOffset];
                                     assert(mask.data.length == TSize.h);
                                     if(tile.empty)
                                     {
