@@ -509,6 +509,7 @@ private:
             {
                 u = u1;
                 v = v1;
+
                 u1 = uStart + dux * fdx;
                 v1 = vStart + dvx * fdx;
             }
@@ -544,6 +545,38 @@ private:
             {
                 uStart += duy;
                 vStart += dvy;
+            }
+        }
+
+        void incXY(T)(in T dx)
+        {
+            const PosT fdx = dx;
+            static if(!Affine)
+            {
+                wStart  += dwy;
+                suStart += dsuy;
+                svStart += dsvy;
+
+                wCurr   = wStart  + dwx  * fdx;
+                suCurr  = suStart + dsux * fdx;
+                svCurr  = svStart + dsvx * fdx;
+
+                //u = u1;
+                //v = v1;
+
+                u1 = suCurr / wCurr;
+                v1 = svCurr / wCurr;
+            }
+            else
+            {
+                uStart += duy;
+                vStart += dvy;
+
+                //u = u1;
+                //v = v1;
+
+                u1 = uStart + dux * fdx;
+                v1 = vStart + dvx * fdx;
             }
         }
 
@@ -1490,8 +1523,7 @@ private:
                     const sy = max(clipRect.y, prepared.spans.y0);
                     //const sx = clipRect.x;
                     //const sx = max(clipRect.x, prepared.spans.x0);
-                    const sx = max(clipRect.x, prepared.spans.x0);
-                    //const sx = prepared.spans.spans(sy).x0;
+                    const sx = max(clipRect.x, prepared.spans.spans(sy).x0);
                     const ey = min(clipRect.y + clipRect.h, prepared.spans.y1);
                     const minX = clipRect.x;
                     const maxX = clipRect.x + clipRect.w;
@@ -1528,17 +1560,17 @@ private:
                             const yspan = spans[y];
                             const x0 = max(minX, yspan.x0);
                             const x1 = min(maxX, yspan.x1);
-
-                            const dx = x0 - sx;
-
-                            if(0 == dx)
+                            if(y == sy)
                             {
+                                assert(x0 == sx);
                                 span.initX();
                             }
                             else
                             {
-                                span.incX(dx);
+                                const dx = x0 - sx;
+                                span.incXY(dx);
                             }
+
                             const validLine = (x1 > x0);
                         }
                         else
@@ -1631,7 +1663,10 @@ private:
                             line[beginLine..endLine] = backColor;
                         }
 
-                        span.incY();
+                        static if(Full)
+                        {
+                            span.incY();
+                        }
                         ++line;
                     }
 
