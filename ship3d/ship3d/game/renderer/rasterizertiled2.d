@@ -374,9 +374,9 @@ private:
                         (floatInvSign(cx[2]) >> 29);
             debug
             {
-                const val2 = (cast(uint)(cx[0] > 0) << 0) |
-                             (cast(uint)(cx[1] > 0) << 1) |
-                             (cast(uint)(cx[2] > 0) << 2);
+                const val2 = (cast(uint)(cx[0] >= 0) << 0) |
+                             (cast(uint)(cx[1] >= 0) << 1) |
+                             (cast(uint)(cx[2] >= 0) << 2);
                 assert(val == val2);
             }
             return val;
@@ -396,9 +396,9 @@ private:
         debug
         {
             const val2 = (
-                (cast(uint)(lines[0].val(x, y) > 0) << 0) |
-                (cast(uint)(lines[1].val(x, y) > 0) << 1) |
-                (cast(uint)(lines[2].val(x, y) > 0) << 2));
+                (cast(uint)(lines[0].val(x, y) >= 0) << 0) |
+                (cast(uint)(lines[1].val(x, y) >= 0) << 1) |
+                (cast(uint)(lines[2].val(x, y) >= 0) << 2));
             assert(val == val2);
         }
         return val;
@@ -407,23 +407,23 @@ private:
     align(16) struct Span(PosT)
     {
     pure nothrow @nogc:
-        immutable PosT dwx;
+        align(16) immutable PosT dwx;
         immutable PosT dsux;
         immutable PosT dsvx;
 
-        immutable PosT dwy;
+        align(16) immutable PosT dwy;
         immutable PosT dsuy;
         immutable PosT dsvy;
 
-        PosT wStart = void;
+        align(16) PosT wStart = void;
         PosT suStart = void;
         PosT svStart = void;
 
-        PosT wCurr = void;
+        align(16) PosT wCurr = void;
         PosT suCurr  = void;
         PosT svCurr  = void;
 
-        PosT u  = void, v  = void;
+        align(16) PosT u  = void, v  = void;
         PosT u1 = void, v1 = void;
         PosT dux = void, dvx = void;
 
@@ -1320,11 +1320,11 @@ private:
         static assert(!(Full && FillBack));
         static assert(!Full || (TWidth >= AffineLength && 0 == (TWidth % AffineLength)));
         //alias FP = FixedPoint!(16,16,int);
-        alias SpanT   = Span!(prepared.pack.pos_t);
+
         //alias SpanT   = Span!FP;
-        alias PackT = prepared.pack.pack_t;
+        //alias PackT = prepared.pack.pack_t;
         const size = outContext.size;
-        const pack = PackT(prepared.pack,size);
+        const pack = prepared.pack;
         static if(HasLight)
         {
             alias LightProxT = LightProxy!(AffineLength, PosT);
@@ -1334,15 +1334,16 @@ private:
         {
             static if(HasLight)
             {
-                auto lightProx = LightProxT(alloc,pack,prepared.spanrange,extContext);
+                auto lightProx = LightProxT(alloc,pack,prepared.spans,extContext);
             }
 
-            void drawSpan(bool FixedLen, bool UseDither, L)(
+            void drawSpan(uint AffLen, bool UseDither, S, L)(
                 int y,
                 int x1, int x2,
-                in ref SpanT span,
+                in auto ref S span,
                 auto ref L line)
             {
+                enum FixedLen = (AffLen > 0);
                 assert((x2 - x1) <= AffineLength);
                 assert(x2 > x1);
                 static if(HasTextures)
@@ -1389,9 +1390,9 @@ private:
                             assert(0 == (cast(size_t)line.ptr & (64 - 1)));
                             //assume(0 == (cast(size_t)line.ptr & (64 - 1)));
                         }
-                        assert(x2 == (x1 + AffineLength));
-                        extContext.texture.getLine!AffineLength(ctx,line[x1..x1 + AffineLength]);
-                        //extContext.texture.getLine!AffineLength(ctx,ntsRange(line[x1..x2]));
+                        assert(x2 == (x1 + AffLen));
+                        extContext.texture.getLine!AffLen(ctx,line[x1..x1 + AffLen]);
+                        //extContext.texture.getLine!AffLen(ctx,ntsRange(line[x1..x2]));
                     }
                     else
                     {
@@ -1401,167 +1402,173 @@ private:
                 }
             }
 
-            static if(Full)
+            void outerLoop(bool Affine)()
             {
-                const sy = clipRect.y;
-                const sx = clipRect.x;
-                const ey = clipRect.y + clipRect.h;
-                const x0 = sx;
-                const x1 = x0 + TWidth;
-            }
-            else
-            {
-                const sy = max(clipRect.y, prepared.spanrange.y0);
-                //const sx = clipRect.x;
-                //const sx = max(clipRect.x, prepared.spanrange.x0);
-                const sx = max(clipRect.x, prepared.spanrange.spans(sy).x0);
-                //const sx = prepared.spanrange.spans(sy).x0;
-                const ey = min(clipRect.y + clipRect.h, prepared.spanrange.y1);
-                const minX = clipRect.x;
-                const maxX = clipRect.x + clipRect.w;
-                const spans = prepared.spanrange.spns.ptr - prepared.spanrange.y0; //optimization
-            }
-            auto span = SpanT(pack, sx, sy);
-
-            static if(FillBack)
-            {
-                const backColor = outContext.backColor;
-                const beginLine = clipRect.x;
-                const endLine   = clipRect.x + clipRect.w;
-                auto line = outContext.surface[clipRect.y];
-                foreach(y;clipRect.y..sy)
+                static if(Full)
                 {
-                    line[beginLine..endLine] = backColor;
-                    ++line;
+                    const sy = clipRect.y;
+                    const sx = clipRect.x;
+                    const ey = clipRect.y + clipRect.h;
+                    const x0 = sx;
+                    const x1 = x0 + TWidth;
                 }
-            }
-            else
-            {
-                auto line = outContext.surface[sy];
-            }
-
-            void outerLoop(bool UseDither)()
-            {
-                foreach(y;sy..ey)
+                else
                 {
-                    static if(!Full)
-                    {
-                        //const yspan = prepared.spanrange.spans(y);
-                        const yspan = spans[y];
-                        const x0 = max(minX, yspan.x0);
-                        const x1 = min(maxX, yspan.x1);
-
-                        const dx = x0 - sx;
-
-                        if(0 == dx)
-                        {
-                            span.initX();
-                        }
-                        else
-                        {
-                            span.incX(dx);
-                        }
-                        const validLine = (x1 > x0);
-                    }
-                    else
-                    {
-                        span.initX();
-                        enum validLine = true;
-                    }
-
-                    if(validLine)
-                    {
-                        static if(FillBack)
-                        {
-                            line[beginLine..x0] = backColor;
-                        }
-
-                        static if(HasLight)
-                        {
-                            lightProx.setXY(x0, y);
-                        }
-                        int x = x0;
-
-                        static if(!Full)
-                        {
-                            /*const nx = (x + ((AffineLength - 1)) & ~(AffineLength - 1));
-                            assert(x >= clipRect.x);
-                            if(nx > x && nx < x1)
-                            {
-                                assert(nx <= (clipRect.x + clipRect.w));
-                                static if(HasLight) lightProx.incX();
-                                span.incX(nx - x - 1);
-                                drawSpan!(false,UseDither)(y, x, nx, span, line);
-                                x = nx;
-                            }
-                            const affParts = ((x1-x) / AffineLength);*/
-                            const affParts = ((x1-x0) / AffineLength);
-                        }
-                        else
-                        {
-                            //Full
-                            enum affParts = TWidth / AffineLength;
-                        }
-
-                        foreach(i;0..affParts)
-                        {
-                            assert(x >= clipRect.x);
-                            assert((x + AffineLength) <= (clipRect.x + clipRect.w));
-                            span.incX(AffineLength);
-                            static if(HasLight) lightProx.incX();
-                            drawSpan!(true,UseDither)(y, x, x + AffineLength, span, line);
-                            x += AffineLength;
-                        }
-
-                        static if(!Full)
-                        {
-                            assert(x <= (clipRect.x + clipRect.w));
-                            const rem = (x1 - x);
-                            assert(rem >= 0);
-                            if(rem > 0)
-                            {
-                                span.incX(rem);
-                                static if(HasLight) lightProx.incX();
-                                drawSpan!(false,UseDither)(y, x, x1, span, line);
-                            }
-                        }
-
-                        static if(FillBack)
-                        {
-                            line[x1..endLine] = backColor;
-                        }
-                    }
-                    else static if(FillBack)
-                    {
-                        line[beginLine..endLine] = backColor;
-                    }
-
-                    span.incY();
-                    ++line;
+                    const sy = max(clipRect.y, prepared.spans.y0);
+                    //const sx = clipRect.x;
+                    //const sx = max(clipRect.x, prepared.spans.x0);
+                    const sx = max(clipRect.x, prepared.spans.spans(sy).x0);
+                    //const sx = prepared.spans.spans(sy).x0;
+                    const ey = min(clipRect.y + clipRect.h, prepared.spans.y1);
+                    const minX = clipRect.x;
+                    const maxX = clipRect.x + clipRect.w;
+                    const spans = prepared.spans.spns.ptr - prepared.spans.y0; //optimization
                 }
 
                 static if(FillBack)
                 {
-                    foreach(y;ey..(clipRect.y + clipRect.h))
+                    const backColor = outContext.backColor;
+                    const beginLine = clipRect.x;
+                    const endLine   = clipRect.x + clipRect.w;
+                    auto line = outContext.surface[clipRect.y];
+                    foreach(y;clipRect.y..sy)
                     {
                         line[beginLine..endLine] = backColor;
                         ++line;
                     }
                 }
-            }
-        }
+                else
+                {
+                    auto line = outContext.surface[sy];
+                }
 
-        const maxD = span.calcMaxD(3.0f);
-        const D = 1.0f / min(extContext.texture.width,extContext.texture.height);
-        if(maxD < D)
-        {
-            outerLoop!true();
+                alias SpanT = Span!(prepared.pack.pos_t);
+
+                auto span = SpanT(pack, sx, sy);
+                void innerLoop(uint AffLen, bool UseDither)()
+                {
+                    foreach(y;sy..ey)
+                    {
+                        static if(!Full)
+                        {
+                            //const yspan = prepared.spans.spans(y);
+                            const yspan = spans[y];
+                            const x0 = max(minX, yspan.x0);
+                            const x1 = min(maxX, yspan.x1);
+
+                            const dx = x0 - sx;
+
+                            if(0 == dx)
+                            {
+                                span.initX();
+                            }
+                            else
+                            {
+                                span.incX(dx);
+                            }
+                            const validLine = (x1 > x0);
+                        }
+                        else
+                        {
+                            span.initX();
+                            enum validLine = true;
+                        }
+
+                        if(validLine)
+                        {
+                            static if(FillBack)
+                            {
+                                line[beginLine..x0] = backColor;
+                            }
+
+                            static if(HasLight)
+                            {
+                                lightProx.setXY(x0, y);
+                            }
+                            int x = x0;
+
+                            static if(!Full)
+                            {
+                                /*const nx = (x + ((AffLen - 1)) & ~(AffLen - 1));
+                                assert(x >= clipRect.x);
+                                if(nx > x && nx < x1)
+                                {
+                                    assert(nx <= (clipRect.x + clipRect.w));
+                                    static if(HasLight) lightProx.incX();
+                                    span.incX(nx - x - 1);
+                                    drawSpan!(0,UseDither)(y, x, nx, span, line);
+                                    x = nx;
+                                }
+                                const affParts = ((x1-x) / AffLen);*/
+                                const affParts = ((x1-x0) / AffLen);
+                            }
+                            else
+                            {
+                                //Full
+                                enum affParts = TWidth / AffLen;
+                            }
+
+                            foreach(i;0..affParts)
+                            {
+                                assert(x >= clipRect.x);
+                                assert((x + AffLen) <= (clipRect.x + clipRect.w));
+                                span.incX(AffLen);
+                                static if(HasLight) lightProx.incX();
+                                drawSpan!(AffLen,UseDither)(y, x, x + AffLen, span, line);
+                                x += AffLen;
+                            }
+
+                            static if(!Full)
+                            {
+                                assert(x <= (clipRect.x + clipRect.w));
+                                const rem = (x1 - x);
+                                assert(rem >= 0);
+                                if(rem > 0)
+                                {
+                                    span.incX(rem);
+                                    static if(HasLight) lightProx.incX();
+                                    drawSpan!(0,UseDither)(y, x, x1, span, line);
+                                }
+                            }
+
+                            static if(FillBack)
+                            {
+                                line[x1..endLine] = backColor;
+                            }
+                        }
+                        else static if(FillBack)
+                        {
+                            line[beginLine..endLine] = backColor;
+                        }
+
+                        span.incY();
+                        ++line;
+                    }
+
+                    static if(FillBack)
+                    {
+                        foreach(y;ey..(clipRect.y + clipRect.h))
+                        {
+                            line[beginLine..endLine] = backColor;
+                            ++line;
+                        }
+                    }
+                }
+
+                const maxD = span.calcMaxD(3.0f);
+                const D = 1.0f / min(extContext.texture.width,extContext.texture.height);
+                if(maxD < D)
+                {
+                    innerLoop!(AffineLength,true)();
+                }
+                else
+                {
+                    innerLoop!(AffineLength,false)();
+                }
+            }
+
+            outerLoop!(false)();
         }
-        else
-        {
-            outerLoop!false();
-        }
-        //outerLoop!false();
 
         static if(WriteMask)
         {
@@ -1582,10 +1589,10 @@ private:
                 //static immutable colors = [ColorRed,ColorGreen,ColorBlue];
                 int mskMinX = maxX;
                 int mskMaxX = minX;
-                foreach(y;prepared.spanrange.y0..prepared.spanrange.y1)
+                foreach(y;prepared.spans.y0..prepared.spans.y1)
                 {
-                    const x0 = prepared.spanrange.spans[y].x0;
-                    const x1 = prepared.spanrange.spans[y].x1;
+                    const x0 = prepared.spans.spans[y].x0;
+                    const x1 = prepared.spans.spans[y].x1;
                     assert(x0 >= minX);
                     assert(x1 <= maxX);
                     assert(x1 >= x0);
@@ -1607,8 +1614,8 @@ private:
                 }
                 static if(Empty)
                 {
-                    dstMask.y0 = prepared.spanrange.y0;
-                    dstMask.y1 = prepared.spanrange.y1;
+                    dstMask.y0 = prepared.spans.y0;
+                    dstMask.y1 = prepared.spans.y1;
                     dstMask.x0 = mskMinX;
                     dstMask.x1 = mskMaxX;
                 }
@@ -1616,8 +1623,8 @@ private:
                 {
                     dstMask.x0 = min(mskMinX, dstMask.x0);
                     dstMask.x1 = max(mskMaxX, dstMask.x1);
-                    dstMask.y0 = min(prepared.spanrange.y0, dstMask.y0);
-                    dstMask.y1 = max(prepared.spanrange.y1, dstMask.y1);
+                    dstMask.y0 = min(prepared.spans.y0, dstMask.y0);
+                    dstMask.y1 = max(prepared.spans.y1, dstMask.y1);
                 }
             }
 
@@ -1638,6 +1645,12 @@ private:
         Context* context;
     }
 
+    struct TrianglePrepared(PackT)
+    {
+        PackT pack;
+        RelSpanRange spans;
+    }
+
     static void flushData(PreparedT,FlushParam,CacheElem)(void[] data)
     {
         debugOut("flush");
@@ -1650,6 +1663,7 @@ private:
         auto allocState1 = alloc.state;
         scope(exit) alloc.restoreState(allocState1);
 
+        const size = param.context.size;
         const clipRect = param.context.clipRect;
         auto CalcTileSize(in Size tileSize)
         {
@@ -1670,9 +1684,13 @@ private:
             }
         }
 
-        alias PackT = Unqual!(typeof(cache[0]));
+        //alias PackT = Unqual!(typeof(cache[0]));
         auto tiles = alloc.alloc(tilesSizes[HighTileLevelCount].w * tilesSizes[HighTileLevelCount].h,Tile());
-        auto spans = alloc.alloc!RelSpanRange(cache.length);
+        //auto spans = alloc.alloc!RelSpanRange(cache.length);
+        alias PackT = CacheElem.pack.pack_t;
+        alias TrianglePreparedT = TrianglePrepared!(PackT);
+        auto preparedTris = alloc.alloc!TrianglePreparedT(cache.length);
+
         const cacheLen = cache.length;
 
         enum MaskW = LowTileSize.w;
@@ -1694,11 +1712,12 @@ private:
 
                 if(prepared.valid)
                 {
-                    spans[i] = prepared.spanrange;
+                    preparedTris[i].pack = PackT(cache[i].pack, size);
+                    preparedTris[i].spans = prepared.spanrange;
                 }
                 else
                 {
-                    spans[i].spns = spans[i].spns.init;
+                    preparedTris[i].spans.spns = preparedTris[i].spans.spns.init;
                 }
             }
 
@@ -1720,9 +1739,9 @@ private:
                 const rect = Rect(x0, y0, x1 - x0, y1 - y0);
                 foreach_reverse(i;0..cacheLen)
                 {
-                    if(!spans[i].empty)
+                    if(!preparedTris[i].spans.empty)
                     {
-                        updateTiles(param, rect, highTiles, tiles, masks, tilesSizes, spans[i], cache[i].pack, cast(int)i);
+                        updateTiles(param, rect, highTiles, tiles, masks, tilesSizes, preparedTris[i].spans, cache[i].pack, cast(int)i);
                     }
                 }
                 const tx1 = x;
@@ -1731,7 +1750,7 @@ private:
                 const ty1 = y;
                 const ty2 = min(ty1 + Ystep, tilesSizes[0].h);
                 assert(ty2 > ty1);
-                drawTiles(param, alloc, Rect(tx1,ty1,tx2,ty2), highTiles, tiles, tilesSizes, cache, spans);
+                drawTiles(param, alloc, Rect(tx1,ty1,tx2,ty2), highTiles, tiles, tilesSizes, cache, preparedTris);
             }
         }
         else
@@ -1745,10 +1764,12 @@ private:
                 {
                     continue;
                 }
+                preparedTris[i].pack = PackT(cache[i].pack, size);
+                preparedTris[i].spans = prepared.spanrange;
+
                 updateTiles(param, clipRect, highTiles, tiles, masks, tilesSizes, prepared.spanrange, cache[i].pack, cast(int)i);
-                spans[i] = prepared.spanrange;
             }
-            drawTiles(param, alloc, Rect(0,0,tilesSizes[0].w,tilesSizes[0].h), highTiles, tiles, tilesSizes, cache, spans);
+            drawTiles(param, alloc, Rect(0,0,tilesSizes[0].w,tilesSizes[0].h), highTiles, tiles, tilesSizes, cache, preparedTris);
         }
     }
 
@@ -2076,14 +2097,9 @@ private:
         }
     }
 
-    static void drawTiles(ParamsT,AllocT,HTileT,TileT,CacheT,SpansT)
-        (auto ref ParamsT params, auto ref AllocT alloc, in Rect tilesDim, HTileT[][] htiles, TileT[] tiles, in Size[] tilesSizes, CacheT[] cache, SpansT[] spans)
+    static void drawTiles(ParamsT,AllocT,HTileT,TileT,CacheT,PrepT)
+        (auto ref ParamsT params, auto ref AllocT alloc, in Rect tilesDim, HTileT[][] htiles, TileT[] tiles, in Size[] tilesSizes, CacheT[] cache, PrepT[] prepared)
     {
-        struct TilePrepared
-        {
-            Unqual!(typeof(cache[0].pack)) pack;
-            RelSpanRange spanrange;
-        }
         const clipRect = params.context.clipRect;
         void drawTile(Size TSize, int Level, bool Full, AllocT)(int tx, int ty, auto ref AllocT alloc)
         {
@@ -2143,11 +2159,11 @@ private:
                     const index = tile.index;
                     if(rect.w == TSize.w)
                     {
-                        drawPreparedTriangle!(FullDrawWidth, false)(alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
+                        drawPreparedTriangle!(FullDrawWidth, false)(alloc, rect, params.context, cache[index].extContext, prepared[index]);
                     }
                     else
                     {
-                        drawPreparedTriangle!(0,false)(alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
+                        drawPreparedTriangle!(0,false)(alloc, rect, params.context, cache[index].extContext, prepared[index]);
                     }
                 }
                 else static if(FillBackground)
@@ -2228,7 +2244,7 @@ private:
                     const index = buff.back;
                     assert(index >= 0);
                     assert(index < cache.length);
-                    drawPreparedTriangle!(FullDrawWidth,false)(alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
+                    drawPreparedTriangle!(FullDrawWidth,false)(alloc, rect, params.context, cache[index].extContext, prepared[index]);
                     buff.popBack;
                 }
                 else static if(FillBackground)
@@ -2236,7 +2252,7 @@ private:
                     const index = buff.back;
                     assert(index >= 0);
                     assert(index < cache.length);
-                    drawPreparedTriangle!(0,true)(alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
+                    drawPreparedTriangle!(0,true)(alloc, rect, params.context, cache[index].extContext, prepared[index]);
                     buff.popBack;
                 }
 
@@ -2244,7 +2260,7 @@ private:
                 {
                     assert(index >= 0);
                     assert(index < cache.length);
-                    drawPreparedTriangle!(0,false)(alloc, rect, params.context, cache[index].extContext, TilePrepared(cache[index].pack, spans[index]));
+                    drawPreparedTriangle!(0,false)(alloc, rect, params.context, cache[index].extContext, prepared[index]);
                 }
             }
             else static assert(false);
@@ -2322,7 +2338,7 @@ private:
                 return;
             }
 
-            drawPreparedTriangle!(0,false)(alloc, outContext.clipRect, outContext, extContext, prepared);
+            //drawPreparedTriangle!(0,false)(alloc, outContext.clipRect, outContext, extContext, prepared);
         }
     }
 

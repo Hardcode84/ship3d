@@ -78,7 +78,7 @@ public:
 
         if(context.dither)
         {
-            enum TextT[2][4] dithTable = [
+            static immutable TextT[2][4] dithTable = [
                 [0.25f-0.5f,0.00f-0.5f], [0.50f-0.5f,0.75f-0.5f],
                 [0.75f-0.5f,0.50f-0.5f], [0.00f-0.5f,0.25f-0.5f]];
 

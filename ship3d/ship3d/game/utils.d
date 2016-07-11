@@ -106,7 +106,14 @@ template SizeToUint(size_t size)
 version(LDC)
 {
     pragma(LDC_intrinsic, "llvm.assume")
-        void assume(bool);
+        void assume(bool) pure nothrow @nogc @safe;
+}
+else
+{
+    /*void assume(bool val) pure nothrow @nogc @safe
+    {
+        assert(val);
+    }*/
 }
 
 struct AllocatorsState(AllocT)
