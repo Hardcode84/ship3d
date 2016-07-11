@@ -277,6 +277,7 @@ private:
             vec3 normal = void;
         }
         vec3[3] verts = void;
+        bool affine = void;
 
         this(VT)(in auto ref VT v, in Size size)
         {
@@ -319,6 +320,11 @@ private:
                 refZplane = PlaneT(invMat * vec3(refPos1.z,refPos2.z,refPos3.z), size);
                 normal = cross(refPos2 - refPos1, refPos3 - refPos1).normalized;
             }
+
+            const minW = min(w1,w2,w3);
+            const maxW = max(w1,w2,w3);
+            enum MaxAffWDiff = 0.5f;
+            affine = ((maxW - minW) < MaxAffWDiff);
         }
     }
 
@@ -1319,12 +1325,9 @@ private:
         enum Full = (TWidth > 0);
         static assert(!(Full && FillBack));
         static assert(!Full || (TWidth >= AffineLength && 0 == (TWidth % AffineLength)));
-        //alias FP = FixedPoint!(16,16,int);
 
-        //alias SpanT   = Span!FP;
-        //alias PackT = prepared.pack.pack_t;
         const size = outContext.size;
-        const pack = prepared.pack;
+
         static if(HasLight)
         {
             alias LightProxT = LightProxy!(AffineLength, PosT);
@@ -1334,7 +1337,7 @@ private:
         {
             static if(HasLight)
             {
-                auto lightProx = LightProxT(alloc,pack,prepared.spans,extContext);
+                auto lightProx = LightProxT(alloc,prepared.pack,prepared.spans,extContext);
             }
 
             void drawSpan(uint AffLen, bool UseDither, S, L)(
@@ -1344,7 +1347,7 @@ private:
                 auto ref L line)
             {
                 enum FixedLen = (AffLen > 0);
-                assert((x2 - x1) <= AffineLength);
+                //assert((x2 - x1) <= AffLen);
                 assert(x2 > x1);
                 static if(HasTextures)
                 {
@@ -1444,7 +1447,7 @@ private:
 
                 alias SpanT = Span!(prepared.pack.pos_t);
 
-                auto span = SpanT(pack, sx, sy);
+                auto span = SpanT(prepared.pack, sx, sy);
                 void innerLoop(uint AffLen, bool UseDither)()
                 {
                     foreach(y;sy..ey)
@@ -1487,47 +1490,64 @@ private:
                             }
                             int x = x0;
 
-                            static if(!Full)
+                            static if(!Affine)
                             {
-                                /*const nx = (x + ((AffLen - 1)) & ~(AffLen - 1));
-                                assert(x >= clipRect.x);
-                                if(nx > x && nx < x1)
+                                static if(!Full)
                                 {
-                                    assert(nx <= (clipRect.x + clipRect.w));
-                                    static if(HasLight) lightProx.incX();
-                                    span.incX(nx - x - 1);
-                                    drawSpan!(0,UseDither)(y, x, nx, span, line);
-                                    x = nx;
+                                    /*const nx = (x + ((AffLen - 1)) & ~(AffLen - 1));
+                                    assert(x >= clipRect.x);
+                                    if(nx > x && nx < x1)
+                                    {
+                                        assert(nx <= (clipRect.x + clipRect.w));
+                                        static if(HasLight) lightProx.incX();
+                                        span.incX(nx - x - 1);
+                                        drawSpan!(0,UseDither)(y, x, nx, span, line);
+                                        x = nx;
+                                    }
+                                    const affParts = ((x1-x) / AffLen);*/
+                                    const affParts = ((x1-x0) / AffLen);
                                 }
-                                const affParts = ((x1-x) / AffLen);*/
-                                const affParts = ((x1-x0) / AffLen);
+                                else
+                                {
+                                    //Full
+                                    enum affParts = TWidth / AffLen;
+                                }
+
+                                foreach(i;0..affParts)
+                                {
+                                    assert(x >= clipRect.x);
+                                    assert((x + AffLen) <= (clipRect.x + clipRect.w));
+                                    span.incX(AffLen);
+                                    static if(HasLight) lightProx.incX();
+                                    drawSpan!(AffLen,UseDither)(y, x, x + AffLen, span, line);
+                                    x += AffLen;
+                                }
+
+                                static if(!Full)
+                                {
+                                    assert(x <= (clipRect.x + clipRect.w));
+                                    const rem = (x1 - x);
+                                    assert(rem >= 0);
+                                    if(rem > 0)
+                                    {
+                                        span.incX(rem);
+                                        static if(HasLight) lightProx.incX();
+                                        drawSpan!(0,UseDither)(y, x, x1, span, line);
+                                    }
+                                }
                             }
                             else
                             {
-                                //Full
-                                enum affParts = TWidth / AffLen;
-                            }
-
-                            foreach(i;0..affParts)
-                            {
-                                assert(x >= clipRect.x);
-                                assert((x + AffLen) <= (clipRect.x + clipRect.w));
-                                span.incX(AffLen);
                                 static if(HasLight) lightProx.incX();
-                                drawSpan!(AffLen,UseDither)(y, x, x + AffLen, span, line);
-                                x += AffLen;
-                            }
-
-                            static if(!Full)
-                            {
-                                assert(x <= (clipRect.x + clipRect.w));
-                                const rem = (x1 - x);
-                                assert(rem >= 0);
-                                if(rem > 0)
+                                static if(Full)
                                 {
-                                    span.incX(rem);
-                                    static if(HasLight) lightProx.incX();
-                                    drawSpan!(0,UseDither)(y, x, x1, span, line);
+                                    span.incX(TWidth);
+                                    drawSpan!(TWidth,UseDither)(y, x, x + TWidth, span, line);
+                                }
+                                else
+                                {
+                                    span.incX(x1 - x0);
+                                    drawSpan!(0,UseDither)(y, x0, x1, span, line);
                                 }
                             }
 
@@ -1567,7 +1587,14 @@ private:
                 }
             }
 
-            outerLoop!(false)();
+            if(prepared.pack.affine)
+            {
+                outerLoop!(true)();
+            }
+            else
+            {
+                outerLoop!(false)();
+            }
         }
 
         static if(WriteMask)
