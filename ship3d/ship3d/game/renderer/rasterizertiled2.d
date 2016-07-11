@@ -1989,13 +1989,19 @@ private:
 
                         const tilesSize = tilesSizes[Level];
                         const initialTileOffset = tx + ty * tilesSize.w;
+                        enum gamelib.types.Point[4] offsetPoints = [
+                             gamelib.types.Point(0,0),
+                             gamelib.types.Point(1,0),
+                             gamelib.types.Point(0,1),
+                             gamelib.types.Point(1,1)
+                        ];
                         static if(Level < HighTileLevelCount)
                         {
                             auto htilesLocal = htiles[Level].ptr + initialTileOffset;
                             foreach(i;0..4)
                             {
-
-                                const tileOffset = (i & 1) + ((i >> 1) & 1) * tilesSize.w;
+                                const offsetPointLocal = offsetPoints[i];
+                                const tileOffset = offsetPointLocal.x + offsetPointLocal.y * tilesSize.w;
                                 debug
                                 {
                                     const currPt = gamelib.types.Point(tx + (i & 1), ty + ((i >> 1) & 1));
@@ -2032,7 +2038,8 @@ private:
                             const spanrangeLocal = spanrange;
                             foreach(i;0..4)
                             {
-                                const tileOffset = (i & 1) + ((i >> 1) & 1) * tilesSize.w;
+                                const offsetPointLocal = offsetPoints[i];
+                                const tileOffset = offsetPointLocal.x + offsetPointLocal.y * tilesSize.w;
 
                                 assert((initialTileOffset + tileOffset) < tiles.length);
                                 assert((initialTileOffset + tileOffset) < masks.length);
@@ -2042,27 +2049,30 @@ private:
                                     continue;
                                 }
 
-                                const currPt = gamelib.types.Point(tx + (i & 1), ty + ((i >> 1) & 1));
-                                assert(currPt.x >= 0);
-                                assert(currPt.x < tilesSize.w);
-                                assert(currPt.y >= 0);
-                                assert(currPt.y < tilesSize.h);
-                                assert((initialTileOffset + tileOffset) == (currPt.x + currPt.y * tilesSize.w));
+                                debug
+                                {
+                                    const currPt = gamelib.types.Point(tx + (i & 1), ty + ((i >> 1) & 1));
+                                    assert(currPt.x >= 0);
+                                    assert(currPt.x < tilesSize.w);
+                                    assert(currPt.y >= 0);
+                                    assert(currPt.y < tilesSize.h);
+                                    assert((initialTileOffset + tileOffset) == (currPt.x + currPt.y * tilesSize.w));
+                                }
 
                                 static if(Full)
                                 {
-                                    const int x0 = currPt.x * TSize.w;
+                                    const int x0 = (tx + offsetPointLocal.x) * TSize.w;
                                     const int x1 = x0 + TSize.w;
 
-                                    const int y0 = currPt.y * TSize.h;
+                                    const int y0 = (ty + offsetPointLocal.y) * TSize.h;
                                     const int y1 = y0 + TSize.h;
                                 }
                                 else
                                 {
-                                    const int x0 = currPt.x * TSize.w;
+                                    const int x0 = (tx + offsetPointLocal.x) * TSize.w;
                                     const int x1 = min(x0 + TSize.w, clipRect.x + clipRect.w);
 
-                                    const int y0 = currPt.y * TSize.h;
+                                    const int y0 = (ty + offsetPointLocal.y) * TSize.h;
                                     const int y1 = min(y0 + TSize.h, clipRect.y + clipRect.h);
 
                                     if(x0 >= x1)
