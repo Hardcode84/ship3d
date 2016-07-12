@@ -124,7 +124,7 @@ private:
         void setChildren()
         {
             assert(!used);
-            index = ChildrenFlag;
+            index |= ChildrenFlag;
         }
 
         void SetChildrenFullMask(type_t mask)
@@ -1878,7 +1878,7 @@ private:
             tilesSizes[i] = Size(tilesSizes[i - 1].w * 2, tilesSizes[i - 1].h * 2);
             static if(i < HighTileLevelCount)
             {
-                highTiles[i] = param.alloc.alloc(tilesSizes[i].w * tilesSizes[i].h, HighTile());
+                highTiles[i] = alloc.alloc(tilesSizes[i].w * tilesSizes[i].h, HighTile());
             }
         }
 
@@ -1919,8 +1919,8 @@ private:
                 }
             }
 
-            enum Xstep = 4;
-            enum Ystep = 4;
+            enum Xstep = max(256 / TileSize.w, 1);
+            enum Ystep = max(256 / TileSize.h, 1);
             auto xyrange = cartesianProduct(iota(0, tilesSizes[0].h, Xstep), iota(0, tilesSizes[0].w, Ystep));
 
             foreach(pos; pool.parallel(xyrange, 1))
@@ -2098,39 +2098,46 @@ private:
                         static if(Level < HighTileLevelCount)
                         {
                             auto htilesLocal = htiles[Level].ptr + initialTileOffset;
+                            HighTile.type_t childrenFullMask = 0;
                             foreach(i;0..4)
                             {
                                 const offsetPointLocal = offsetPoints[i];
                                 const tileOffset = offsetPointLocal.x + offsetPointLocal.y * tilesSize.w;
-                                debug
-                                {
-                                    const currPt = gamelib.types.Point(tx + (i & 1), ty + ((i >> 1) & 1));
-                                    assert(currPt.x >= 0);
-                                    assert(currPt.x < tilesSize.w);
-                                    assert(currPt.y >= 0);
-                                    assert(currPt.y < tilesSize.h);
-                                    assert((initialTileOffset + tileOffset) == (currPt.x + currPt.y * tilesSize.w));
-                                }
+
+                                const currPt = gamelib.types.Point(tx + (i & 1), ty + ((i >> 1) & 1));
+                                assert(currPt.x >= 0);
+                                assert(currPt.x < tilesSize.w);
+                                assert(currPt.y >= 0);
+                                assert(currPt.y < tilesSize.h);
+                                assert((initialTileOffset + tileOffset) == (currPt.x + currPt.y * tilesSize.w));
+
                                 assert((initialTileOffset + tileOffset) < htiles[Level].length);
                                 auto tile = &htilesLocal[tileOffset];
-                                if(tile.used)
+                                if(tile.used || tile.childrenFull)
                                 {
+                                    childrenFullMask |= (1 << i);
                                     continue;
                                 }
 
                                 const valLocal = vals[i];
                                 if(!tile.hasChildren && all(valLocal))
                                 {
+                                    childrenFullMask |= (1 << i);
                                     tile.set(index);
                                 }
                                 else if(!none(valLocal))
                                 {
                                     tile.setChildren();
                                     const U temp = {oldval: valLocal };
-                                    checkTile!(Size(TSize.w >> 1, TSize.h >> 1), Level + 1,Full)(currPt.x * 2, currPt.y * 2, temp.vals);
+                                    const childrenMask = checkTile!(Size(TSize.w >> 1, TSize.h >> 1), Level + 1,Full)(currPt.x * 2, currPt.y * 2, temp.vals);
+                                    tile.SetChildrenFullMask(childrenMask);
+                                    if(0xf == childrenMask)
+                                    {
+                                        childrenFullMask |= (1 << i);
+                                    }
                                 }
                             }
-                            return 0;
+                            return childrenFullMask;
                         }
                         else static if(Level == HighTileLevelCount)
                         {
@@ -2148,6 +2155,7 @@ private:
                                 auto tile = &tilesLocal[tileOffset];
                                 if(tile.full)
                                 {
+                                    childrenFullMask |= (1 << i);
                                     continue;
                                 }
 
