@@ -998,13 +998,15 @@ private:
                 while(false);
             found:
 
+                auto spans = spanrange.spans.ptr;
                 auto fillLine(in ref PointT pt)
                 {
                     enum Step = 16;
+                    const currY = pt.curry;
                     static if(ReadMask)
                     {
-                        const leftBound  = max(minX, srcMask.spans[pt.curry].x0);
-                        const rightBound = min(maxX, srcMask.spans[pt.curry].x1);
+                        const leftBound  = max(minX, srcMask.spans[currY].x0);
+                        const rightBound = min(maxX, srcMask.spans[currY].x1);
                     }
                     else
                     {
@@ -1062,7 +1064,9 @@ private:
                         const x0 = findLeft() - 1;
                         const x1 = findRight() + 1;
 
-                        auto span = &spanrange.spans[pt.curry];
+                        assert(currY >= 0);
+                        assert(currY < spanrange.spans.length);
+                        auto span = &spans[currY];
                         const sx0 = max(x0, leftBound);
                         const sx1 = min(x1, rightBound);
                         span.x0 = numericCast!SpanElemType(sx0);
@@ -1175,10 +1179,12 @@ private:
                 }
                 const sy = startPoint.curry;
                 const bounds = fillLine(startPoint);
-                spanrange.y1 = search!true(bounds, sy);
-                spanrange.y0 = search!false(bounds, sy) + 1;
-                hgt = (spanrange.y1 - spanrange.y0);
+                const y1 = search!true(bounds, sy);
+                const y0 = search!false(bounds, sy) + 1;
+                hgt = (y1 - y0);
                 realHgt = hgt;
+                spanrange.y1 = y1;
+                spanrange.y0 = y0;
             }
             else //external
             {
@@ -1268,6 +1274,7 @@ private:
                 {
                     spanrange.spans = spanrange.spans.init;
                 }
+                auto spans = spanrange.spans.ptr;
 
                 void fillSpans(bool ReverseX)() nothrow
                 {
@@ -1344,7 +1351,9 @@ private:
                                     }
                                     assert(currY >= y0);
                                     assert(currY < y1);
-                                    auto span = &spanrange.spans[currY];
+                                    assert(currY >= 0);
+                                    assert(currY < spanrange.spans.length);
+                                    auto span = &spans[currY];
                                     assert(xc0 >= SpanElemType.min && xc0 <= SpanElemType.max);
                                     assert(xc1 >= SpanElemType.min && xc1 <= SpanElemType.max);
                                     span.x0 = numericCast!SpanElemType(xc0);
