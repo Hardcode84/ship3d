@@ -2058,34 +2058,39 @@ private:
                     continue;
                 }
 
-                if(!tile.hasChildren && all(u.oldval))
+                const covered = all(u.oldval);
+                if(covered && !tile.hasChildren)
                 {
                     tile.set(index);
                 }
-                else/* if(!tile.childrenFull)*/
+                else
                 {
-                    HighTile.type_t checkTile(Size TSize, int Level, bool Full)(int tx, int ty, in ubyte[4] prevVals)
+                    HighTile.type_t checkTile(Size TSize, int Level, bool Full, bool Covered)(int tx, int ty, in ubyte[4] prevVals)
                     {
                         static assert(TSize.w > 0 && TSize.h > 0);
                         static assert(Level >= 0);
                         assert(4 == prevVals.length);
-                        const x = tx * TSize.w;
-                        const y = ty * TSize.h;
 
-                        const pt1 = cast(uint)prevVals[0];//*/pointPlanesVals(cast(int)x              , cast(int)y              , lines)
-                        const pt2 = pointPlanesVals(cast(int)x + TSize.w    , cast(int)y              , lines);
-                        const pt3 = cast(uint)prevVals[2];//*/pointPlanesVals(cast(int)x + TSize.w * 2, cast(int)y              , lines);
-                        const pt4 = pointPlanesVals(cast(int)x              , cast(int)y + TSize.h    , lines);
-                        const pt5 = pointPlanesVals(cast(int)x + TSize.w    , cast(int)y + TSize.h    , lines);
-                        const pt6 = pointPlanesVals(cast(int)x + TSize.w * 2, cast(int)y + TSize.h    , lines);
-                        const pt7 = cast(uint)prevVals[1];//*/pointPlanesVals(cast(int)x              , cast(int)y + TSize.h * 2, lines);
-                        const pt8 = pointPlanesVals(cast(int)x + TSize.w    , cast(int)y + TSize.h * 2, lines);
-                        const pt9 = cast(uint)prevVals[3];//*/pointPlanesVals(cast(int)x + TSize.w * 2, cast(int)y + TSize.h * 2, lines);
-                        const uint[4] vals = [
-                            (pt1 << 0) | (pt4 << 8) | (pt2 << 16) | (pt5 << 24),
-                            (pt2 << 0) | (pt5 << 8) | (pt3 << 16) | (pt6 << 24),
-                            (pt4 << 0) | (pt7 << 8) | (pt5 << 16) | (pt8 << 24),
-                            (pt5 << 0) | (pt8 << 8) | (pt6 << 16) | (pt9 << 24)];
+                        static if(!Covered)
+                        {
+                            const x = tx * TSize.w;
+                            const y = ty * TSize.h;
+
+                            const pt1 = cast(uint)prevVals[0];//*/pointPlanesVals(cast(int)x              , cast(int)y              , lines)
+                            const pt2 = pointPlanesVals(cast(int)x + TSize.w    , cast(int)y              , lines);
+                            const pt3 = cast(uint)prevVals[2];//*/pointPlanesVals(cast(int)x + TSize.w * 2, cast(int)y              , lines);
+                            const pt4 = pointPlanesVals(cast(int)x              , cast(int)y + TSize.h    , lines);
+                            const pt5 = pointPlanesVals(cast(int)x + TSize.w    , cast(int)y + TSize.h    , lines);
+                            const pt6 = pointPlanesVals(cast(int)x + TSize.w * 2, cast(int)y + TSize.h    , lines);
+                            const pt7 = cast(uint)prevVals[1];//*/pointPlanesVals(cast(int)x              , cast(int)y + TSize.h * 2, lines);
+                            const pt8 = pointPlanesVals(cast(int)x + TSize.w    , cast(int)y + TSize.h * 2, lines);
+                            const pt9 = cast(uint)prevVals[3];//*/pointPlanesVals(cast(int)x + TSize.w * 2, cast(int)y + TSize.h * 2, lines);
+                            const uint[4] vals = [
+                                (pt1 << 0) | (pt4 << 8) | (pt2 << 16) | (pt5 << 24),
+                                (pt2 << 0) | (pt5 << 8) | (pt3 << 16) | (pt6 << 24),
+                                (pt4 << 0) | (pt7 << 8) | (pt5 << 16) | (pt8 << 24),
+                                (pt5 << 0) | (pt8 << 8) | (pt6 << 16) | (pt9 << 24)];
+                        }
 
                         const tilesSize = tilesSizes[Level];
                         const initialTileOffset = tx + ty * tilesSize.w;
@@ -2105,35 +2110,67 @@ private:
                                 const tileOffset = offsetPointLocal.x + offsetPointLocal.y * tilesSize.w;
 
                                 const currPt = gamelib.types.Point(tx + (i & 1), ty + ((i >> 1) & 1));
-                                assert(currPt.x >= 0);
-                                assert(currPt.x < tilesSize.w);
-                                assert(currPt.y >= 0);
-                                assert(currPt.y < tilesSize.h);
-                                assert((initialTileOffset + tileOffset) == (currPt.x + currPt.y * tilesSize.w));
+                                debug
+                                {
+                                    assert(currPt.x >= 0);
+                                    assert(currPt.x < tilesSize.w);
+                                    assert(currPt.y >= 0);
+                                    assert(currPt.y < tilesSize.h);
+                                    assert((initialTileOffset + tileOffset) == (currPt.x + currPt.y * tilesSize.w));
+                                }
 
                                 assert((initialTileOffset + tileOffset) < htiles[Level].length);
                                 auto tile = &htilesLocal[tileOffset];
                                 if(tile.used || tile.childrenFull)
                                 {
-                                    childrenFullMask |= (1 << i);
+                                    if(!Covered)
+                                    {
+                                        childrenFullMask |= (1 << i);
+                                    }
                                     continue;
                                 }
 
-                                const valLocal = vals[i];
-                                if(!tile.hasChildren && all(valLocal))
+                                static if(Covered)
                                 {
-                                    childrenFullMask |= (1 << i);
-                                    tile.set(index);
-                                }
-                                else if(!none(valLocal))
-                                {
-                                    tile.setChildren();
-                                    const U temp = {oldval: valLocal };
-                                    const childrenMask = checkTile!(Size(TSize.w >> 1, TSize.h >> 1), Level + 1,Full)(currPt.x * 2, currPt.y * 2, temp.vals);
-                                    tile.SetChildrenFullMask(childrenMask);
-                                    if(0xf == childrenMask)
+                                    if(!tile.hasChildren)
                                     {
-                                        childrenFullMask |= (1 << i);
+                                        tile.set(index);
+                                    }
+                                    else
+                                    {
+                                        tile.setChildren();
+                                        const ubyte[4] dummy = void;
+                                        checkTile!(Size(TSize.w >> 1, TSize.h >> 1), Level + 1,Full,true)(currPt.x * 2, currPt.y * 2, dummy);
+                                    }
+                                }
+                                else
+                                {
+                                    const valLocal = vals[i];
+                                    if(all(valLocal))
+                                    {
+                                        if(!tile.hasChildren)
+                                        {
+                                            childrenFullMask |= (1 << i);
+                                            tile.set(index);
+                                        }
+                                        else
+                                        {
+                                            const ubyte[4] dummy = void;
+                                            checkTile!(Size(TSize.w >> 1, TSize.h >> 1), Level + 1,Full,true)(currPt.x * 2, currPt.y * 2, dummy);
+                                            tile.SetChildrenFullMask(0xf);
+                                            childrenFullMask |= (1 << i);
+                                        }
+                                    }
+                                    else if(!none(valLocal))
+                                    {
+                                        tile.setChildren();
+                                        const U temp = {oldval: valLocal };
+                                        const childrenMask = checkTile!(Size(TSize.w >> 1, TSize.h >> 1), Level + 1,Full,false)(currPt.x * 2, currPt.y * 2, temp.vals);
+                                        tile.SetChildrenFullMask(childrenMask);
+                                        if(0xf == childrenMask)
+                                        {
+                                            childrenFullMask |= (1 << i);
+                                        }
                                     }
                                 }
                             }
@@ -2155,7 +2192,10 @@ private:
                                 auto tile = &tilesLocal[tileOffset];
                                 if(tile.full)
                                 {
-                                    childrenFullMask |= (1 << i);
+                                    static if(!Covered)
+                                    {
+                                        childrenFullMask |= (1 << i);
+                                    }
                                     continue;
                                 }
 
@@ -2169,155 +2209,161 @@ private:
                                     assert((initialTileOffset + tileOffset) == (currPt.x + currPt.y * tilesSize.w));
                                 }
 
-                                static if(Full)
-                                {
-                                    const int x0 = (tx + offsetPointLocal.x) * TSize.w;
-                                    const int x1 = x0 + TSize.w;
-
-                                    const int y0 = (ty + offsetPointLocal.y) * TSize.h;
-                                    const int y1 = y0 + TSize.h;
-                                }
-                                else
-                                {
-                                    const int x0 = (tx + offsetPointLocal.x) * TSize.w;
-                                    const int x1 = min(x0 + TSize.w, clipRect.x + clipRect.w);
-
-                                    const int y0 = (ty + offsetPointLocal.y) * TSize.h;
-                                    const int y1 = min(y0 + TSize.h, clipRect.y + clipRect.h);
-
-                                    if(x0 >= x1)
-                                    {
-                                        continue;
-                                    }
-
-                                    if(y0 >= y1)
-                                    {
-                                        break;
-                                    }
-
-                                    if(spanrangeLocal.x1 <= x0 || spanrangeLocal.x0 >= x1 || spanrangeLocal.y0 >= y1)
-                                    {
-                                        continue;
-                                    }
-
-                                    if(spanrangeLocal.y1 <= y0)
-                                    {
-                                        break;
-                                    }
-                                }
-
-                                assert(x1 > x0);
-                                assert(y1 > y0);
-
-                                const valLocal = vals[i];
-                                if(none(valLocal))
-                                {
-                                    continue;
-                                }
-
-                                if(all(valLocal))
+                                static if(Covered)
                                 {
                                     tile.addTriangle(index, true);
-                                    childrenFullMask |= (1 << i);
                                 }
                                 else
                                 {
-                                    const sy0 = max(spanrangeLocal.y0, y0);
-                                    const sy1 = min(spanrangeLocal.y1, y1);
-                                    assert(sy1 > sy0);
-
-                                    auto mask = &masksLocal[tileOffset];
-                                    assert(mask.data.length == TSize.h);
-                                    if(tile.empty)
+                                    static if(Full)
                                     {
-                                        enum FullMask = mask.FullMask;
-                                        const dy0 = sy0 - y0;
-                                        assert(dy0 >= 0);
-                                        mask.data[0..dy0] = 0;
-                                        mask.fmask_t fmask = 0;
+                                        const int x0 = (tx + offsetPointLocal.x) * TSize.w;
+                                        const int x1 = x0 + TSize.w;
 
-                                        const spans = spanrangeLocal.spns.ptr - spanrangeLocal.y0;
-                                        auto maskData = mask.data.ptr;
-                                        foreach(my; sy0..sy1)
-                                        {
-                                            const span = spans[my];
-                                            const sx0 = max(span.x0, x0);
-                                            const sx1 = min(span.x1, x1);
-                                            const myr = my - y0;
-                                            mask.type_t maskVal = 0;
-                                            if(sx1 > sx0)
-                                            {
-                                                const sh0 = (sx0 - x0);
-                                                const sh1 = (x0 + TSize.w - sx1);
-                                                const val = (FullMask >> sh0) & (FullMask << sh1);
-                                                assert(0 != val);
-                                                maskVal = val;
-                                                fmask |= ((cast(mask.fmask_t)(FullMask == val)) << myr);
-                                            }
-                                            maskData[myr] = maskVal;
-                                        }
-
-                                        const bool full = (FullMask == fmask);
-                                        tile.addTriangle(index, full);
-                                        if(full)
-                                        {
-                                            childrenFullMask |= (1 << i);
-                                        }
-                                        const dy1 = (y0 + mask.height) - sy1;
-                                        assert(dy1 >= 0);
-                                        mask.data[$ - dy1..$] = 0;
-                                        mask.fmask = fmask;
-                                        assert(full == mask.full);
-
+                                        const int y0 = (ty + offsetPointLocal.y) * TSize.h;
+                                        const int y1 = y0 + TSize.h;
                                     }
-                                    else //tile.empty
+                                    else
                                     {
-                                        assert(!mask.full);
-                                        enum FullMask = mask.FullMask;
-                                        mask.type_t visible = 0;
-                                        const dy0 = sy0 - y0;
-                                        assert(dy0 >= 0);
-                                        mask.fmask_t fmask = mask.fmask;
+                                        const int x0 = (tx + offsetPointLocal.x) * TSize.w;
+                                        const int x1 = min(x0 + TSize.w, clipRect.x + clipRect.w);
 
-                                        const spans = spanrangeLocal.spns.ptr - spanrangeLocal.y0;
-                                        auto maskData = mask.data.ptr;
-                                        foreach(my; sy0..sy1)
+                                        const int y0 = (ty + offsetPointLocal.y) * TSize.h;
+                                        const int y1 = min(y0 + TSize.h, clipRect.y + clipRect.h);
+
+                                        if(x0 >= x1)
                                         {
-                                            const span = spans[my];
-                                            const sx0 = max(span.x0, x0);
-                                            const sx1 = min(span.x1, x1);
-                                            const myr = my - y0;
-                                            if(sx1 > sx0)
-                                            {
-                                                const sh0 = (sx0 - x0);
-                                                const sh1 = (x0 + TSize.w - sx1);
-                                                const val = (FullMask >> sh0) & (FullMask << sh1);
-                                                assert(0 != val);
-                                                const oldMaskVal = maskData[myr];
-                                                visible |= (val & ~oldMaskVal);
-                                                const newMaskVal = oldMaskVal | val;
-                                                maskData[myr] = newMaskVal;
-                                                fmask |= ((cast(mask.fmask_t)(FullMask == newMaskVal)) << myr);
-                                            }
+                                            continue;
                                         }
 
-                                        if(0 != visible)
+                                        if(y0 >= y1)
                                         {
+                                            break;
+                                        }
+
+                                        if(spanrangeLocal.x1 <= x0 || spanrangeLocal.x0 >= x1 || spanrangeLocal.y0 >= y1)
+                                        {
+                                            continue;
+                                        }
+
+                                        if(spanrangeLocal.y1 <= y0)
+                                        {
+                                            break;
+                                        }
+                                    }
+
+                                    assert(x1 > x0);
+                                    assert(y1 > y0);
+
+                                    const valLocal = vals[i];
+                                    if(none(valLocal))
+                                    {
+                                        continue;
+                                    }
+
+                                    if(all(valLocal))
+                                    {
+                                        tile.addTriangle(index, true);
+                                        childrenFullMask |= (1 << i);
+                                    }
+                                    else
+                                    {
+                                        const sy0 = max(spanrangeLocal.y0, y0);
+                                        const sy1 = min(spanrangeLocal.y1, y1);
+                                        assert(sy1 > sy0);
+
+                                        auto mask = &masksLocal[tileOffset];
+                                        assert(mask.data.length == TSize.h);
+                                        if(tile.empty)
+                                        {
+                                            enum FullMask = mask.FullMask;
+                                            const dy0 = sy0 - y0;
+                                            assert(dy0 >= 0);
+                                            mask.data[0..dy0] = 0;
+                                            mask.fmask_t fmask = 0;
+
+                                            const spans = spanrangeLocal.spns.ptr - spanrangeLocal.y0;
+                                            auto maskData = mask.data.ptr;
+                                            foreach(my; sy0..sy1)
+                                            {
+                                                const span = spans[my];
+                                                const sx0 = max(span.x0, x0);
+                                                const sx1 = min(span.x1, x1);
+                                                const myr = my - y0;
+                                                mask.type_t maskVal = 0;
+                                                if(sx1 > sx0)
+                                                {
+                                                    const sh0 = (sx0 - x0);
+                                                    const sh1 = (x0 + TSize.w - sx1);
+                                                    const val = (FullMask >> sh0) & (FullMask << sh1);
+                                                    assert(0 != val);
+                                                    maskVal = val;
+                                                    fmask |= ((cast(mask.fmask_t)(FullMask == val)) << myr);
+                                                }
+                                                maskData[myr] = maskVal;
+                                            }
+
                                             const bool full = (FullMask == fmask);
                                             tile.addTriangle(index, full);
                                             if(full)
                                             {
                                                 childrenFullMask |= (1 << i);
                                             }
+                                            const dy1 = (y0 + mask.height) - sy1;
+                                            assert(dy1 >= 0);
+                                            mask.data[$ - dy1..$] = 0;
+                                            mask.fmask = fmask;
+                                            assert(full == mask.full);
+
                                         }
-                                        const dy1 = (y0 + mask.height) - sy1;
-                                        assert(dy1 >= 0);
-                                        mask.fmask = fmask;
-                                        assert((FullMask == fmask) == mask.full);
+                                        else //tile.empty
+                                        {
+                                            assert(!mask.full);
+                                            enum FullMask = mask.FullMask;
+                                            mask.type_t visible = 0;
+                                            const dy0 = sy0 - y0;
+                                            assert(dy0 >= 0);
+                                            mask.fmask_t fmask = mask.fmask;
+
+                                            const spans = spanrangeLocal.spns.ptr - spanrangeLocal.y0;
+                                            auto maskData = mask.data.ptr;
+                                            foreach(my; sy0..sy1)
+                                            {
+                                                const span = spans[my];
+                                                const sx0 = max(span.x0, x0);
+                                                const sx1 = min(span.x1, x1);
+                                                const myr = my - y0;
+                                                if(sx1 > sx0)
+                                                {
+                                                    const sh0 = (sx0 - x0);
+                                                    const sh1 = (x0 + TSize.w - sx1);
+                                                    const val = (FullMask >> sh0) & (FullMask << sh1);
+                                                    assert(0 != val);
+                                                    const oldMaskVal = maskData[myr];
+                                                    visible |= (val & ~oldMaskVal);
+                                                    const newMaskVal = oldMaskVal | val;
+                                                    maskData[myr] = newMaskVal;
+                                                    fmask |= ((cast(mask.fmask_t)(FullMask == newMaskVal)) << myr);
+                                                }
+                                            }
+
+                                            if(0 != visible)
+                                            {
+                                                const bool full = (FullMask == fmask);
+                                                tile.addTriangle(index, full);
+                                                if(full)
+                                                {
+                                                    childrenFullMask |= (1 << i);
+                                                }
+                                            }
+                                            const dy1 = (y0 + mask.height) - sy1;
+                                            assert(dy1 >= 0);
+                                            mask.fmask = fmask;
+                                            assert((FullMask == fmask) == mask.full);
+                                        }
                                     }
                                 }
                             }
-                            //htiles[Level - 1][(tx >> 1) + (ty >> 1) * tilesSizes[Level - 1].w].SetChildrenFullMask(childrenFullMask);
                             return childrenFullMask;
                         }
                         else static assert(false);
@@ -2328,11 +2374,29 @@ private:
                         ((x * TileSize.w + TileSize.w) > (clipRect.x + clipRect.w)) ||
                         ((x * TileSize.w) < clipRect.x))
                     {
-                        tile.SetChildrenFullMask(checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,false)(x * 2, y * 2, u.vals));
+                        //tile.SetChildrenFullMask(checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,false)(x * 2, y * 2, u.vals));
+                        if(covered)
+                        {
+                            checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,false,true)(x * 2, y * 2, u.vals);
+                            tile.SetChildrenFullMask(0xf);
+                        }
+                        else
+                        {
+                            tile.SetChildrenFullMask(checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,false,false)(x * 2, y * 2, u.vals));
+                        }
                     }
                     else
                     {
-                        tile.SetChildrenFullMask(checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,true)(x * 2, y * 2, u.vals));
+                        //tile.SetChildrenFullMask(checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,true)(x * 2, y * 2, u.vals));
+                        if(covered)
+                        {
+                            checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,true,true)(x * 2, y * 2, u.vals);
+                            tile.SetChildrenFullMask(0xf);
+                        }
+                        else
+                        {
+                            tile.SetChildrenFullMask(checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,true,false)(x * 2, y * 2, u.vals));
+                        }
                     }
                 }
             }
