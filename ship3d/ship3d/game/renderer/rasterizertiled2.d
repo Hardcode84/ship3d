@@ -91,23 +91,31 @@ private:
     {
         alias type_t = ushort;
         enum UnusedFlag = type_t.max;
-        enum ChildrenFlag = UnusedFlag - 1;
+        enum ChildrenFlag = (1 << (type_t.sizeof * 8 - 5));
+        enum ChildrenFullOffset = ((type_t.sizeof * 8) - 4);
+        enum FullChildrenFlag = (ChildrenFlag | (0xf << ChildrenFullOffset));
         type_t index = UnusedFlag;
 
         @property auto used() const
         {
-            return index != UnusedFlag && index != ChildrenFlag;
+            return index < ChildrenFlag;
         }
 
         @property auto hasChildren() const
         {
-            return index == ChildrenFlag;
+            return 0 != (index & ChildrenFlag);
+        }
+
+        @property auto childrenFull() const
+        {
+            //assert(0 == (index & ~FullChildrenFlag));
+            return index == FullChildrenFlag;
         }
 
         void set(int ind)
         {
             assert(ind >= 0);
-            assert(ind < ChildrenFlag);
+            assert(ind < FullChildrenFlag);
             assert(!used);
             index = cast(type_t)ind;
         }
@@ -116,6 +124,13 @@ private:
         {
             assert(!used);
             index = ChildrenFlag;
+        }
+
+        void SetChildrenFullMask(type_t mask)
+        {
+            assert(mask >= 0);
+            assert(mask <= 0xf);
+            index |= (mask << ChildrenFullOffset);
         }
     }
 
@@ -2003,13 +2018,6 @@ private:
                 assert((u.oldval & 0xff) == u.vals[0]);
                 val >>= 16;
 
-                auto tile = &htiles0Local[x];
-                assert(tile is &htiles[0][x + y * firstTilesSize.w]);
-                if(tile.used)
-                {
-                    continue;
-                }
-
                 if(none(u.oldval))
                 {
                     if(hadOne)
@@ -2023,13 +2031,20 @@ private:
                 }
                 hadOne = true;
 
+                auto tile = &htiles0Local[x];
+                assert(tile is &htiles[0][x + y * firstTilesSize.w]);
+                if(tile.used || tile.childrenFull)
+                {
+                    continue;
+                }
+
                 if(!tile.hasChildren && all(u.oldval))
                 {
                     tile.set(index);
                 }
-                else
+                else/* if(!tile.childrenFull)*/
                 {
-                    void checkTile(Size TSize, int Level, bool Full)(int tx, int ty, in ubyte[4] prevVals)
+                    HighTile.type_t checkTile(Size TSize, int Level, bool Full)(int tx, int ty, in ubyte[4] prevVals)
                     {
                         static assert(TSize.w > 0 && TSize.h > 0);
                         static assert(Level >= 0);
@@ -2090,17 +2105,19 @@ private:
                                 }
                                 else if(!none(valLocal))
                                 {
+                                    tile.setChildren();
                                     const U temp = {oldval: valLocal };
                                     checkTile!(Size(TSize.w >> 1, TSize.h >> 1), Level + 1,Full)(currPt.x * 2, currPt.y * 2, temp.vals);
-                                    tile.setChildren();
                                 }
                             }
+                            return 0;
                         }
                         else static if(Level == HighTileLevelCount)
                         {
                             auto tilesLocal = tiles.ptr + initialTileOffset;
                             auto masksLocal = masks.ptr + initialTileOffset;
                             const spanrangeLocal = spanrange;
+                            HighTile.type_t childrenFullMask = 0;
                             foreach(i;0..4)
                             {
                                 const offsetPointLocal = offsetPoints[i];
@@ -2173,6 +2190,7 @@ private:
                                 if(all(valLocal))
                                 {
                                     tile.addTriangle(index, true);
+                                    childrenFullMask |= (1 << i);
                                 }
                                 else
                                 {
@@ -2211,13 +2229,18 @@ private:
                                             maskData[myr] = maskVal;
                                         }
 
-                                        tile.addTriangle(index, FullMask == fmask);
-
+                                        const bool full = (FullMask == fmask);
+                                        tile.addTriangle(index, full);
+                                        if(full)
+                                        {
+                                            childrenFullMask |= (1 << i);
+                                        }
                                         const dy1 = (y0 + mask.height) - sy1;
                                         assert(dy1 >= 0);
                                         mask.data[$ - dy1..$] = 0;
                                         mask.fmask = fmask;
-                                        assert((FullMask == fmask) == mask.full);
+                                        assert(full == mask.full);
+
                                     }
                                     else //tile.empty
                                     {
@@ -2252,7 +2275,12 @@ private:
 
                                         if(0 != visible)
                                         {
-                                            tile.addTriangle(index, FullMask == fmask);
+                                            const bool full = (FullMask == fmask);
+                                            tile.addTriangle(index, full);
+                                            if(full)
+                                            {
+                                                childrenFullMask |= (1 << i);
+                                            }
                                         }
                                         const dy1 = (y0 + mask.height) - sy1;
                                         assert(dy1 >= 0);
@@ -2261,21 +2289,23 @@ private:
                                     }
                                 }
                             }
+                            //htiles[Level - 1][(tx >> 1) + (ty >> 1) * tilesSizes[Level - 1].w].SetChildrenFullMask(childrenFullMask);
+                            return childrenFullMask;
                         }
                         else static assert(false);
                     }
 
+                    tile.setChildren();
                     if(yEdge ||
                         ((x * TileSize.w + TileSize.w) > (clipRect.x + clipRect.w)) ||
                         ((x * TileSize.w) < clipRect.x))
                     {
-                        checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,false)(x * 2, y * 2, u.vals);
+                        tile.SetChildrenFullMask(checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,false)(x * 2, y * 2, u.vals));
                     }
                     else
                     {
-                        checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,true)(x * 2, y * 2, u.vals);
+                        tile.SetChildrenFullMask(checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,true)(x * 2, y * 2, u.vals));
                     }
-                    tile.setChildren();
                 }
             }
         }
