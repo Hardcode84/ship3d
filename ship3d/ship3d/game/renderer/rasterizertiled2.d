@@ -561,8 +561,30 @@ private:
                 suCurr  = suStart + dsux * fdx;
                 svCurr  = svStart + dsvx * fdx;
 
-                //u = u1;
-                //v = v1;
+                u1 = suCurr / wCurr;
+                v1 = svCurr / wCurr;
+            }
+            else
+            {
+                uStart += duy;
+                vStart += dvy;
+
+                u1 = uStart + dux * fdx;
+                v1 = vStart + dvx * fdx;
+            }
+        }
+
+        void incXY()
+        {
+            static if(!Affine)
+            {
+                wStart  += dwy;
+                suStart += dsuy;
+                svStart += dsvy;
+
+                wCurr   = wStart;
+                suCurr  = suStart;
+                svCurr  = svStart;
 
                 u1 = suCurr / wCurr;
                 v1 = svCurr / wCurr;
@@ -572,11 +594,8 @@ private:
                 uStart += duy;
                 vStart += dvy;
 
-                //u = u1;
-                //v = v1;
-
-                u1 = uStart + dux * fdx;
-                v1 = vStart + dvx * fdx;
+                u1 = uStart;
+                v1 = vStart;
             }
         }
 
@@ -1521,8 +1540,7 @@ private:
                 else
                 {
                     const sy = max(clipRect.y, prepared.spans.y0);
-                    //const sx = clipRect.x;
-                    //const sx = max(clipRect.x, prepared.spans.x0);
+
                     const sx = max(clipRect.x, prepared.spans.spans(sy).x0);
                     const ey = min(clipRect.y + clipRect.h, prepared.spans.y1);
                     const minX = clipRect.x;
@@ -1575,7 +1593,14 @@ private:
                         }
                         else
                         {
-                            span.initX();
+                            if(y == sy)
+                            {
+                                span.initX();
+                            }
+                            else
+                            {
+                                span.incXY();
+                            }
                             enum validLine = true;
                         }
 
@@ -1663,10 +1688,6 @@ private:
                             line[beginLine..endLine] = backColor;
                         }
 
-                        static if(Full)
-                        {
-                            span.incY();
-                        }
                         ++line;
                     }
 
