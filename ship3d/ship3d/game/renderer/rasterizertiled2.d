@@ -38,6 +38,7 @@ struct RasterizerTiled2(bool HasTextures, bool WriteMask, bool ReadMask, bool Ha
 private:
     enum TiledRendering = true;
     enum FillBackground = true;
+    enum UseDithering = false;
 
     enum AffineLength = 32;
     enum TileSize = Size(64,64);
@@ -1725,11 +1726,18 @@ private:
                     }
                 }
 
-                const maxD = span.calcMaxD(3.0f);
-                const D = 1.0f / min(extContext.texture.width,extContext.texture.height);
-                if(maxD < D)
+                static if(UseDithering)
                 {
-                    innerLoop!(AffineLength,true)();
+                    const maxD = span.calcMaxD(3.0f);
+                    const D = 1.0f / min(extContext.texture.width,extContext.texture.height);
+                    if(maxD < D)
+                    {
+                        innerLoop!(AffineLength,true)();
+                    }
+                    else
+                    {
+                        innerLoop!(AffineLength,false)();
+                    }
                 }
                 else
                 {
