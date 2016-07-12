@@ -1713,6 +1713,18 @@ private:
                             line[beginLine..endLine] = backColor;
                         }
 
+                        debug
+                        {
+                            static if(FillBack)
+                            {
+                                outContext.pixelsDrawn += (endLine - beginLine);
+                            }
+                            else
+                            {
+                                outContext.pixelsDrawn += (x1 - x0);
+                            }
+                        }
+
                         ++line;
                     }
 

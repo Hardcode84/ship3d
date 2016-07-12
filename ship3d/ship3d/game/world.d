@@ -60,6 +60,10 @@ private:
         void function(void[]) flushFunc = null;
 
         StackAlloc[] allocators;
+        debug
+        {
+            ulong pixelsDrawn = 0;
+        }
     }
 
     LightController mLightController = null;

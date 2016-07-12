@@ -125,6 +125,10 @@ public:
             entity.draw(renderer, Entity.DrawParams(this, alloc));
         }
         renderer.flushContext();
+        debug
+        {
+            debugOut(renderer.state.pixelsDrawn);
+        }
     }
 
     void addEntity(Entity e, in vec3_t epos, in quat_t edir)
