@@ -2191,25 +2191,24 @@ private:
                                         mask.fmask_t fmask = 0;
 
                                         const spans = spanrangeLocal.spns.ptr - spanrangeLocal.y0;
+                                        auto maskData = mask.data.ptr;
                                         foreach(my; sy0..sy1)
                                         {
                                             const span = spans[my];
                                             const sx0 = max(span.x0, x0);
                                             const sx1 = min(span.x1, x1);
                                             const myr = my - y0;
+                                            mask.type_t maskVal = 0;
                                             if(sx1 > sx0)
                                             {
                                                 const sh0 = (sx0 - x0);
                                                 const sh1 = (x0 + TSize.w - sx1);
                                                 const val = (FullMask >> sh0) & (FullMask << sh1);
                                                 assert(0 != val);
-                                                mask.data[myr] = val;
+                                                maskVal = val;
                                                 fmask |= ((cast(mask.fmask_t)(FullMask == val)) << myr);
                                             }
-                                            else
-                                            {
-                                                mask.data[myr] = 0;
-                                            }
+                                            maskData[myr] = maskVal;
                                         }
 
                                         tile.addTriangle(index, FullMask == fmask);
@@ -2230,6 +2229,7 @@ private:
                                         mask.fmask_t fmask = mask.fmask;
 
                                         const spans = spanrangeLocal.spns.ptr - spanrangeLocal.y0;
+                                        auto maskData = mask.data.ptr;
                                         foreach(my; sy0..sy1)
                                         {
                                             const span = spans[my];
@@ -2242,10 +2242,10 @@ private:
                                                 const sh1 = (x0 + TSize.w - sx1);
                                                 const val = (FullMask >> sh0) & (FullMask << sh1);
                                                 assert(0 != val);
-                                                const oldMaskVal = mask.data[myr];
+                                                const oldMaskVal = maskData[myr];
                                                 visible |= (val & ~oldMaskVal);
                                                 const newMaskVal = oldMaskVal | val;
-                                                mask.data[myr] = newMaskVal;
+                                                maskData[myr] = newMaskVal;
                                                 fmask |= ((cast(mask.fmask_t)(FullMask == newMaskVal)) << myr);
                                             }
                                         }
