@@ -235,12 +235,7 @@ public:
         octx.allocators = mAllocators;
         if(mMultithreadedRendering)
         {
-            if(mTaskPool is null)
-            {
-                mTaskPool = new TaskPool(mTaskPoolThreads);
-                mTaskPool.isDaemon = true;
-            }
-            octx.myTaskPool = mTaskPool;
+            octx.myTaskPool = worldTaskPool();
         }
         octx.rasterizerCache = allocator.alloc!void(1024 * 500);
         RendererT renderer;
@@ -440,6 +435,16 @@ private:
         }
 
         mRooms[0].staticEntities.sort!(myComp,SwapStrategy.stable)();
+    }
+
+    auto worldTaskPool()
+    {
+        if(mTaskPool is null)
+        {
+            mTaskPool = new TaskPool(mTaskPoolThreads);
+            mTaskPool.isDaemon = true;
+        }
+        return mTaskPool;
     }
 }
 
