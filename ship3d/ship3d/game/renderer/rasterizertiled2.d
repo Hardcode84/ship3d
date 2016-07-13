@@ -293,7 +293,8 @@ private:
             vec3 normal = void;
         }
         vec3[3] verts = void;
-        PosT wDiff = void;
+        PosT minW = void;
+        PosT maxW = void;
 
         this(VT)(in auto ref VT v, in Size size)
         {
@@ -337,9 +338,9 @@ private:
                 normal = cross(refPos2 - refPos1, refPos3 - refPos1).normalized;
             }
 
-            const minW = min(w1,w2,w3);
-            const maxW = max(w1,w2,w3);
-            wDiff = (maxW - minW);
+            minW = min(w1,w2,w3);
+            maxW = max(w1,w2,w3);
+            const wDiff = (maxW - minW);
             assert(wDiff >= 0);
         }
     }
@@ -1708,6 +1709,7 @@ private:
                             {
                                 line[x1..endLine] = backColor;
                             }
+                            //line[x0..x1] = (Affine ? ColorRed : ColorGreen);
                         }
                         else static if(FillBack)
                         {
@@ -1758,8 +1760,12 @@ private:
                 }
             }
 
+            const maxW = prepared.pack.maxW;
+            const minW = prepared.pack.minW;
+            const wDiff = maxW - minW;
+            assert(wDiff >= 0);
             const affineThresh = (24.0f / max(clipSize.w, clipSize.h));
-            if(prepared.pack.wDiff < affineThresh)
+            if(minW < -3.0f && wDiff < affineThresh)
             {
                 outerLoop!(true)();
             }
