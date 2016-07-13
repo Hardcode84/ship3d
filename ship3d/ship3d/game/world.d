@@ -72,6 +72,11 @@ private:
 
     alias InputListenerT = void delegate(in ref InputEvent);
     InputListenerT[] mInputListeners;
+
+    uint mUpdateCounter = 0;
+    vec3_t mLastPos = vec3_t(0,0,0);
+    vec3_t mLastDir = vec3_t(0,0,0);
+    bool mWasDraw = false;
 public:
     alias RendererT = Renderer!(OutContext,17);
 //pure nothrow:
@@ -189,6 +194,7 @@ public:
         mUpdateLightsList.clear();
         sortEntities();
 
+        ++mUpdateCounter;
         return true;
     }
 
@@ -241,15 +247,15 @@ public:
         RendererT renderer;
         renderer.state = octx;
         drawPlayer(renderer, allocator, surf);
-
+        mWasDraw = true;
         debugOut("present");
     }
 
 private:
     void drawPlayer(ref RendererT renderer, StackAlloc allocator, SurfT surf)
     {
-        const playerCon  = mPlayer.mainConnection;
-        const playerRoom = playerCon.room;
+        auto playerCon  = mPlayer.mainConnection;
+        auto playerRoom = playerCon.room;
         const playerPos  = playerCon.pos + playerCon.correction;
         const playerDir  = playerCon.dir;
         enum MaxDepth = 16;
@@ -375,66 +381,65 @@ private:
         const playerCon  = mPlayer.mainConnection;
         const playerPos  = playerCon.pos + playerCon.correction;
         const playerDir  = playerCon.dir * vec3_t(0,0,1);
-        const v = mRooms[0].staticEntities[0].pos;
-        /*debugOut(dot((v - playerPos).normalized, playerDir));
-        debugOut(cast(int)((
-                    (v.x - playerPos.x) * (v.x - playerPos.x) + 
-                    (v.y - playerPos.y) * (v.y - playerPos.y) +
-                    (v.z - playerPos.z) * (v.z - playerPos.z)) * 10.0f));*/
-        foreach(ent; mRooms[0].staticEntities[])
+        if(((playerDir - mLastDir).length_squared > 0.001f || (playerPos - mLastPos).length_squared > 0.001f)/* && (0 == mUpdateCounter % 4)*/)
         {
-            const vec = ent.pos;
-            const d = dot((vec - playerPos).normalized, playerDir);
-            auto val = cast(int)((
+            mLastPos = playerPos;
+            mLastDir = playerDir;
+            const v = mRooms[0].staticEntities[0].pos;
+
+            foreach(ent; mRooms[0].staticEntities[])
+            {
+                const vec = ent.pos;
+                const d = dot((vec - playerPos).normalized, playerDir);
+                auto val = cast(int)((
+                        (vec.x - playerPos.x) * (vec.x - playerPos.x) + 
+                        (vec.y - playerPos.y) * (vec.y - playerPos.y) +
+                        (vec.z - playerPos.z) * (vec.z - playerPos.z)) * 10.0f);
+                ent.ent.visible = true;
+                ent.ent.drawn = false;
+                if(d < -0.5f && val > 500)
+                {
+                    ent.ent.visible = false;
+                }
+            }
+
+            auto distSquared(in vec3_t vec)
+            {
+                auto val = cast(int)((
                     (vec.x - playerPos.x) * (vec.x - playerPos.x) + 
                     (vec.y - playerPos.y) * (vec.y - playerPos.y) +
                     (vec.z - playerPos.z) * (vec.z - playerPos.z)) * 10.0f);
-            ent.ent.visible = true;
-            if(d < -0.5f && val > 500)
-            {
-                ent.ent.visible = false;
+                return val;
             }
-            if(d < 0.00f && val > 7500)
-            {
-                ent.ent.visible = false;
-            }
-        }
 
-        auto distSquared(in vec3_t vec)
+            bool myComp(in StaticEntityRef a, in StaticEntityRef b)
+            {
+                const res     = distSquared(a.pos) > distSquared(b.pos);
+                const antires = distSquared(b.pos) > distSquared(a.pos);
+                return antires;
+            }
+
+            mRooms[0].staticEntities.sort!(myComp,SwapStrategy.stable)();
+            mWasDraw = false;
+        }
+        else if(mWasDraw)
         {
-            auto val = cast(int)((
-                (vec.x - playerPos.x) * (vec.x - playerPos.x) + 
-                (vec.y - playerPos.y) * (vec.y - playerPos.y) +
-                (vec.z - playerPos.z) * (vec.z - playerPos.z)) * 10.0f);
+            int count = 0;
+            foreach(ent; mRooms[0].staticEntities[])
+            {
+                //debugOut(ent.ent.drawn);
+                if(ent.ent.visible && !ent.ent.drawn)
+                {
+                    ent.ent.visible = false;
+                }
 
-            const d = dot((vec - playerPos).normalized, playerDir);
-            if(d < -0.5f && val > 500)
-            {
-                val += 1000000;
+                if(ent.ent.visible)
+                {
+                    ++count;
+                }
             }
-            if(d < 0.00f && val > 7500)
-            {
-                val += 1000000;
-            }
-            if(d < 0.10f && val > 15000)
-            {
-                val += 1000000;
-            }
-            if(d < 0.20f && val > 25000)
-            {
-                val += 1000000;
-            }
-            return val;
+            debugOut(count);
         }
-
-        bool myComp(in StaticEntityRef a, in StaticEntityRef b)
-        {
-            const res     = distSquared(a.pos) > distSquared(b.pos);
-            const antires = distSquared(b.pos) > distSquared(a.pos);
-            return antires;
-        }
-
-        mRooms[0].staticEntities.sort!(myComp,SwapStrategy.stable)();
     }
 
     auto worldTaskPool()

@@ -19,7 +19,7 @@ public:
         mMesh = mesh;
     }
 
-    override void draw(ref RendererT renderer, DrawParams params) const
+    override void draw(ref RendererT renderer, DrawParams params)
     {
         if(!visible)
         {
@@ -37,6 +37,7 @@ public:
         struct Context2
         {
             const(texture_t) texture;
+            bool* drawn;
             static if(DynLights)
             {
                 const(Light)[] lights;
@@ -52,6 +53,7 @@ public:
         {
             Context2 ctx = {texture: mMesh.texture, lightController: params.room.lightController};
         }
+        ctx.drawn = &mDrawn;
 
         alias RastT2 = Rasterizer!(true,false,false,DynLights);
         foreach(const ref ind; mMesh.indices[])

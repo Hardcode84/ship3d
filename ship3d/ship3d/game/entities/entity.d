@@ -24,6 +24,8 @@ private:
     quat_t       mRefDir = quat_t.identity;
     IntrusiveList!(EntityRef,"entityLink") mConnections;
     bool         mVisisble = true;
+protected:
+    bool         mDrawn = false;
 public:
     import game.world;
     alias RendererT = World.RendererT;
@@ -50,6 +52,8 @@ public:
         auto isAlive() const { return mIsAlive; }
         auto visible() const { return mVisisble; }
         auto visible(bool val ) { mVisisble = val; }
+        auto drawn() const { return mDrawn; }
+        auto drawn(bool val ) { mDrawn = val; }
     }
 
     final @property connections()
@@ -70,7 +74,7 @@ public:
         StackAlloc alloc;
     }
 
-    void draw(ref RendererT renderer, DrawParams params) const
+    void draw(ref RendererT renderer, DrawParams params)
     {
 
     }

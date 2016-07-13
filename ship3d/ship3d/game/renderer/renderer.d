@@ -32,7 +32,7 @@ public:
         return mStateStack[mCurrentState];
     }
 
-    void drawIndexedTriangle(RasterizerT,AllocT,CtxT,VertexT,IndexT)(auto ref AllocT alloc, in auto ref CtxT context, in VertexT[] verts, in IndexT[] indices)
+    void drawIndexedTriangle(RasterizerT,AllocT,CtxT,VertexT,IndexT)(auto ref AllocT alloc, auto ref CtxT context, in VertexT[] verts, in IndexT[] indices)
     {
         static assert(isIntegral!IndexT);
         assert(indices.length % 3 == 0);

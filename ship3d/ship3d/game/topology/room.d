@@ -72,7 +72,7 @@ public:
     @property ref staticLights()        inout { return mStaticLights; }
     @property ref staticEntities()      inout { return mStaticEntities; };
 
-    void draw(RT, AT)(auto ref RT renderer, auto ref AT alloc, in vec3_t pos, in quat_t dir, in Entity srce, int depth) const
+    void draw(RT, AT)(auto ref RT renderer, auto ref AT alloc, in vec3_t pos, in quat_t dir, in Entity srce, int depth) /*const*/
     {
         //debugOut("draw");
         auto allocState = alloc.state;
@@ -111,14 +111,14 @@ public:
             drawPolygons!false();
         }*/
 
-        foreach(const ref e; mEntities[])
+        foreach(/*const*/ ref e; mEntities[])
         {
             auto entity = e.ent;
             renderer.state.matrix = mat * mat4_t.translation(e.pos.x,e.pos.y,e.pos.z) * e.dir.to_matrix!(4,4)();
             entity.draw(renderer, Entity.DrawParams(this, alloc));
         }
 
-        foreach(const ref e; mStaticEntities[0..min($,750)].retro)
+        foreach(/*const*/ ref e; mStaticEntities[0..$].retro)
         {
             auto entity = e.ent;
             renderer.state.matrix = mat * mat4_t.translation(e.pos.x,e.pos.y,e.pos.z) * e.dir.to_matrix!(4,4)();

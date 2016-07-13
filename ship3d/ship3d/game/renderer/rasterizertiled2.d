@@ -1469,6 +1469,7 @@ private:
     static void drawPreparedTriangle(size_t TWidth, bool FillBack, AllocT,CtxT1,CtxT2,PrepT)
         (auto ref AllocT alloc, in Rect clipRect, auto ref CtxT1 outContext, auto ref CtxT2 extContext, in auto ref PrepT prepared)
     {
+        *extContext.drawn = true;
         enum Full = (TWidth > 0);
         static assert(!(Full && FillBack));
         static assert(!Full || (TWidth >= AffineLength && 0 == (TWidth % AffineLength)));
@@ -1855,7 +1856,7 @@ private:
         assert(data.length > FlushParam.sizeof);
         assert(0 == (data.length - FlushParam.sizeof) % CacheElem.sizeof);
         FlushParam* param = (cast(FlushParam*)data.ptr);
-        const(CacheElem)[] cache = (cast(const(CacheElem)*)(data.ptr + FlushParam.sizeof))[0..(data.length - FlushParam.sizeof) / CacheElem.sizeof];
+        CacheElem[] cache = (cast(CacheElem*)(data.ptr + FlushParam.sizeof))[0..(data.length - FlushParam.sizeof) / CacheElem.sizeof];
 
         auto alloc = param.context.allocators[0];
         auto allocState1 = alloc.state;
