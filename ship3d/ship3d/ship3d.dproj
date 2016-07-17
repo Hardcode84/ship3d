@@ -9,7 +9,7 @@
     <UseDefaultCompiler>true</UseDefaultCompiler>
     <IncrementalLinking>true</IncrementalLinking>
     <PreferOneStepBuild>true</PreferOneStepBuild>
-    <Compiler>ldc2</Compiler>
+    <Compiler>DMD2</Compiler>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|AnyCPU' ">
     <DebugSymbols>true</DebugSymbols>
@@ -121,7 +121,7 @@
     </Libs>
     <DebugLevel>0</DebugLevel>
     <ObjectsDirectory>obj\Release</ObjectsDirectory>
-    <ExtraCompilerArguments>-oq -mcpu=i686 -mattr=+mmx,+sse -singleobj -boundscheck=off -d-version=NativeBlit</ExtraCompilerArguments>
+    <ExtraCompilerArguments>-oq -mcpu=i686 -mattr=+mmx,+sse,+sse2 -singleobj -boundscheck=off -d-version=NativeBlit</ExtraCompilerArguments>
     <Target>Executable</Target>
     <Externalconsole>true</Externalconsole>
     <UnittestMode>false</UnittestMode>
@@ -336,6 +336,10 @@
     </Compile>
     <Compile Include="game\renderer\rasterizertiled2.d" />
     <Compile Include="game\texture.d" />
+    <Compile Include="game\renderer\rasterizertiled3\rasterizertiled3.d" />
+    <Compile Include="game\renderer\trianglebuffer.d" />
+    <Compile Include="game\renderer\rasterizertiled3\trianglesplitter.d" />
+    <Compile Include="game\renderer\rasterizertiled3\types.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />
@@ -344,6 +348,7 @@
     <Folder Include="game\generators\" />
     <Folder Include="game\generators\texturegen\" />
     <Folder Include="gamelib\" />
+    <Folder Include="game\renderer\rasterizertiled3\" />
   </ItemGroup>
   <ItemGroup>
     <None Include="todo.txt" />
