@@ -9,11 +9,13 @@ import game.renderer.rasterizertiled3.types;
 
 @nogc pure nothrow:
 void drawPreparedTriangle(size_t TWidth, bool FillBack, AllocT,CtxT1,CtxT2,PrepT)
-    (auto ref AllocT alloc, in Rect clipRect, auto ref CtxT1 outContext, auto ref CtxT2 extContext, auto ref PrepT prepared, int index)
+    (auto ref AllocT alloc, in Rect clipRect, auto ref CtxT1 outContext, auto ref CtxT2 extContext, auto ref PrepT prepared, int index, int minY, int maxY)
 {
     enum Full = (TWidth > 0);
     static assert(!(Full && FillBack));
     static assert(!Full || (TWidth >= AffineLength && 0 == (TWidth % AffineLength)));
+    assert(maxY > minY);
+    assert(minY >= clipRect.y);
 
     const size = outContext.size;
 
@@ -82,13 +84,13 @@ void drawPreparedTriangle(size_t TWidth, bool FillBack, AllocT,CtxT1,CtxT2,PrepT
         else
         {
             const area = prepared.areas[index & AreaIndexMask];
-            const sy = max(clipRect.y, area.y0);
+            const sy = max(minY, area.y0);
 
             auto iter0 = area.iter0(sy);
             auto iter1 = area.iter1(sy);
 
             const sx = max(clipRect.x, iter0.x);
-            const ey = min(clipRect.y + clipRect.h, area.y1);
+            const ey = min(clipRect.y + clipRect.h, area.y1, maxY);
             const minX = clipRect.x;
             const maxX = clipRect.x + clipRect.w;
         }
@@ -140,7 +142,9 @@ void drawPreparedTriangle(size_t TWidth, bool FillBack, AllocT,CtxT1,CtxT2,PrepT
                         span.incXY(dx);
                     }
 
-                    const validLine = (x1 > x0);
+                    //const validLine = (x1 >= x0);
+                    enum validLine = true;
+                    assert(x1 >= x0);
                 }
                 else
                 {
@@ -154,8 +158,8 @@ void drawPreparedTriangle(size_t TWidth, bool FillBack, AllocT,CtxT1,CtxT2,PrepT
                     }
                     enum validLine = true;
                 }
-                
-                if(validLine)
+
+                //if(validLine)
                 {
                     static if(FillBack)
                     {
@@ -228,10 +232,10 @@ void drawPreparedTriangle(size_t TWidth, bool FillBack, AllocT,CtxT1,CtxT2,PrepT
                     }
                     //line[x0..x1] = (Affine ? ColorRed : ColorGreen);
                 }
-                else static if(FillBack)
+                /*else static if(FillBack)
                 {
                     line[beginLine..endLine] = backColor;
-                }
+                }*/
 
                 debug
                 {

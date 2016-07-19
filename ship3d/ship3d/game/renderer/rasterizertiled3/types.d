@@ -243,7 +243,13 @@ struct Tile
     static assert(TileBufferSize > 1);
     alias type_t = ushort;
     type_t used = 0;
-    type_t[TileBufferSize - 1] buffer = void;
+    struct BuffElem
+    {
+        type_t index = void;
+        ubyte minY   = void;
+        ubyte maxY   = void;
+    }
+    BuffElem[TileBufferSize] buffer = void;
     enum EndFlag = 1 << (type_t.sizeof * 8 - 1);
 
     @property auto empty() const
@@ -267,12 +273,19 @@ struct Tile
         return covered || length == buffer.length;
     }
 
-    auto addTriangle(int index, bool finalize)
+    auto addTriangle(int index, bool finalize, int minY, int maxY)
     {
         assert(index >= 0);
         assert(index < type_t.max);
+        assert(minY >= 0);
+        assert(minY <= ubyte.max);
+        assert(maxY >= 0);
+        assert(maxY <= ubyte.max);
+        assert(maxY > minY);
         assert(!full);
-        buffer[length] = cast(type_t)index;
+        buffer[length].index = cast(type_t)index;
+        buffer[length].minY = cast(ubyte)minY;
+        buffer[length].maxY = cast(ubyte)maxY;
         ++used;
         if(finalize)
         {

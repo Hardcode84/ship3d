@@ -248,7 +248,7 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
 
                             static if(Covered)
                             {
-                                tile.addTriangle(index, true);
+                                tile.addTriangle(index, true, 0, TSize.h);
                             }
                             else
                             {
@@ -302,7 +302,7 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                                 {
                                     if(all(valLocal))
                                     {
-                                        tile.addTriangle(index, true);
+                                        tile.addTriangle(index, true, 0, TSize.h);
                                         childrenFullMask |= (1 << i);
                                     }
                                     else
@@ -331,6 +331,17 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                                                 auto iter1 = areaLocal.iter1(sy0);
                                             }
                                             auto maskData = mask.data.ptr;
+
+                                            static if(CheckLeft || CheckRight)
+                                            {
+                                                int minY = TSize.h;
+                                                int maxY = 0;
+                                            }
+                                            else
+                                            {
+                                                const minY = 0;
+                                                const maxY = TSize.h;
+                                            }
                                             foreach(my; sy0..sy1)
                                             {
                                                 static if(CheckLeft)
@@ -354,6 +365,11 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                                                 mask.type_t maskVal = 0;
                                                 if(sx1 > sx0 || (!CheckLeft && !CheckRight))
                                                 {
+                                                    static if(CheckLeft || CheckRight)
+                                                    {
+                                                        minY = min(minY, myr);
+                                                        maxY = max(maxY, myr + 1);
+                                                    }
                                                     assert(sx1 > sx0);
                                                     const sh0 = (sx0 - x0);
                                                     const sh1 = (x0 + TSize.w - sx1);
@@ -374,7 +390,11 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                                             }
 
                                             const bool full = (FullMask == fmask);
-                                            tile.addTriangle(index, full);
+                                            if(maxY > minY)
+                                            {
+                                                tile.addTriangle(index, full, minY, maxY);
+                                            }
+
                                             if(full)
                                             {
                                                 childrenFullMask |= (1 << i);
@@ -405,6 +425,17 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                                                 auto iter1 = areaLocal.iter1(sy0);
                                             }
                                             auto maskData = mask.data.ptr;
+
+                                            static if(CheckLeft || CheckRight)
+                                            {
+                                                int minY = TSize.h;
+                                                int maxY = 0;
+                                            }
+                                            else
+                                            {
+                                                const minY = 0;
+                                                const maxY = TSize.h;
+                                            }
                                             foreach(my; sy0..sy1)
                                             {
                                                 static if(CheckLeft)
@@ -427,6 +458,11 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                                                 const myr = my - y0;
                                                 if(sx1 > sx0 || (!CheckLeft && !CheckRight))
                                                 {
+                                                    static if(CheckLeft || CheckRight)
+                                                    {
+                                                        minY = min(minY, myr);
+                                                        maxY = max(maxY, myr + 1);
+                                                    }
                                                     assert(sx1 > sx0);
                                                     const sh0 = (sx0 - x0);
                                                     const sh1 = (x0 + TSize.w - sx1);
@@ -451,7 +487,7 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                                             if(0 != visible)
                                             {
                                                 const bool full = (FullMask == fmask);
-                                                tile.addTriangle(index, full);
+                                                tile.addTriangle(index, full, minY, maxY);
                                                 if(full)
                                                 {
                                                     childrenFullMask |= (1 << i);
@@ -565,7 +601,7 @@ void drawTiles(ContextT,AllocT,HTileT,TileT,CacheT,PrepT)
         static if(Level < HighTileLevelCount)
         {
             auto tile = &htiles[Level][tx + ty * tilesSizes[Level].w];
-            
+
             if(tile.hasChildren)
             {
                 foreach(i;0..4)
@@ -597,11 +633,11 @@ void drawTiles(ContextT,AllocT,HTileT,TileT,CacheT,PrepT)
                 const triIndex = index >> AreaIndexShift;
                 if(rect.w == TSize.w)
                 {
-                    drawPreparedTriangle!(FullDrawWidth, false)(alloc, rect, context, cache[triIndex], prepared[triIndex], index);
+                    drawPreparedTriangle!(FullDrawWidth, false)(alloc, rect, context, cache[triIndex], prepared[triIndex], index, y0, y0 + TSize.h);
                 }
                 else
                 {
-                    drawPreparedTriangle!(0,false)(alloc, rect, context, cache[triIndex], prepared[triIndex], index);
+                    drawPreparedTriangle!(0,false)(alloc, rect, context, cache[triIndex], prepared[triIndex], index, y0, y0 + TSize.h);
                 }
             }
             else static if(FillBackground)
@@ -679,29 +715,30 @@ void drawTiles(ContextT,AllocT,HTileT,TileT,CacheT,PrepT)
 
             if(tile.covered && (Full || (rect.w == FullDrawWidth)))
             {
-                const index = buff.back;
+                const index = buff.back.index;
                 const triIndex = index >> AreaIndexShift;
                 assert(triIndex >= 0);
                 assert(triIndex < cache.length);
-                drawPreparedTriangle!(FullDrawWidth,false)(alloc, rect, context, cache[triIndex], prepared[triIndex], index);
+                drawPreparedTriangle!(FullDrawWidth,false)(alloc, rect, context, cache[triIndex], prepared[triIndex], index, y0 + buff.back.minY, y0 + buff.back.maxY);
                 buff.popBack;
             }
             else static if(FillBackground)
             {
-                const index = buff.back;
+                const index = buff.back.index;
                 const triIndex = index >> AreaIndexShift;
                 assert(triIndex >= 0);
                 assert(triIndex < cache.length);
-                drawPreparedTriangle!(0,true)(alloc, rect, context, cache[triIndex], prepared[triIndex], index);
+                drawPreparedTriangle!(0,true)(alloc, rect, context, cache[triIndex], prepared[triIndex], index, y0 + buff.back.minY, y0 + buff.back.maxY);
                 buff.popBack;
             }
 
-            foreach(const index; buff.retro)
+            foreach(const elem; buff.retro)
             {
+                const index = elem.index;
                 const triIndex = index >> AreaIndexShift;
                 assert(triIndex >= 0);
                 assert(triIndex < cache.length);
-                drawPreparedTriangle!(0,false)(alloc, rect, context, cache[triIndex], prepared[triIndex], index);
+                drawPreparedTriangle!(0,false)(alloc, rect, context, cache[triIndex], prepared[triIndex], index, y0 + elem.minY, y0 + elem.maxY);
             }
         }
         else static assert(false);
