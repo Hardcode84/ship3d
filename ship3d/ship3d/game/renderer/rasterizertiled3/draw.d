@@ -115,14 +115,20 @@ void drawPreparedTriangle(size_t TWidth, bool FillBack, AllocT,CtxT1,CtxT2,PrepT
         auto span = SpanT(prepared, sx, sy, clipSize);
         void innerLoop(uint AffLen, bool UseDither)()
         {
+            static if(!Full)
+            {
+                auto tempIter0 = iter0;
+                auto tempIter1 = iter1;
+            }
+
             foreach(y;sy..ey)
             {
                 static if(!Full)
                 {
-                    const x0 = max(minX, iter0.x);
-                    const x1 = min(maxX, iter1.x);
-                    iter0.incY();
-                    iter1.incY();
+                    const x0 = max(minX, tempIter0.x);
+                    const x1 = min(maxX, tempIter1.x);
+                    tempIter0.incY();
+                    tempIter1.incY();
                     if(y == sy)
                     {
                         assert(x0 == sx);

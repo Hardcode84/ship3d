@@ -321,17 +321,40 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                                             mask.data[0..dy0] = 0;
                                             mask.fmask_t fmask = 0;
 
-                                            auto iter0 = areaLocal.iter0(sy0);
-                                            auto iter1 = areaLocal.iter1(sy0);
+                                            static if(CheckLeft)
+                                            {
+                                                auto iter0 = areaLocal.iter0(sy0);
+                                            }
+
+                                            static if(CheckRight)
+                                            {
+                                                auto iter1 = areaLocal.iter1(sy0);
+                                            }
                                             auto maskData = mask.data.ptr;
                                             foreach(my; sy0..sy1)
                                             {
-                                                const sx0 = max(iter0.x, x0);
-                                                const sx1 = min(iter1.x, x1);
+                                                static if(CheckLeft)
+                                                {
+                                                    const sx0 = max(iter0.x, x0);
+                                                }
+                                                else
+                                                {
+                                                    const sx0 = x0;
+                                                }
+
+                                                static if(CheckRight)
+                                                {
+                                                    const sx1 = min(iter1.x, x1);
+                                                }
+                                                else
+                                                {
+                                                    const sx1 = x1;
+                                                }
                                                 const myr = my - y0;
                                                 mask.type_t maskVal = 0;
-                                                if(sx1 > sx0)
+                                                if(sx1 > sx0 || (!CheckLeft && !CheckRight))
                                                 {
+                                                    assert(sx1 > sx0);
                                                     const sh0 = (sx0 - x0);
                                                     const sh1 = (x0 + TSize.w - sx1);
                                                     const val = (FullMask >> sh0) & (FullMask << sh1);
@@ -340,8 +363,14 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                                                     fmask |= ((cast(mask.fmask_t)(FullMask == val)) << myr);
                                                 }
                                                 maskData[myr] = maskVal;
-                                                iter0.incY();
-                                                iter1.incY();
+                                                static if(CheckLeft)
+                                                {
+                                                    iter0.incY();
+                                                }
+                                                static if(CheckRight)
+                                                {
+                                                    iter1.incY();
+                                                }
                                             }
 
                                             const bool full = (FullMask == fmask);
@@ -366,16 +395,39 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                                             assert(dy0 >= 0);
                                             mask.fmask_t fmask = mask.fmask;
 
-                                            auto iter0 = areaLocal.iter0(sy0);
-                                            auto iter1 = areaLocal.iter1(sy0);
+                                            static if(CheckLeft)
+                                            {
+                                                auto iter0 = areaLocal.iter0(sy0);
+                                            }
+
+                                            static if(CheckRight)
+                                            {
+                                                auto iter1 = areaLocal.iter1(sy0);
+                                            }
                                             auto maskData = mask.data.ptr;
                                             foreach(my; sy0..sy1)
                                             {
-                                                const sx0 = max(iter0.x, x0);
-                                                const sx1 = min(iter1.x, x1);
-                                                const myr = my - y0;
-                                                if(sx1 > sx0)
+                                                static if(CheckLeft)
                                                 {
+                                                    const sx0 = max(iter0.x, x0);
+                                                }
+                                                else
+                                                {
+                                                    const sx0 = x0;
+                                                }
+
+                                                static if(CheckRight)
+                                                {
+                                                    const sx1 = min(iter1.x, x1);
+                                                }
+                                                else
+                                                {
+                                                    const sx1 = x1;
+                                                }
+                                                const myr = my - y0;
+                                                if(sx1 > sx0 || (!CheckLeft && !CheckRight))
+                                                {
+                                                    assert(sx1 > sx0);
                                                     const sh0 = (sx0 - x0);
                                                     const sh1 = (x0 + TSize.w - sx1);
                                                     const val = (FullMask >> sh0) & (FullMask << sh1);
@@ -386,8 +438,14 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                                                     maskData[myr] = newMaskVal;
                                                     fmask |= ((cast(mask.fmask_t)(FullMask == newMaskVal)) << myr);
                                                 }
-                                                iter0.incY();
-                                                iter1.incY();
+                                                static if(CheckLeft)
+                                                {
+                                                    iter0.incY();
+                                                }
+                                                static if(CheckRight)
+                                                {
+                                                    iter1.incY();
+                                                }
                                             }
 
                                             if(0 != visible)
@@ -407,30 +465,24 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                                     }
                                 }
                                 //check
-                                static if(Full)
+
+                                const checkLeft  = (max(areaLocal.edge0.x0, areaLocal.edge0.x1) > x0);
+                                const checkRight = (min(areaLocal.edge1.x0, areaLocal.edge1.x1) < x1);
+                                if(checkLeft && checkRight)
                                 {
-                                    checkTile!(false,false);
+                                    checkTile!(true,true);
+                                }
+                                else if(checkLeft)
+                                {
+                                    checkTile!(true,false);
+                                }
+                                else if(checkRight)
+                                {
+                                    checkTile!(false,true);
                                 }
                                 else
                                 {
-                                    const checkLeft  = (max(areaLocal.edge0.x0, areaLocal.edge0.x1) > x0);
-                                    const checkRight = (min(areaLocal.edge1.x0, areaLocal.edge1.x1) < x1);
-                                    if(checkLeft && checkRight)
-                                    {
-                                        checkTile!(true,true);
-                                    }
-                                    else if(checkLeft)
-                                    {
-                                        checkTile!(true,false);
-                                    }
-                                    else if(checkRight)
-                                    {
-                                        checkTile!(false,true);
-                                    }
-                                    else
-                                    {
-                                        checkTile!(false,false);
-                                    }
+                                    checkTile!(false,false);
                                 }
                             }
                         }
