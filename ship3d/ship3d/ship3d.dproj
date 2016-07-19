@@ -340,6 +340,8 @@
     <Compile Include="game\renderer\trianglebuffer.d" />
     <Compile Include="game\renderer\rasterizertiled3\trianglesplitter.d" />
     <Compile Include="game\renderer\rasterizertiled3\types.d" />
+    <Compile Include="game\renderer\rasterizertiled3\tiles.d" />
+    <Compile Include="game\renderer\rasterizertiled3\draw.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />

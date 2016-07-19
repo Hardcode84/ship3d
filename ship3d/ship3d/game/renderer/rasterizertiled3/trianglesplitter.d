@@ -1,39 +1,17 @@
 ﻿module game.renderer.rasterizertiled3.trianglesplitter;
 
 import std.algorithm;
+import std.functional;
 
 import game.units;
 
 import game.renderer.rasterizertiled3.types;
 
-void splitTriangle(alias AreaHandler, VertT)(in VertT[] verts, in Rect boundingRect)
+@nogc pure nothrow:
+void splitTriangle(alias AreaHandler,VertT)(in VertT[] verts, in Rect boundingRect)
 {
     assert(3 == verts.length);
     import gamelib.types: Point;
-    enum MaxPoints = 8;
-    /*int[MaxPoints] splitPoints = void;
-    int numPoints = 0;
-
-    void addSplitPoint(in int pt)
-    {
-        assert(numPoints >= 0);
-        assert(numPoints < MaxPoints);
-        if(0 == numPoints)
-        {
-            splitPoints[0] = pt;
-            numPoints = 1;
-        }
-        else if(splitPoints[numPoints - 1] == pt)
-        {
-            splitPoints[numPoints - 1] = pt;
-        }
-        else
-        {
-            assert(splitPoints[numPoints - 1] < pt);
-            splitPoints[numPoints] = pt;
-            ++numPoints;
-        }
-    }*/
 
     const size = Size(boundingRect.w, boundingRect.h);
     auto transformVert(T)(in T v)
@@ -49,20 +27,7 @@ void splitTriangle(alias AreaHandler, VertT)(in VertT[] verts, in Rect boundingR
         transformVert(verts[1]),
         transformVert(verts[2])];
 
-    int[3] indices = [0,1,2];
-    auto myComp(int a, int b)
-    {
-        return transformed[a].y < transformed[b].y;
-    }
-
-    indices[].sort!myComp();
-
-    const HSLine[3] lines = [
-        HSLine(verts[indices[0]], verts[(indices[0] + 1) % 3], size),
-        HSLine(verts[indices[1]], verts[(indices[1] + 1) % 3], size),
-        HSLine(verts[indices[2]], verts[(indices[2] + 1) % 3], size)];
-
-    TriangleArea createArea(in TempEdge e0, in TempEdge e1)
+    TriangleArea createArea(in TempEdge e0, in TempEdge e1) @nogc pure
     {
         //debugOut("createArea");
         const minY = max(e0.y0, e1.y0);
@@ -108,15 +73,10 @@ void splitTriangle(alias AreaHandler, VertT)(in VertT[] verts, in Rect boundingR
     const maxY = boundingRect.y + boundingRect.h;
     if(!isTriangleExternal(verts, size))
     {
-        const Point[2][3] sortedPts = [
-            [transformed[indices[0]],transformed[(indices[0] + 1) % 3]],
-            [transformed[indices[1]],transformed[(indices[1] + 1) % 3]],
-            [transformed[indices[2]],transformed[(indices[2] + 1) % 3]]];
-
         const TempEdge[3] edges = [
-            TempEdge(sortedPts[0][0],sortedPts[0][1], minY, maxY),
-            TempEdge(sortedPts[1][0],sortedPts[1][1], minY, maxY),
-            TempEdge(sortedPts[2][0],sortedPts[2][1], minY, maxY)];
+            TempEdge(transformed[0],transformed[1], minY, maxY),
+            TempEdge(transformed[1],transformed[2], minY, maxY),
+            TempEdge(transformed[2],transformed[0], minY, maxY)];
 
         if(edges[0].valid)
         {
@@ -125,7 +85,7 @@ void splitTriangle(alias AreaHandler, VertT)(in VertT[] verts, in Rect boundingR
                 const area = createArea(edges[0],edges[1]);
                 if(area.valid)
                 {
-                    AreaHandler(area);
+                    unaryFun!AreaHandler(area);
                 }
             }
             if(edges[2].valid)
@@ -133,7 +93,7 @@ void splitTriangle(alias AreaHandler, VertT)(in VertT[] verts, in Rect boundingR
                 const area = createArea(edges[0],edges[2]);
                 if(area.valid)
                 {
-                    AreaHandler(area);
+                    unaryFun!AreaHandler(area);
                 }
             }
         }
@@ -143,12 +103,16 @@ void splitTriangle(alias AreaHandler, VertT)(in VertT[] verts, in Rect boundingR
             const area = createArea(edges[1],edges[2]);
             if(area.valid)
             {
-                AreaHandler(area);
+                unaryFun!AreaHandler(area);
             }
         }
     }
     else
     {
+        /*const HSLine[3] lines = [
+        HSLine(verts[indices[0]], verts[(indices[0] + 1) % 3], size),
+        HSLine(verts[indices[1]], verts[(indices[1] + 1) % 3], size),
+        HSLine(verts[indices[2]], verts[(indices[2] + 1) % 3], size)];*/
         debugOut("external");
     }
 }
@@ -176,6 +140,7 @@ auto isTriangleExternal(VertT)(in VertT[] verts, in Size size)
 
 struct TempEdge
 {
+pure nothrow @nogc:
     Point pt0;
     Point pt1;
     int minY;

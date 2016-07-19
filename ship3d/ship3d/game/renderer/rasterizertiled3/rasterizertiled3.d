@@ -19,6 +19,7 @@ import game.utils;
 import game.renderer.trianglebuffer;
 import game.renderer.rasterizertiled3.types;
 import game.renderer.rasterizertiled3.trianglesplitter;
+import game.renderer.rasterizertiled3.tiles;
 
 @nogc:
 
@@ -95,11 +96,10 @@ private:
         return true;
     }
 
-    public static void flushHandler(ContextT,ElemT)(auto ref ContextT context, in ElemT[] elements)
+    public static void flushHandler(ContextT,ElemT)(auto ref ContextT context, in ElemT[] elements) @nogc
     {
-        int i = 0;
-        const clipRect = context.clipRect;
-        void areaHandler(const ref TriangleArea area)
+        /*int i = 0;
+        void areaHandler(const ref TriangleArea area) nothrow @nogc const
         {
             //debugOut("areaHandler");
             auto line = context.surface[area.y0];
@@ -123,13 +123,61 @@ private:
                 ++line;
             }
             ++i;
+        }*/
+
+        auto alloc = context.allocators[0];
+        auto allocState1 = alloc.state;
+        scope(exit) alloc.restoreState(allocState1);
+
+        const size = context.size;
+        const clipRect = context.clipRect;
+        auto CalcTileSize(in Size tileSize)
+        {
+            assert(tileSize.w > 0);
+            assert(tileSize.h > 0);
+            return Size((clipRect.w + tileSize.w - 1) / tileSize.w, (clipRect.h + tileSize.h - 1) / tileSize.h);
+        }
+        Size[HighTileLevelCount + 1] tilesSizes = void;
+        HighTile[][HighTileLevelCount] highTiles;
+        tilesSizes[0] = CalcTileSize(TileSize);
+        highTiles[0] = alloc.alloc(tilesSizes[0].w * tilesSizes[0].h, HighTile());
+        foreach(i; TupleRange!(1,HighTileLevelCount + 1))
+        {
+            tilesSizes[i] = Size(tilesSizes[i - 1].w * 2, tilesSizes[i - 1].h * 2);
+            static if(i < HighTileLevelCount)
+            {
+                highTiles[i] = alloc.alloc(tilesSizes[i].w * tilesSizes[i].h, HighTile());
+            }
         }
 
-        foreach(const ref elem; elements)
+        auto tiles = alloc.alloc(tilesSizes[HighTileLevelCount].w * tilesSizes[HighTileLevelCount].h,Tile());
+
+        enum MaskW = LowTileSize.w;
+        enum MaskH = LowTileSize.h;
+        alias MaskT = TileMask!(MaskW, MaskH);
+        auto masks = alloc.alloc!MaskT(tilesSizes[HighTileLevelCount].w * tilesSizes[HighTileLevelCount].h);
+        auto ares = alloc.alloc!TriangleArea(elements.length);
+
+        //auto pool = param.context.myTaskPool;
+
+        auto preparedTris = alloc.alloc(elements.length, PreparedTriangle());
+        foreach_reverse(index,const ref elem; elements)
         {
-            splitTriangle!areaHandler(elem.vertspack.verts[], context.clipRect);
+            auto areas = alloc.alloc!TriangleArea(MaxAreasPerTriangle);
+            int currentArea = 0;
+            void areaHandler(const ref TriangleArea area) nothrow @nogc const
+            {
+                updateTiles(context, clipRect, highTiles, tiles, masks, tilesSizes, area, elem.vertspack.verts[], cast(int)((index << AreaIndexShift) + currentArea));
+                areas[currentArea] = area;
+                ++currentArea;
+            }
+            splitTriangle!(areaHandler)(elem.vertspack.verts[], context.clipRect);
+            preparedTris[index].areas = areas[0..currentArea];
         }
+
+        drawTiles(context, alloc, Rect(0,0,tilesSizes[0].w,tilesSizes[0].h), highTiles, tiles, tilesSizes, elements[], preparedTris);
     }
+
 
 
 }
