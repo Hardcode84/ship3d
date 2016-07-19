@@ -332,16 +332,9 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                                             }
                                             auto maskData = mask.data.ptr;
 
-                                            static if(CheckLeft || CheckRight)
-                                            {
-                                                int minY = TSize.h;
-                                                int maxY = 0;
-                                            }
-                                            else
-                                            {
-                                                const minY = 0;
-                                                const maxY = TSize.h;
-                                            }
+                                            int minY = TSize.h;
+                                            int maxY = 0;
+
                                             foreach(my; sy0..sy1)
                                             {
                                                 static if(CheckLeft)
@@ -350,7 +343,7 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                                                 }
                                                 else
                                                 {
-                                                    const sx0 = x0;
+                                                    alias sx0 = x0;
                                                 }
 
                                                 static if(CheckRight)
@@ -359,17 +352,14 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                                                 }
                                                 else
                                                 {
-                                                    const sx1 = x1;
+                                                    alias sx1 = x1;
                                                 }
                                                 const myr = my - y0;
                                                 mask.type_t maskVal = 0;
                                                 if(sx1 > sx0 || (!CheckLeft && !CheckRight))
                                                 {
-                                                    static if(CheckLeft || CheckRight)
-                                                    {
-                                                        minY = min(minY, myr);
-                                                        maxY = max(maxY, myr + 1);
-                                                    }
+                                                    minY = min(minY, myr);
+                                                    maxY = max(maxY, myr + 1);
                                                     assert(sx1 > sx0);
                                                     const sh0 = (sx0 - x0);
                                                     const sh1 = (x0 + TSize.w - sx1);
@@ -393,12 +383,12 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                                             if(maxY > minY)
                                             {
                                                 tile.addTriangle(index, full, minY, maxY);
+                                                if(full)
+                                                {
+                                                    childrenFullMask |= (1 << i);
+                                                }
                                             }
 
-                                            if(full)
-                                            {
-                                                childrenFullMask |= (1 << i);
-                                            }
                                             const dy1 = (y0 + mask.height) - sy1;
                                             assert(dy1 >= 0);
                                             mask.data[$ - dy1..$] = 0;
@@ -426,16 +416,10 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                                             }
                                             auto maskData = mask.data.ptr;
 
-                                            static if(CheckLeft || CheckRight)
-                                            {
-                                                int minY = TSize.h;
-                                                int maxY = 0;
-                                            }
-                                            else
-                                            {
-                                                const minY = 0;
-                                                const maxY = TSize.h;
-                                            }
+
+                                            int minY = TSize.h;
+                                            int maxY = 0;
+
                                             foreach(my; sy0..sy1)
                                             {
                                                 static if(CheckLeft)
@@ -444,7 +428,7 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                                                 }
                                                 else
                                                 {
-                                                    const sx0 = x0;
+                                                    alias sx0 = x0;
                                                 }
 
                                                 static if(CheckRight)
@@ -453,26 +437,30 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                                                 }
                                                 else
                                                 {
-                                                    const sx1 = x1;
+                                                    alias sx1 = x1;
                                                 }
                                                 const myr = my - y0;
                                                 if(sx1 > sx0 || (!CheckLeft && !CheckRight))
                                                 {
-                                                    static if(CheckLeft || CheckRight)
-                                                    {
-                                                        minY = min(minY, myr);
-                                                        maxY = max(maxY, myr + 1);
-                                                    }
                                                     assert(sx1 > sx0);
                                                     const sh0 = (sx0 - x0);
                                                     const sh1 = (x0 + TSize.w - sx1);
                                                     const val = (FullMask >> sh0) & (FullMask << sh1);
                                                     assert(0 != val);
                                                     const oldMaskVal = maskData[myr];
-                                                    visible |= (val & ~oldMaskVal);
-                                                    const newMaskVal = oldMaskVal | val;
-                                                    maskData[myr] = newMaskVal;
-                                                    fmask |= ((cast(mask.fmask_t)(FullMask == newMaskVal)) << myr);
+                                                    const newVis = (val & ~oldMaskVal);
+
+                                                    if(0 != newVis)
+                                                    {
+                                                        minY = min(minY, myr);
+                                                        maxY = max(maxY, myr + 1);
+
+                                                        visible |= newVis;
+                                                        const newMaskVal = oldMaskVal | newVis;
+                                                        maskData[myr] = newMaskVal;
+                                                        fmask |= ((cast(mask.fmask_t)(FullMask == newMaskVal)) << myr);
+                                                    }
+
                                                 }
                                                 static if(CheckLeft)
                                                 {
