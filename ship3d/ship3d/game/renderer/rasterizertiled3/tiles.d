@@ -307,14 +307,13 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                                     }
                                     else
                                     {
-                                        const sy0 = max(areaLocal.y0, y0);
-                                        const sy1 = min(areaLocal.y1, y1);
-                                        assert(sy1 > sy0);
-
                                         auto mask = &masksLocal[tileOffset];
                                         assert(mask.data.length == TSize.h);
                                         if(tile.empty)
                                         {
+                                            const sy0 = max(areaLocal.y0, y0);
+                                            const sy1 = min(areaLocal.y1, y1);
+                                            assert(sy1 > sy0);
                                             enum FullMask = mask.FullMask;
                                             const dy0 = sy0 - y0;
                                             assert(dy0 >= 0);
@@ -398,12 +397,24 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                                         }
                                         else //tile.empty
                                         {
-                                            assert(!mask.full);
                                             enum FullMask = mask.FullMask;
+                                            mask.fmask_t fmask = mask.fmask;
+                                            assert(fmask != FullMask);
+                                            import core.bitop;
+                                            const sy0 = max(areaLocal.y0, y0 + bsf(~fmask));
+                                            const sy1 = min(areaLocal.y1, y0 + bsr(~fmask) + 1, y1);
+                                            if(sy0 >= sy1)
+                                            {
+                                                return;
+                                            }
+
+                                            assert(sy1 > sy0);
+                                            assert(!mask.full);
+
                                             mask.type_t visible = 0;
                                             const dy0 = sy0 - y0;
                                             assert(dy0 >= 0);
-                                            mask.fmask_t fmask = mask.fmask;
+
 
                                             static if(CheckLeft)
                                             {
