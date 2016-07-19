@@ -385,23 +385,14 @@ struct PreparedTriangle
 {
 @nogc pure nothrow:
     TriangleArea[] areas;
-    union
-    {
-        struct
-        {
-            Plane wplane = void;
-            Plane uplane = void;
-            Plane vplane = void;
-            float minW   = void;
-            float maxW   = void;
-        }
-        float isValidDummy = float.nan;
-    }
 
-    auto needSetup() const
-    {
-        return isNaN(isValidDummy);
-    }
+    Plane wplane = void;
+    Plane uplane = void;
+    Plane vplane = void;
+    float minW   = void;
+    float maxW   = void;
+
+    bool needSetup = true;
 
     void setup(VertT, TcoordT)(in VertT[] verts, in TcoordT[] tcoords, in Size size)
     {
@@ -435,7 +426,7 @@ struct PreparedTriangle
         maxW = max(w1,w2,w3);
         const wDiff = (maxW - minW);
         assert(wDiff >= 0);
-        assert(!needSetup);
+        needSetup = false;
     }
 }
 
