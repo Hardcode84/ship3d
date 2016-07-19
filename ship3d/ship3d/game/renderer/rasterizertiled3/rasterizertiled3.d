@@ -21,10 +21,10 @@ import game.renderer.rasterizertiled3.types;
 import game.renderer.rasterizertiled3.trianglesplitter;
 import game.renderer.rasterizertiled3.tiles;
 
-@nogc:
 
 struct RasterizerTiled3(bool HasTextures, bool WriteMask, bool ReadMask, bool HasLight)
 {
+@nogc pure nothrow:
     version(LDC)
     {
         import ldc.attributes;
@@ -96,7 +96,7 @@ private:
         return true;
     }
 
-    public static void flushHandler(ContextT,ElemT)(auto ref ContextT context, in ElemT[] elements) @nogc
+    public static void flushHandler(ContextT,ElemT)(auto ref ContextT context, in ElemT[] elements)
     {
         /*int i = 0;
         void areaHandler(const ref TriangleArea area) nothrow @nogc const

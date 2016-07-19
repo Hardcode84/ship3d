@@ -15,8 +15,6 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
     assert(3 == verts.length);
     assert(index >= 0);
 
-    alias PointT  = HSPoint;
-
     const size = context.size;
     const HSLine[3] lines = [
         HSLine(verts[0], verts[1], size),
@@ -51,8 +49,8 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
         const tx1 = (max(area.x0, clipRect.x) / TileSize.w);
         const tx2 = ((min(area.x1, clipRect.x + clipRect.w) + TileSize.w - 1) / TileSize.w);
         const sx = tx1 * TileSize.w;
-        auto pt1 = PointT(cast(int)sx, cast(int)ty0, lines);
-        auto pt2 = PointT(cast(int)sx, cast(int)ty1, lines);
+        auto pt1 = HSPoint(cast(int)sx, cast(int)ty0, lines);
+        auto pt2 = HSPoint(cast(int)sx, cast(int)ty1, lines);
         uint val = (pt1.vals() << 0) | (pt2.vals() << 8);
 
         bool hadOne = false;
