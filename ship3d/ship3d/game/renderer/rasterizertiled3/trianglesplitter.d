@@ -78,9 +78,10 @@ void splitTriangle(alias AreaHandler,VertT)(in VertT[] verts, in Rect boundingRe
             TempEdge(transformed[1],transformed[2], minY, maxY),
             TempEdge(transformed[2],transformed[0], minY, maxY)];
 
-        if(edges[0].valid)
+        const bool[3] edgesValid = [edges[0].valid,edges[1].valid,edges[2].valid];
+        if(edgesValid[0])
         {
-            if(edges[1].valid)
+            if(edgesValid[1])
             {
                 const area = createArea(edges[0],edges[1]);
                 if(area.valid)
@@ -88,7 +89,7 @@ void splitTriangle(alias AreaHandler,VertT)(in VertT[] verts, in Rect boundingRe
                     unaryFun!AreaHandler(area);
                 }
             }
-            if(edges[2].valid)
+            if(edgesValid[2])
             {
                 const area = createArea(edges[0],edges[2]);
                 if(area.valid)
@@ -98,7 +99,7 @@ void splitTriangle(alias AreaHandler,VertT)(in VertT[] verts, in Rect boundingRe
             }
         }
 
-        if(edges[1].valid && edges[2].valid)
+        if(edgesValid[1] && edgesValid[2])
         {
             const area = createArea(edges[1],edges[2]);
             if(area.valid)
