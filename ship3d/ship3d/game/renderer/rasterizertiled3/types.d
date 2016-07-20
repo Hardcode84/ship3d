@@ -109,7 +109,7 @@ pure nothrow @nogc:
     {
         assert(valid);
         assert(y >= y0);
-        assert(y < y1);
+        assert(y <= y1);
         const dy = y1 - y0;
         auto it = TriangleAreaEdgeIterator(edge0, dy, edge0.xf0);
         it.incY(y - y0);
@@ -120,7 +120,7 @@ pure nothrow @nogc:
     {
         assert(valid);
         assert(y >= y0);
-        assert(y < y1);
+        assert(y <= y1);
         const dy = y1 - y0;
         auto it = TriangleAreaEdgeIterator(edge1, dy, edge1.xf0);
         it.incY(y - y0);

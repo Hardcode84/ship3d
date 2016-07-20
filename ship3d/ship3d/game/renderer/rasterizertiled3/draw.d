@@ -143,7 +143,14 @@ void drawPreparedTriangle(size_t TWidth, bool FillBack, AllocT,CtxT1,CtxT2,PrepT
                     }
 
                     //const validLine = (x1 >= x0);
-                    enum validLine = true;
+                    debug
+                    {
+                        const validLine = (x1 > x0); //FIXME
+                    }
+                    else
+                    {
+                        enum validLine = true;
+                    }
                     assert(x1 >= x0);
                 }
                 else
@@ -159,7 +166,7 @@ void drawPreparedTriangle(size_t TWidth, bool FillBack, AllocT,CtxT1,CtxT2,PrepT
                     enum validLine = true;
                 }
 
-                //if(validLine)
+                if(validLine)
                 {
                     static if(FillBack)
                     {

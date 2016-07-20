@@ -16,21 +16,6 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
     assert(index >= 0);
 
     const size = context.size;
-    const HSLine[3] lines = [
-        HSLine(verts[0], verts[1], size),
-        HSLine(verts[1], verts[2], size),
-        HSLine(verts[2], verts[0], size)];
-
-    bool none(in uint val) pure nothrow const
-    {
-        return 0x0 == (val & 0b00000001_00000001_00000001_00000001) ||
-               0x0 == (val & 0b00000010_00000010_00000010_00000010) ||
-               0x0 == (val & 0b00000100_00000100_00000100_00000100);
-    }
-    auto all(in uint val) pure nothrow const
-    {
-        return val == 0b00000111_00000111_00000111_00000111;
-    }
 
     void updateLine(int y) pure nothrow @nogc
     {
@@ -46,45 +31,23 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
         assert(sy1 > sy0);
         const bool yEdge = (TileSize.h != (sy1 - sy0));
 
-        const tx1 = (max(area.x0, clipRect.x) / TileSize.w);
-        const tx2 = ((min(area.x1, clipRect.x + clipRect.w) + TileSize.w - 1) / TileSize.w);
-        const sx = tx1 * TileSize.w;
-        auto pt1 = HSPoint(cast(int)sx, cast(int)ty0, lines);
-        auto pt2 = HSPoint(cast(int)sx, cast(int)ty1, lines);
-        uint val = (pt1.vals() << 0) | (pt2.vals() << 8);
+        const areax0 = min(area.iter0(sy0).x, area.iter0(sy1).x);
+        const areax1 = max(area.iter1(sy0).x, area.iter1(sy1).x);
 
-        bool hadOne = false;
+        const areamx0 = max(area.iter0(sy0).x, area.iter0(sy1).x);
+        const areamx1 = min(area.iter1(sy0).x, area.iter1(sy1).x);
+
+        const tx1 =  (max(areax0, clipRect.x) / TileSize.w);
+        const tx2 = ((min(areax1, clipRect.x + clipRect.w) + TileSize.w - 1) / TileSize.w);
+
+        const tmx1 = (areamx0 / TileSize.w);
+        const tmx2 = (areamx1 / TileSize.w);
 
         auto htiles0Local = htiles[0].ptr + y * firstTilesSize.w;
         foreach(x; tx1..tx2)
         {
             assert(x >= 0);
             assert(x < firstTilesSize.w);
-            pt1.incX(TileSize.w);
-            pt2.incX(TileSize.w);
-            val = val | (pt1.vals() << 16) | (pt2.vals() << 24);
-            union U
-            {
-                uint oldval;
-                ubyte[4] vals;
-            }
-            static assert(U.sizeof == uint.sizeof);
-            const U u = {oldval: val};
-            assert((u.oldval & 0xff) == u.vals[0]);
-            val >>= 16;
-
-            if(none(u.oldval))
-            {
-                if(hadOne)
-                {
-                    break;
-                }
-                else
-                {
-                    continue;
-                }
-            }
-            hadOne = true;
 
             auto tile = &htiles0Local[x];
             assert(tile is &htiles[0][x + y * firstTilesSize.w]);
@@ -93,39 +56,19 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                 continue;
             }
 
-            const covered = all(u.oldval);
+            const covered = !yEdge && (x > tmx1) && (x < tmx2);
             if(covered && !tile.hasChildren)
             {
                 tile.set(index);
             }
             else
             {
-                HighTile.type_t checkTile(Size TSize, int Level, bool Full, bool Covered)(int tx, int ty, in ubyte[4] prevVals)
+                HighTile.type_t checkTile(Size TSize, int Level, bool Full, bool Covered)(int tx, int ty)
                 {
                     static assert(TSize.w > 0 && TSize.h > 0);
                     static assert(Level >= 0);
-                    assert(4 == prevVals.length);
 
-                    static if(!Covered)
-                    {
-                        const x = tx * TSize.w;
-                        const y = ty * TSize.h;
-
-                        const pt1 = cast(uint)prevVals[0];//*/hsPlanesVals(cast(int)x              , cast(int)y              , lines)
-                        const pt2 = hsPlanesVals(cast(int)x + TSize.w    , cast(int)y              , lines);
-                        const pt3 = cast(uint)prevVals[2];//*/hsPlanesVals(cast(int)x + TSize.w * 2, cast(int)y              , lines);
-                        const pt4 = hsPlanesVals(cast(int)x              , cast(int)y + TSize.h    , lines);
-                        const pt5 = hsPlanesVals(cast(int)x + TSize.w    , cast(int)y + TSize.h    , lines);
-                        const pt6 = hsPlanesVals(cast(int)x + TSize.w * 2, cast(int)y + TSize.h    , lines);
-                        const pt7 = cast(uint)prevVals[1];//*/hsPlanesVals(cast(int)x              , cast(int)y + TSize.h * 2, lines);
-                        const pt8 = hsPlanesVals(cast(int)x + TSize.w    , cast(int)y + TSize.h * 2, lines);
-                        const pt9 = cast(uint)prevVals[3];//*/hsPlanesVals(cast(int)x + TSize.w * 2, cast(int)y + TSize.h * 2, lines);
-                        const uint[4] vals = [
-                            (pt1 << 0) | (pt4 << 8) | (pt2 << 16) | (pt5 << 24),
-                            (pt2 << 0) | (pt5 << 8) | (pt3 << 16) | (pt6 << 24),
-                            (pt4 << 0) | (pt7 << 8) | (pt5 << 16) | (pt8 << 24),
-                            (pt5 << 0) | (pt8 << 8) | (pt6 << 16) | (pt9 << 24)];
-                    }
+                    const areaLocal = area;
 
                     const tilesSize = tilesSizes[Level];
                     const initialTileOffset = tx + ty * tilesSize.w;
@@ -135,6 +78,7 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                         gamelib.types.Point(0,1),
                         gamelib.types.Point(1,1)
                     ];
+
                     static if(Level < HighTileLevelCount)
                     {
                         auto htilesLocal = htiles[Level].ptr + initialTileOffset;
@@ -215,7 +159,6 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                     {
                         auto tilesLocal = tiles.ptr + initialTileOffset;
                         auto masksLocal = masks.ptr + initialTileOffset;
-                        const areaLocal = area;
                         HighTile.type_t childrenFullMask = 0;
                         foreach(i;0..4)
                         {
@@ -250,6 +193,7 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                             }
                             else
                             {
+
                                 static if(Full)
                                 {
                                     const int x0 = (tx + offsetPointLocal.x) * TSize.w;
@@ -290,15 +234,21 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                                 assert(x1 > x0);
                                 assert(y1 > y0);
 
-                                const valLocal = vals[i];
-                                if(none(valLocal))
+                                const int[2] currLim0 = [areaLocal.iter0(max(y0,areaLocal.y0)).x,areaLocal.iter1(max(y0,areaLocal.y0)).x];
+                                const int[2] currLim1 = [areaLocal.iter0(min(y1,areaLocal.y1)).x,areaLocal.iter1(min(y1,areaLocal.y1)).x];
+
+                                if(x1 <= min(currLim0[0], currLim1[0]) ||
+                                   x0 >= max(currLim0[1], currLim1[1]))
                                 {
                                     continue;
                                 }
 
                                 void checkTile(bool CheckLeft, bool CheckRight)()
                                 {
-                                    if(all(valLocal))
+                                    if(y0 >= areaLocal.y0 &&
+                                       y1 <= areaLocal.y1 &&
+                                       x0 >= max(currLim0[0],currLim1[0]) &&
+                                       x1 <= min(currLim0[1],currLim1[1]))
                                     {
                                         tile.addTriangle(index, true, 0, TSize.h);
                                         childrenFullMask |= (1 << i);
@@ -532,12 +482,12 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                     //tile.SetChildrenFullMask(checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,false)(x * 2, y * 2, u.vals));
                     if(covered)
                     {
-                        checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,false,true)(x * 2, y * 2, u.vals);
+                        checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,false,true)(x * 2, y * 2);
                         tile.SetChildrenFullMask(0xf);
                     }
                     else
                     {
-                        tile.SetChildrenFullMask(checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,false,false)(x * 2, y * 2, u.vals));
+                        tile.SetChildrenFullMask(checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,false,false)(x * 2, y * 2));
                     }
                 }
                 else
@@ -545,12 +495,12 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                     //tile.SetChildrenFullMask(checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,true)(x * 2, y * 2, u.vals));
                     if(covered)
                     {
-                        checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,true,true)(x * 2, y * 2, u.vals);
+                        checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,true,true)(x * 2, y * 2);
                         tile.SetChildrenFullMask(0xf);
                     }
                     else
                     {
-                        tile.SetChildrenFullMask(checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,true,false)(x * 2, y * 2, u.vals));
+                        tile.SetChildrenFullMask(checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,true,false)(x * 2, y * 2));
                     }
                 }
             }
