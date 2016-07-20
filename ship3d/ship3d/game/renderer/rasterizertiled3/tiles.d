@@ -29,7 +29,12 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
         const sy0 = max(area.y0, ty0, clipRect.y);
         const sy1 = min(area.y1, ty1, clipRect.y + clipRect.h);
         assert(sy1 > sy0);
-        const bool yEdge = (TileSize.h != (sy1 - sy0));
+
+        assert(sy0 >= ty0);
+        assert(sy1 <= ty1);
+
+        const bool yEdge = (ty1 > (clipRect.y + clipRect.h));
+        const bool yFull = (TileSize.h == (sy1 - sy0));
 
         const areax0 = min(area.iter0(sy0).x, area.iter0(sy1).x);
         const areax1 = max(area.iter1(sy0).x, area.iter1(sy1).x);
@@ -56,7 +61,7 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                 continue;
             }
 
-            const covered = !yEdge && (x > tmx1) && (x < tmx2);
+            const covered = yFull && (x > tmx1) && (x < tmx2);
             if(covered && !tile.hasChildren)
             {
                 tile.set(index);
@@ -160,6 +165,8 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                         auto tilesLocal = tiles.ptr + initialTileOffset;
                         auto masksLocal = masks.ptr + initialTileOffset;
                         HighTile.type_t childrenFullMask = 0;
+                        const areax0 = areaLocal.x0;
+                        const areax1 = areaLocal.x1;
                         foreach(i;0..4)
                         {
                             const offsetPointLocal = offsetPoints[i];
@@ -219,20 +226,20 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                                     {
                                         break;
                                     }
-
-                                    if(areaLocal.x1 <= x0 || areaLocal.x0 >= x1 || areaLocal.y0 >= y1)
-                                    {
-                                        continue;
-                                    }
-
-                                    if(areaLocal.y1 <= y0)
-                                    {
-                                        break;
-                                    }
                                 }
 
                                 assert(x1 > x0);
                                 assert(y1 > y0);
+
+                                if(areax1 <= x0 || areax0 >= x1 || areaLocal.y0 >= y1)
+                                {
+                                    continue;
+                                }
+
+                                if(areaLocal.y1 <= y0)
+                                {
+                                    break;
+                                }
 
                                 const int[2] currLim0 = [areaLocal.iter0(max(y0,areaLocal.y0)).x,areaLocal.iter1(max(y0,areaLocal.y0)).x];
                                 const int[2] currLim1 = [areaLocal.iter0(min(y1,areaLocal.y1)).x,areaLocal.iter1(min(y1,areaLocal.y1)).x];
