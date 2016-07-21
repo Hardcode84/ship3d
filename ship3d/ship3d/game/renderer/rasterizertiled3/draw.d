@@ -1,6 +1,7 @@
 ﻿module game.renderer.rasterizertiled3.draw;
 
 import std.algorithm;
+import std.traits;
 import std.range;
 
 import game.units;

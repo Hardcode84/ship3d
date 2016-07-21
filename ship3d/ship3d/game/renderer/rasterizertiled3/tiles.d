@@ -3,6 +3,8 @@
 import std.algorithm;
 import std.range;
 
+import gamelib.types;
+
 import game.units;
 
 import game.renderer.rasterizertiled3.types;
@@ -17,7 +19,7 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
 
     const size = context.size;
 
-    HighTile.type_t checkTile(Size TSize, int Level, bool Full, bool Covered)(int tx, int ty)
+    HighTile.type_t checkTile(Size TSize, int Level, bool Full, bool Covered)(int tx, int ty, in HighTile.type_t oldChildrenMask)
     {
         static assert(TSize.w > 0 && TSize.h > 0);
         static assert(Level >= 0);
@@ -36,7 +38,7 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
         static if(Level < HighTileLevelCount)
         {
             auto htilesLocal = htiles[Level].ptr + initialTileOffset;
-            HighTile.type_t childrenFullMask = 0;
+            HighTile.type_t childrenFullMask = oldChildrenMask;
             foreach(i;0..4)
             {
                 const offsetPointLocal = offsetPoints[i];
@@ -113,25 +115,22 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
         {
             auto tilesLocal = tiles.ptr + initialTileOffset;
             auto masksLocal = masks.ptr + initialTileOffset;
-            HighTile.type_t childrenFullMask = 0;
+            HighTile.type_t childrenFullMask = oldChildrenMask;
             const areax0 = areaLocal.x0;
             const areax1 = areaLocal.x1;
             foreach(i;0..4)
             {
+                if(0 != (childrenFullMask & (1 << i)))
+                {
+                    continue;
+                }
                 const offsetPointLocal = offsetPoints[i];
                 const tileOffset = offsetPointLocal.x + offsetPointLocal.y * tilesSize.w;
 
                 assert((initialTileOffset + tileOffset) < tiles.length);
                 assert((initialTileOffset + tileOffset) < masks.length);
                 auto tile = &tilesLocal[tileOffset];
-                if(tile.full)
-                {
-                    static if(!Covered)
-                    {
-                        childrenFullMask |= (1 << i);
-                    }
-                    continue;
-                }
+                assert(!tile.full);
 
                 debug
                 {
@@ -146,10 +145,10 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                 static if(Covered)
                 {
                     tile.addTriangle(index, true, 0, TSize.h);
+                    childrenFullMask |= (1 << i);
                 }
                 else
                 {
-
                     static if(Full)
                     {
                         const int x0 = (tx + offsetPointLocal.x) * TSize.w;
@@ -168,11 +167,13 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
 
                         if(x0 >= x1)
                         {
+                            childrenFullMask |= (1 << i);
                             continue;
                         }
 
                         if(y0 >= y1)
                         {
+                            childrenFullMask |= (1 << i);
                             break;
                         }
                     }
@@ -286,7 +287,7 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                                 if(maxY > minY)
                                 {
                                     tile.addTriangle(index, full, minY, maxY);
-                                    if(full)
+                                    if(tile.full)
                                     {
                                         childrenFullMask |= (1 << i);
                                     }
@@ -391,7 +392,7 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                                 {
                                     const bool full = (FullMask == fmask);
                                     tile.addTriangle(index, full, minY, maxY);
-                                    if(full)
+                                    if(tile.full)
                                     {
                                         childrenFullMask |= (1 << i);
                                     }
@@ -402,8 +403,7 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                                 assert((FullMask == fmask) == mask.full);
                             }
                         }
-                    }
-                    //check
+                    } //checkTile
 
                     const checkLeft  = (max(areaLocal.edge0.x0, areaLocal.edge0.x1) > x0);
                     const checkRight = (min(areaLocal.edge1.x0, areaLocal.edge1.x1) < x1);
@@ -487,24 +487,24 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                 {
                     static if(Covered)
                     {
-                        checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,false,true)(x * 2, y * 2);
+                        checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,false,true)(x * 2, y * 2, tile.childrenFullMask);
                         tile.SetChildrenFullMask(0xf);
                     }
                     else
                     {
-                        tile.SetChildrenFullMask(checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,false,false)(x * 2, y * 2));
+                        tile.SetChildrenFullMask(checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,false,false)(x * 2, y * 2, tile.childrenFullMask));
                     }
                 }
                 else
                 {
                     static if(Covered)
                     {
-                        checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,true,true)(x * 2, y * 2);
+                        checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,true,true)(x * 2, y * 2, tile.childrenFullMask);
                         tile.SetChildrenFullMask(0xf);
                     }
                     else
                     {
-                        tile.SetChildrenFullMask(checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,true,false)(x * 2, y * 2));
+                        tile.SetChildrenFullMask(checkTile!(Size(TileSize.w >> 1, TileSize.h >> 1), 1,true,false)(x * 2, y * 2, tile.childrenFullMask));
                     }
                 }
             }

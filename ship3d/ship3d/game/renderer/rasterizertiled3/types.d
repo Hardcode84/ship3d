@@ -306,16 +306,20 @@ struct Tile
 struct HighTile
 {
 @nogc pure nothrow:
-    alias type_t = ushort;
-    enum UnusedFlag = type_t.max;
+    alias type_t = uint;
+
     enum ChildrenFlag = (1 << (type_t.sizeof * 8 - 5));
     enum ChildrenFullOffset = ((type_t.sizeof * 8) - 4);
     enum FullChildrenFlag = (ChildrenFlag | (0xf << ChildrenFullOffset));
+    enum UnusedFlag = cast(type_t)~FullChildrenFlag;
+    pragma(msg, ChildrenFlag);
+    pragma(msg, FullChildrenFlag);
+    pragma(msg, UnusedFlag);
     type_t index = UnusedFlag;
 
     @property auto used() const
     {
-        return index < ChildrenFlag;
+        return index < UnusedFlag;
     }
 
     @property auto hasChildren() const
@@ -331,8 +335,10 @@ struct HighTile
 
     void set(int ind)
     {
+        assert(!hasChildren);
+        assert(!childrenFull);
         assert(ind >= 0);
-        assert(ind < FullChildrenFlag);
+        assert(ind < UnusedFlag);
         assert(!used);
         index = cast(type_t)ind;
     }
@@ -345,9 +351,16 @@ struct HighTile
 
     void SetChildrenFullMask(type_t mask)
     {
+        assert(!used);
         assert(mask >= 0);
         assert(mask <= 0xf);
         index |= (mask << ChildrenFullOffset);
+    }
+
+    @property auto childrenFullMask() const
+    {
+        assert((index >> ChildrenFullOffset) <= 0xf);
+        return cast(type_t)(index >> ChildrenFullOffset);
     }
 }
 
