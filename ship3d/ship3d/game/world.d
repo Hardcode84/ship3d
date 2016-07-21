@@ -220,10 +220,10 @@ public:
     {
         debug
         {
-            const ColorT[] colors = [
-                ColorGreen,
+            const ColorT[1] colors = [
+                ColorGreen/*,
                 ColorBlue,
-                ColorRed
+                ColorRed*/
             ];
             import std.random;
             surf.fill(colors[uniform(0,colors.length)]);
@@ -320,7 +320,7 @@ private:
                 Vertex(vec3_t( 1, 1, 1),vec2_t(1 - texCorrect, 1 - texCorrect))].map!(a => Vertex(a.pos * CubeScale, a.tpos)).array,
             [[0,1,2],[2,1,3]]);
 
-        mesh.addTriangles([
+        mesh.addTriangles([ //front
                 Vertex(vec3_t(-1,-1, -1),vec2_t(0 + texCorrect, 0 + texCorrect)),
                 Vertex(vec3_t( 1,-1, -1),vec2_t(1 - texCorrect, 0 + texCorrect)),
                 Vertex(vec3_t(-1, 1, -1),vec2_t(0 + texCorrect, 1 - texCorrect)),
@@ -381,8 +381,8 @@ private:
         const playerCon  = mPlayer.mainConnection;
         const playerPos  = playerCon.pos + playerCon.correction;
         const playerDir  = playerCon.dir * vec3_t(0,0,1);
-        if(((playerDir - mLastDir).length_squared > 0.001f || (playerPos - mLastPos).length_squared > 0.001f)/* && (0 == mUpdateCounter % 4)*/)
-        {
+        //if(((playerDir - mLastDir).length_squared > 0.001f || (playerPos - mLastPos).length_squared > 0.001f) && (0 == mUpdateCounter % 4))
+        //{
             mLastPos = playerPos;
             mLastDir = playerDir;
             const v = mRooms[0].staticEntities[0].pos;
@@ -421,7 +421,7 @@ private:
 
             mRooms[0].staticEntities.sort!(myComp,SwapStrategy.stable)();
             mWasDraw = false;
-        }
+        /*}
         else if(mWasDraw)
         {
             int count = 0;
@@ -439,7 +439,7 @@ private:
                 }
             }
             debugOut(count);
-        }
+        }*/
     }
 
     auto worldTaskPool()
