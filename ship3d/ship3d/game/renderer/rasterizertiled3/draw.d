@@ -285,8 +285,8 @@ void drawPreparedTriangle(size_t TWidth, bool FillBack, AllocT,CtxT1,CtxT2,PrepT
     const minW = prepared.minW;
     const wDiff = maxW - minW;
     assert(wDiff >= 0);
-    const affineThresh = (24.0f / max(clipSize.w, clipSize.h));
-    if(minW < -3.0f && wDiff < affineThresh)
+    const affineThresh = (32.0f / max(clipSize.w, clipSize.h));
+    if(minW < -4.0f && wDiff < affineThresh)
     {
         outerLoop!(true)();
     }

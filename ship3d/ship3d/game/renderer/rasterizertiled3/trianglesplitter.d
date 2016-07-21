@@ -132,7 +132,7 @@ auto isTriangleExternal(VertT)(in VertT[] verts, in Size size)
     const y2 = verts[1].y;
     const y3 = verts[2].y;
     const dw = 0.001f;
-    const sizeLim = 100000;
+    enum sizeLim = 100000;
     const bool big = max(
         max(abs(x1 / w1), abs(x2 / w2), abs(x3 / w3)) * size.w,
         max(abs(y1 / w1), abs(y2 / w2), abs(y3 / w3)) * size.h) > sizeLim;
