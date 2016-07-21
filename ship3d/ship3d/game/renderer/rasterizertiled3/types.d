@@ -10,7 +10,7 @@ import game.utils;
 enum AffineLength = 32;
 enum TileSize = Size(64,64);
 enum HighTileLevelCount = 1;
-enum TileBufferSize = 64;
+enum TileBufferSize = 96;
 enum LowTileSize = Size(TileSize.w >> HighTileLevelCount, TileSize.h >> HighTileLevelCount);
 
 enum MaxAreasPerTriangle = 8;
@@ -75,6 +75,14 @@ pure nothrow @nogc:
     TriangleAreaEdge edge1;
     int y0 = 0;
     int y1 = 0;
+
+    this(in TriangleAreaEdge e0, in TriangleAreaEdge e1, int y0_, int y1_)
+    {
+        edge0 = e0;
+        edge1 = TriangleAreaEdge(e1.xf0 + 0.5f, e1.xf1 + 0.5f);
+        y0 = y0_;
+        y1 = y1_;
+    }
 
     @property auto x0() const
     {

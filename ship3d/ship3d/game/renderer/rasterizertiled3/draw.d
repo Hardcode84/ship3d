@@ -11,6 +11,7 @@ import game.renderer.rasterizertiled3.types;
 void drawPreparedTriangle(size_t TWidth, bool FillBack, AllocT,CtxT1,CtxT2,PrepT)
     (auto ref AllocT alloc, in Rect clipRect, auto ref CtxT1 outContext, auto ref CtxT2 extContext, auto ref PrepT prepared, int index, int minY, int maxY)
 {
+    //debugOut("draw");
     enum Full = (TWidth > 0);
     static assert(!(Full && FillBack));
     static assert(!Full || (TWidth >= AffineLength && 0 == (TWidth % AffineLength)));
@@ -142,16 +143,8 @@ void drawPreparedTriangle(size_t TWidth, bool FillBack, AllocT,CtxT1,CtxT2,PrepT
                         span.incXY(dx);
                     }
 
-                    //const validLine = (x1 >= x0);
-                    debug
-                    {
-                        const validLine = (x1 > x0); //FIXME
-                    }
-                    else
-                    {
-                        enum validLine = true;
-                    }
                     assert(x1 >= x0);
+                    const validLine = (x1 > x0); //FIXME
                 }
                 else
                 {
@@ -239,10 +232,10 @@ void drawPreparedTriangle(size_t TWidth, bool FillBack, AllocT,CtxT1,CtxT2,PrepT
                     }
                     //line[x0..x1] = (Affine ? ColorRed : ColorGreen);
                 }
-                /*else static if(FillBack)
+                else static if(FillBack)
                 {
                     line[beginLine..endLine] = backColor;
-                }*/
+                }
 
                 debug
                 {
