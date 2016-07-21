@@ -278,7 +278,8 @@ struct Tile
     @property auto full() const
     {
         assert(length <= buffer.length);
-        return covered || length == buffer.length;
+        assert((covered || length == buffer.length) == (used >= buffer.length));
+        return used >= buffer.length;
     }
 
     auto addTriangle(int index, bool finalize, int minY, int maxY)

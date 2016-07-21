@@ -724,7 +724,7 @@ void drawTiles(ContextT,AllocT,HTileT,TileT,CacheT,PrepT)
                 buff.popBack;
             }
 
-            foreach(const elem; buff.retro)
+            foreach(const ref elem; buff.retro)
             {
                 const index = elem.index;
                 const triIndex = index >> AreaIndexShift;
