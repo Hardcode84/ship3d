@@ -191,8 +191,11 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                         break;
                     }
 
-                    const int[2] currLim0 = [areaLocal.iter0(max(y0,areaLocal.y0)).x,areaLocal.iter1(max(y0,areaLocal.y0)).x];
-                    const int[2] currLim1 = [areaLocal.iter0(min(y1,areaLocal.y1)).x,areaLocal.iter1(min(y1,areaLocal.y1)).x];
+                    const areay0 = max(y0,areaLocal.y0);
+                    const areay1 = min(y1,areaLocal.y1);
+                    assert(areay1 > areay0);
+                    const int[2] currLim0 = [areaLocal.iter0(areay0).x,areaLocal.iter1(areay0).x];
+                    const int[2] currLim1 = [areaLocal.iter0(areay1).x,areaLocal.iter1(areay1).x];
 
                     if(x1 <= min(currLim0[0], currLim1[0]) ||
                        x0 >= max(currLim0[1], currLim1[1]))
@@ -405,8 +408,8 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                         }
                     } //checkTile
 
-                    const checkLeft  = (max(areaLocal.edge0.x0, areaLocal.edge0.x1) > x0);
-                    const checkRight = (min(areaLocal.edge1.x0, areaLocal.edge1.x1) < x1);
+                    const checkLeft  = (max(currLim0[0], currLim1[0]) > x0);
+                    const checkRight = (min(currLim0[1], currLim1[1]) < x1);
                     if(checkLeft && checkRight)
                     {
                         checkTile!(true,true);
