@@ -162,18 +162,19 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
                         const int x0 = (tx + offsetPointLocal.x) * TSize.w;
                         const int x1 = min(x0 + TSize.w, clipRect.x + clipRect.w);
 
-                        const int y0 = (ty + offsetPointLocal.y) * TSize.h;
-                        const int y1 = min(y0 + TSize.h, clipRect.y + clipRect.h);
-
                         if(x0 >= x1)
                         {
                             childrenFullMask |= (1 << i);
                             continue;
                         }
 
+                        const int y0 = (ty + offsetPointLocal.y) * TSize.h;
+                        const int y1 = min(y0 + TSize.h, clipRect.y + clipRect.h);
+
                         if(y0 >= y1)
                         {
-                            childrenFullMask |= (1 << i);
+                            assert(2 == i);
+                            childrenFullMask |= ((1 << i) | (1 << (i + 1)));
                             break;
                         }
                     }
