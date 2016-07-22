@@ -9,7 +9,7 @@ import game.units;
 import game.renderer.rasterizertiled3.types;
 
 @nogc pure nothrow:
-void drawPreparedTriangle(size_t TWidth, bool FillBack, AllocT,CtxT1,CtxT2,PrepT)
+void drawPreparedTriangle(uint TWidth, bool FillBack, AllocT,CtxT1,CtxT2,PrepT)
     (auto ref AllocT alloc, in Rect clipRect, auto ref CtxT1 outContext, auto ref CtxT2 extContext, auto ref PrepT prepared, int index, int minY, int maxY)
 {
     //debugOut("draw");

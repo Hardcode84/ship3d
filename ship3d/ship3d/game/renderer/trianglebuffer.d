@@ -8,7 +8,8 @@ void pushTriangleToBuffer(alias Handler, HeaderT, ElemT)(void[] buffer, auto ref
     auto flushFunc = &createFlushFunc!(Handler,HeaderT,ElemT);
     alias FirstElemsType = Tuple!(CommonBufferHeader,HeaderT);
     assert(buffer.length >= (FirstElemsType.sizeof + ElemT.sizeof));
-    auto oldHeader = cast(CommonBufferHeader*)buffer.ptr;
+    auto oldHeader = &((*(cast(FirstElemsType*)buffer.ptr))[0]);
+    assert(oldHeader is buffer.ptr);
 
     void flushBuffer() @nogc pure nothrow
     {

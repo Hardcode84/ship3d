@@ -37,12 +37,11 @@ public:
         struct Context2
         {
             const(texture_t) texture;
-            bool* drawn;
             static if(DynLights)
             {
                 const(Light)[] lights;
+                const(LightController) lightController;
             }
-            const(LightController) lightController;
         }
 
         static if(DynLights)
@@ -51,9 +50,8 @@ public:
         }
         else
         {
-            Context2 ctx = {texture: mMesh.texture, lightController: params.room.lightController};
+            Context2 ctx = {texture: mMesh.texture};
         }
-        ctx.drawn = &mDrawn;
 
         alias RastT2 = Rasterizer!(true,false,false,DynLights);
         foreach(const ref ind; mMesh.indices[])

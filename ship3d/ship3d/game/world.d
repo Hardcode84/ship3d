@@ -40,8 +40,6 @@ private:
     StackAlloc[] mAllocators;
     RefAllocator mRefAlloc;
 
-    enum ThreadTileSize = Size(320,240);
-
     IntrusiveList!(Room,"worldUpdateLightsLink") mUpdateLightsList;
 
     struct OutContext
@@ -56,8 +54,6 @@ private:
         ColorT backColor;
 
         void[] rasterizerCache;
-        uint rasterizerCacheUsed = 0;
-        void function(void[]) flushFunc = null;
 
         StackAlloc[] allocators;
         debug

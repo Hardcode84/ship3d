@@ -312,9 +312,6 @@ struct HighTile
     enum ChildrenFullOffset = ((type_t.sizeof * 8) - 4);
     enum FullChildrenFlag = (ChildrenFlag | (0xf << ChildrenFullOffset));
     enum UnusedFlag = cast(type_t)~FullChildrenFlag;
-    pragma(msg, ChildrenFlag);
-    pragma(msg, FullChildrenFlag);
-    pragma(msg, UnusedFlag);
     type_t index = UnusedFlag;
 
     @property auto used() const
