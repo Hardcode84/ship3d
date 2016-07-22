@@ -20,7 +20,7 @@ enum AreaIndexMask = MaxAreasPerTriangle - 1;
 
 enum FillBackground = true;
 
-enum UseDithering = false;
+enum UseDithering = true;
 
 struct TriangleAreaEdge
 {

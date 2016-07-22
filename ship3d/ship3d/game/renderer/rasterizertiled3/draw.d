@@ -266,7 +266,7 @@ void drawPreparedTriangle(uint TWidth, bool FillBack, AllocT,CtxT1,CtxT2,PrepT)
         static if(UseDithering)
         {
             const maxD = span.calcMaxD(3.0f);
-            const D = 1.0f / min(extContext.texture.width,extContext.texture.height);
+            const D = 1.0f / min(extContext.context.texture.width,extContext.context.texture.height);
             if(maxD < D)
             {
                 innerLoop!(AffineLength,true)();

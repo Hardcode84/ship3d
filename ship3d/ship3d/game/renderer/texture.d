@@ -3,6 +3,8 @@
 import std.traits;
 import std.algorithm;
 
+import game.units;
+
 import gamelib.types;
 import gamelib.math;
 import gamelib.util;
@@ -55,7 +57,6 @@ public:
         const wmask = w - 1;
         const hmask = (h * w - 1) & ~wmask;
         alias TextT = Unqual!(typeof(context.u));
-        //alias TextT = FixedPoint!(16,16,int);
 
         const startx = context.x;
         debug
@@ -67,50 +68,128 @@ public:
             const data = mData.ptr;
         }
 
-        const TextT dux = cast(TextT)context.dux;
-        const TextT dvx = cast(TextT)context.dvx;
-        const TextT dux2 = cast(TextT)(dux * (w * 2));
-        const TextT dvx2 = cast(TextT)(dvx * (h * w * 2));
-        TextT u1 = cast(TextT)((context.u) * w);
-        TextT v1 = cast(TextT)((context.v) * (h * w));
-        TextT u2 = cast(TextT)((context.u + dux) * w);
-        TextT v2 = cast(TextT)((context.v + dvx) * (h * w));
-
-        if(context.dither)
+        void loop(int Step)() const pure nothrow @nogc
         {
-            static immutable TextT[2][4] dithTable = [
-                [0.25f-0.5f,0.00f-0.5f], [0.50f-0.5f,0.75f-0.5f],
-                [0.75f-0.5f,0.50f-0.5f], [0.00f-0.5f,0.25f-0.5f]];
+            static assert(Step > 0);
+            const dux = cast(TextT)context.dux;
+            const dvx = cast(TextT)context.dvx;
+            const dux2 = cast(TextT)(dux * (w * (1 << Step)));
+            const dvx2 = cast(TextT)(dvx * (h * w * (1 << Step)));
+            static if(Step > 1)
+            {
+                const dux3 = cast(TextT)(dux * (w * 2));
+                const dvx3 = cast(TextT)(dvx * (h * w * 2));
+            }
+            TextT u1 = cast(TextT)((context.u) * w);
+            TextT v1 = cast(TextT)((context.v) * (h * w));
+            TextT u2 = cast(TextT)((context.u + dux) * w);
+            TextT v2 = cast(TextT)((context.v + dvx) * (h * w));
 
-            const xoff = (startx & 1);
-            const yoff = (context.y & 1) << 1;
-            const dith1 = dithTable[xoff ^ 0 + yoff];
-            const dith2 = dithTable[xoff ^ 1 + yoff];
-            u1 += dith1[0];
-            v1 += dith1[1] * h;
-            u2 += dith2[0];
-            v2 += dith2[1] * h;
-        }
+            if(context.dither)
+            {
+                enum TextT[2][4] dithTable = [
+                    [0.25f-0.5f,0.00f-0.5f], [0.50f-0.5f,0.75f-0.5f],
+                    [0.75f-0.5f,0.50f-0.5f], [0.00f-0.5f,0.25f-0.5f]];
 
-        foreach(i;0..(len >> 1))
+                const xoff = (startx & 1);
+                const yoff = (context.y & 1) << 1;
+                const dith1 = dithTable[xoff ^ 0 + yoff];
+                const dith2 = dithTable[xoff ^ 1 + yoff];
+                u1 += dith1[0];
+                v1 += dith1[1] * h;
+                u2 += dith2[0];
+                v2 += dith2[1] * h;
+            }
+
+            /*static if(Step > 1)
+            {
+                const firstSize = (len - ((len >> Step) << Step));
+                foreach(i;0..(firstSize >> 1))
+                {
+                    const x1 = cast(int)(u1) & wmask;
+                    const y1 = cast(int)(v1) & hmask;
+                    const x2 = cast(int)(u2) & wmask;
+                    const y2 = cast(int)(v2) & hmask;
+                    outLine[(i << 1) + 0] = getColor(context.colorProxy(data[x1 | y1],cast(int)(startx + (i << 1) + 0)));
+                    outLine[(i << 1) + 1] = getColor(context.colorProxy(data[x2 | y2],cast(int)(startx + (i << 1) + 1)));
+                    u1 += dux3;
+                    v1 += dvx3;
+                    u2 += dux3;
+                    v2 += dvx3;
+                }
+                const start = (firstSize >> 1) << 1;
+            }
+            else
+            {
+                enum start = 0;
+            }*/
+
+            foreach(i;0..((len >> Step)))
+            {
+                const x1 = cast(int)(u1) & wmask;
+                const y1 = cast(int)(v1) & hmask;
+                const x2 = cast(int)(u2) & wmask;
+                const y2 = cast(int)(v2) & hmask;
+                const col0 = getColor(context.colorProxy(data[x1 | y1],cast(int)(startx + (i << Step) + 0)));
+                const col1 = getColor(context.colorProxy(data[x2 | y2],cast(int)(startx + (i << Step) + 1)));
+                foreach(j;0..(1 << (Step - 1)))
+                //foreach(j;TupleRange!(0, 1 << (Step - 1)))
+                {
+                    outLine[(i << (Step)) + (j << 1) + 0] = col0;
+                    outLine[(i << (Step)) + (j << 1) + 1] = col1;
+                }
+                u1 += dux2;
+                v1 += dvx2;
+                u2 += dux2;
+                v2 += dvx2;
+            }
+            static if(Step > 1)
+            {
+                const start = (len >> Step) << Step;
+                assert(start <= len);
+                foreach(i;0..((len - start) >> 1))
+                {
+                    const x1 = cast(int)(u1) & wmask;
+                    const y1 = cast(int)(v1) & hmask;
+                    const x2 = cast(int)(u2) & wmask;
+                    const y2 = cast(int)(v2) & hmask;
+                    outLine[start + (i << 1) + 0] = getColor(context.colorProxy(data[x1 | y1],cast(int)(startx + (i << 1) + 0)));
+                    outLine[start + (i << 1) + 1] = getColor(context.colorProxy(data[x2 | y2],cast(int)(startx + (i << 1) + 1)));
+                    u1 += dux3;
+                    v1 += dvx3;
+                    u2 += dux3;
+                    v2 += dvx3;
+                }
+            }
+            if(0 != (len & 1))
+            {
+                const x1 = cast(int)(u1) & wmask;
+                const y1 = cast(int)(v1) & hmask;
+                outLine[len - 1] = getColor(context.colorProxy(data[x1 | y1],cast(int)(startx + len - 1)));
+            }
+        } //loop
+
+        /*const ustep = 1.0f / w;
+        const vstep = 1.0f / h;
+        const ustepx = ustep / abs(context.dux);
+        const vstepx = vstep / abs(context.dvx);
+        assert(ustepx >= 0);
+        assert(vstepx >= 0);
+
+        const copyLen = max(1, min(cast(int)min(ustepx, vstepx), len));
+        assert(copyLen > 0);
+        assert(copyLen <= len);
+
+        if(copyLen >= 32)
         {
-            const x1 = cast(int)(u1) & wmask;
-            const y1 = cast(int)(v1) & hmask;
-            const x2 = cast(int)(u2) & wmask;
-            const y2 = cast(int)(v2) & hmask;
-            outLine[i * 2 + 0] = getColor(context.colorProxy(data[x1 + y1],cast(int)(startx + i * 2 + 0)));
-            outLine[i * 2 + 1] = getColor(context.colorProxy(data[x2 + y2],cast(int)(startx + i * 2 + 1)));
-            u1 += dux2;
-            v1 += dvx2;
-            u2 += dux2;
-            v2 += dvx2;
+            loop!3();
         }
-        if(0 != (len & 1))
+        else
         {
-            const x1 = cast(int)(u1) & wmask;
-            const y1 = cast(int)(v1) & hmask;
-            outLine[len - 1] = getColor(context.colorProxy(data[x1 + y1],cast(int)(startx + len - 1)));
-        }
+            loop!2();
+        }*/
+
+        loop!2();
     }
 }
 
