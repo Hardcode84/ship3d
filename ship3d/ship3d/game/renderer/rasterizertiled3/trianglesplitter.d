@@ -13,28 +13,14 @@ void splitTriangle(alias AreaHandler,VertT)(in VertT[] verts, in Rect boundingRe
     assert(3 == verts.length);
     import gamelib.types: Point;
 
-    const size = Size(boundingRect.w, boundingRect.h);
-    auto transformVert(T)(in T v)
-    {
-        const pos = (v.xy / v.z);
-        return Point(
-            cast(int)((pos.x * size.w + 0.5f) + size.w / 2),
-            cast(int)((pos.y * size.h + 0.5f) + size.h / 2));
-    }
-
-    const Point[3] transformed = [
-        transformVert(verts[0]),
-        transformVert(verts[1]),
-        transformVert(verts[2])];
-
-    TriangleArea createArea(in TempEdge e0, in TempEdge e1) @nogc pure
+    bool createArea(in TempEdge e0, in TempEdge e1, ref TriangleArea area) const pure nothrow @nogc
     {
         //debugOut("createArea");
         const minY = max(e0.y0, e1.y0);
         const maxY = min(e0.y1, e1.y1);
         if(minY >= maxY)
         {
-            return TriangleArea.init;
+            return false;
         }
         assert(maxY > minY);
         const edge0 = e0.createEdge(minY, maxY);
@@ -43,69 +29,94 @@ void splitTriangle(alias AreaHandler,VertT)(in VertT[] verts, in Rect boundingRe
         {
             if(edge0.x1 < edge1.x1)
             {
-                return TriangleArea(edge0, edge1, minY, maxY);
+                area = TriangleArea(edge0, edge1, minY, maxY);
+                return true;
             }
             else if(edge0.x1 > edge1.x1)
             {
-                return TriangleArea(edge1, edge0, minY, maxY);
+                area = TriangleArea(edge1, edge0, minY, maxY);
+                return true;
             }
             else
             {
-                return TriangleArea.init;
+                return false;
             }
         }
         else
         {
             if(edge0.x0 < edge1.x0)
             {
-                return TriangleArea(edge0, edge1, minY, maxY);
+                area = TriangleArea(edge0, edge1, minY, maxY);
+                return true;
             }
             else
             {
                 assert(edge0.x0 > edge1.x0);
-                return TriangleArea(edge1, edge0, minY, maxY);
+                area = TriangleArea(edge1, edge0, minY, maxY);
+                return true;
             }
         }
         assert(false);
     }
 
-    const minY = boundingRect.y;
-    const maxY = boundingRect.y + boundingRect.h;
+    const size = Size(boundingRect.w, boundingRect.h);
     if(!isTriangleExternal(verts, size))
     {
-        const TempEdge[3] edges = [
-            TempEdge(transformed[0],transformed[1], minY, maxY),
-            TempEdge(transformed[1],transformed[2], minY, maxY),
-            TempEdge(transformed[2],transformed[0], minY, maxY)];
+        const minY = boundingRect.y;
+        const maxY = minY + size.h;
 
-        const bool[3] edgesValid = [edges[0].valid,edges[1].valid,edges[2].valid];
+        const float fSizeW = cast(float)size.w;
+        const float fSizeH = cast(float)size.h;
+        const float halfSizeW = 0.5f + fSizeW / 2.0f;
+        const float halfSizeH = 0.5f + fSizeH / 2.0f;
+        auto transformVert(T)(in ref T v) const pure nothrow @nogc
+        {
+            const pos = (v.xy / v.z);
+            return Point(
+                cast(int)(pos.x * fSizeW + halfSizeW),
+                cast(int)(pos.y * fSizeH + halfSizeH));
+        }
+
+        const transformed0 = transformVert(verts[0]);
+        const transformed1 = transformVert(verts[1]);
+        const edge0 = TempEdge(transformed0, transformed1, minY, maxY);
+        const transformed2 = transformVert(verts[2]);
+        const edge1 = TempEdge(transformed1, transformed2, minY, maxY);
+        const edge2 = TempEdge(transformed2, transformed0, minY, maxY);
+
+        TriangleArea[3] areas = void;
+        int totalAreas = 0;
+        const bool[3] edgesValid = [edge0.valid,edge1.valid,edge2.valid];
         if(edgesValid[0])
         {
             if(edgesValid[1])
             {
-                const area = createArea(edges[0],edges[1]);
-                if(area.valid)
+                if(createArea(edge0,edge1,areas[totalAreas]))
                 {
-                    unaryFun!AreaHandler(area);
+                    ++totalAreas;
                 }
             }
             if(edgesValid[2])
             {
-                const area = createArea(edges[0],edges[2]);
-                if(area.valid)
+                if(createArea(edge0,edge2,areas[totalAreas]))
                 {
-                    unaryFun!AreaHandler(area);
+                    ++totalAreas;
                 }
             }
         }
 
         if(edgesValid[1] && edgesValid[2])
         {
-            const area = createArea(edges[1],edges[2]);
-            if(area.valid)
+            if(createArea(edge1,edge2,areas[totalAreas]))
             {
-                unaryFun!AreaHandler(area);
+                ++totalAreas;
             }
+        }
+
+        foreach(const ref area; areas[0..totalAreas])
+        {
+            assert(area.valid);
+            unaryFun!AreaHandler(area);
         }
     }
     else
@@ -144,10 +155,13 @@ struct TempEdge
 pure nothrow @nogc:
     Point pt0;
     Point pt1;
-    int minY;
-    int maxY;
+    //int minY;
+    //int maxY;
+    int y0;
+    int y1;
     this(T)(in T p0, in T p1, int minY_, int maxY_)
     {
+        assert(maxY_ >= minY_);
         if(p1.y >= p0.y)
         {
             pt0 = p0;
@@ -158,12 +172,13 @@ pure nothrow @nogc:
             pt0 = p1;
             pt1 = p0;
         }
-        minY = minY_;
-        maxY = maxY_;
-        assert(maxY >= minY);
+        //minY = minY_;
+        //maxY = maxY_;
+        y0 = max(pt0.y, minY_);
+        y1 = min(pt1.y, maxY_);
     }
 
-    @property auto y0() const
+    /*@property auto y0() const
     {
         return max(pt0.y, minY);
     }
@@ -171,7 +186,7 @@ pure nothrow @nogc:
     @property auto y1() const
     {
         return min(pt1.y, maxY);
-    }
+    }*/
 
     @property auto valid() const
     {
@@ -181,8 +196,8 @@ pure nothrow @nogc:
     auto createEdge(int minY_, int maxY_) const
     {
         assert(maxY_ > minY_);
-        assert(minY_ >= minY);
-        assert(maxY_ <= maxY);
+        //assert(minY_ >= minY);
+        //assert(maxY_ <= maxY);
         const dy = pt1.y - pt0.y;
         assert(dy > 0);
         auto iter = TriangleAreaEdgeIterator(TriangleAreaEdge(pt0.x, pt1.x), dy, pt0.x);

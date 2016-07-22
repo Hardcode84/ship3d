@@ -98,33 +98,6 @@ private:
 
     public static void flushHandler(ContextT,ElemT)(auto ref ContextT context, in ElemT[] elements)
     {
-        /*int i = 0;
-        void areaHandler(const ref TriangleArea area) nothrow @nogc const
-        {
-            //debugOut("areaHandler");
-            auto line = context.surface[area.y0];
-            auto iter0 = area.iter0;
-            auto iter1 = area.iter1;
-            foreach(y;area.y0..area.y1)
-            {
-                //debugOut(iter0.x," ",iter1.x);
-                const x0 = max(clipRect.x, iter0.x);
-                const x1 = min(clipRect.x + clipRect.w, iter1.x);
-                if(x1 > x0)
-                {
-                    foreach(i;x0..x1)
-                    {
-                        //assert(ColorGreen == line[i]);
-                    }
-                    line[x0..x1] = (0 == i % 2 ? ColorBlue : ColorRed);
-                }
-                iter0.incY();
-                iter1.incY();
-                ++line;
-            }
-            ++i;
-        }*/
-
         auto alloc = context.allocators[0];
         auto allocState1 = alloc.state;
         scope(exit) alloc.restoreState(allocState1);
