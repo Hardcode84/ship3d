@@ -3,6 +3,7 @@ module game.game;
 import std.random;
 import std.algorithm;
 import std.conv;
+import std.parallelism;
 
 import gamelib.types;
 import gamelib.autodispose;
@@ -43,6 +44,10 @@ private:
 
     bool mShowOverlay = false;
 
+    TaskPool mTaskPool;
+    uint mTaskPoolThreads = 0;
+    bool mMultithreadedRendering = false;
+
     Controls mControls;
 public:
 
@@ -77,6 +82,12 @@ public:
                         if(SDL_SCANCODE_ESCAPE == e.key.keysym.scancode)
                         {
                             handleQuit();
+                        }
+                        else if(SDL_SCANCODE_F1 == e.key.keysym.scancode)
+                        {
+                            mMultithreadedRendering = !mMultithreadedRendering;
+                            import std.stdio;
+                            writefln("Multithreaded rendering: %s", mMultithreadedRendering);
                         }
                         break;
                     case SDL_QUIT:
@@ -121,6 +132,28 @@ public:
         }
     }
 
+    auto getTaskPool()
+    {
+        if(mMultithreadedRendering)
+        {
+            if(mTaskPool is null)
+            {
+                mTaskPool = new TaskPool(mTaskPoolThreads);
+                mTaskPool.isDaemon = true;
+            }
+            return mTaskPool;
+        }
+        else
+        {
+            return null;
+        }
+    }
+
+    @property auto workerThreadCount() const
+    {
+        return mTaskPoolThreads + 1;
+    }
+
 private:
 //pure nothrow:
     void setup(string[] args)
@@ -130,8 +163,7 @@ private:
                                               SDL_SCANCODE_A:KeyActions.STRAFE_LEFT,
                                               SDL_SCANCODE_D:KeyActions.STRAFE_RIGHT,
                                               SDL_SCANCODE_Q:KeyActions.ROLL_LEFT,
-                                              SDL_SCANCODE_E:KeyActions.ROLL_RIGHT,
-                                              SDL_SCANCODE_F1:KeyActions.SWITCH_RENDERER]};
+                                              SDL_SCANCODE_E:KeyActions.ROLL_RIGHT]};
 
         import std.getopt;
         uint seed = unpredictableSeed;
@@ -165,7 +197,8 @@ private:
         {
             windowFlags |= SDL_WINDOW_FULLSCREEN;
         }
-        mWorld = new World(Size(mWidth,mHeight),seed, numThreads);
+        mTaskPoolThreads = max(1, numThreads - 1);
+        mWorld = new World(this,Size(mWidth,mHeight),seed);
         mWindow = new Window("game", Size(mWidth, mHeight), windowFlags);
         initWindowSurface();
         mControls = Controls(cSettings, &mWorld.onInputEvent);

@@ -12,6 +12,7 @@ import gamelib.containers.intrusivelist;
 import game.controls;
 
 import game.units;
+import game.game;
 import game.renderer.renderer;
 import game.renderer.texture;
 import game.renderer.basetexture;
@@ -27,6 +28,7 @@ import game.generators.worldgen;
 final class World
 {
 private:
+    Game mGame;
     bool mQuitReq = false;
     immutable mat4_t mProjMat;
     immutable Size mSize;
@@ -36,7 +38,6 @@ private:
     Player   mPlayer;
     StaticMesh[] mCubes;
 
-    TaskPool mTaskPool;
     StackAlloc[] mAllocators;
     RefAllocator mRefAlloc;
 
@@ -63,8 +64,6 @@ private:
     }
 
     LightController mLightController = null;
-    immutable uint mTaskPoolThreads = 0;
-    bool mMultithreadedRendering = false;
 
     alias InputListenerT = void delegate(in ref InputEvent);
     InputListenerT[] mInputListeners;
@@ -82,11 +81,12 @@ public:
     @property auto ref updateLightslist() inout { return mUpdateLightsList; }
 
     alias SurfT  = FFSurface!ColorT;
-    this(in Size sz, uint seed, uint numThreads)
+    this(Game game, in Size sz, uint seed)
     {
-        assert(numThreads > 0);
-        mTaskPoolThreads = max(1, numThreads - 1);
-        mAllocators.length = (mTaskPoolThreads + 1);
+        assert(game !is null);
+        mGame = game;
+
+        mAllocators.length = game.workerThreadCount();
         foreach(ref alloc; mAllocators[])
         {
             alloc = new StackAlloc(0xFFFFFF);
@@ -196,16 +196,6 @@ public:
 
     void onInputEvent(in InputEvent evt)
     {
-        if(auto e = evt.peek!KeyEvent())
-        {
-            if(e.action == KeyActions.SWITCH_RENDERER && e.pressed)
-            {
-                mMultithreadedRendering = !mMultithreadedRendering;
-                import std.stdio;
-                writefln("Multithreaded rendering: %s", mMultithreadedRendering);
-            }
-        }
-
         foreach(l; mInputListeners[])
         {
             l(evt);
@@ -235,10 +225,7 @@ public:
         OutContext octx = {mSize, surf, clipRect, mat, SpanMask(mSize, allocator)};
         octx.backColor = ColorBlue;
         octx.allocators = mAllocators;
-        if(mMultithreadedRendering)
-        {
-            octx.myTaskPool = worldTaskPool();
-        }
+        octx.myTaskPool = mGame.getTaskPool();
         octx.rasterizerCache = allocator.alloc!void(1024 * 500);
         RendererT renderer;
         renderer.state = octx;
@@ -438,14 +425,5 @@ private:
         }*/
     }
 
-    auto worldTaskPool()
-    {
-        if(mTaskPool is null)
-        {
-            mTaskPool = new TaskPool(mTaskPoolThreads);
-            mTaskPool.isDaemon = true;
-        }
-        return mTaskPool;
-    }
 }
 

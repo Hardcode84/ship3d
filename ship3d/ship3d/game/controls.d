@@ -12,9 +12,7 @@ enum KeyActions
     STRAFE_LEFT,
     STRAFE_RIGHT,
     ROLL_LEFT,
-    ROLL_RIGHT,
-
-    SWITCH_RENDERER
+    ROLL_RIGHT
 }
 
 struct KeyEvent
