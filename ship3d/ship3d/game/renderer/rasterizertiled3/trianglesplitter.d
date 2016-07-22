@@ -8,7 +8,7 @@ import game.units;
 import game.renderer.rasterizertiled3.types;
 
 @nogc pure nothrow:
-void splitTriangle(alias AreaHandler,VertT)(in VertT[] verts, in Rect boundingRect)
+void splitTriangle(alias AreaHandler,VertT)(in VertT[] verts, in Rect boundingRect, in Size screenSize)
 {
     assert(3 == verts.length);
     import gamelib.types: Point;
@@ -59,11 +59,11 @@ void splitTriangle(alias AreaHandler,VertT)(in VertT[] verts, in Rect boundingRe
         assert(false);
     }
 
-    const size = Size(boundingRect.w, boundingRect.h);
+    const size = screenSize;
     if(!isTriangleExternal(verts, size))
     {
         const minY = boundingRect.y;
-        const maxY = minY + size.h;
+        const maxY = minY + boundingRect.h;
 
         const float fSizeW = cast(float)size.w;
         const float fSizeH = cast(float)size.h;

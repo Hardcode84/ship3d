@@ -567,9 +567,8 @@ void updateTiles(ContextT,HTileT,TileT,MaskT,AreaT,VertT)
 }
 
 void drawTiles(ContextT,AllocT,HTileT,TileT,CacheT,PrepT)
-    (auto ref ContextT context, auto ref AllocT alloc, in Rect tilesDim, HTileT[][] htiles, TileT[] tiles, in Size[] tilesSizes, CacheT[] cache, PrepT[] prepared)
+    (auto ref ContextT context, in Rect clipRect, auto ref AllocT alloc, in Rect tilesDim, HTileT[][] htiles, TileT[] tiles, in Size[] tilesSizes, CacheT[] cache, PrepT[] prepared)
 {
-    const clipRect = context.clipRect;
     void drawTile(Size TSize, int Level, bool Full, AllocT)(int tx, int ty, auto ref AllocT alloc)
     {
         static assert(TSize.w > 0 && TSize.h > 0);

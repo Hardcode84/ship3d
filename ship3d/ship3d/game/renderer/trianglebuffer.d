@@ -2,7 +2,7 @@
 
 import std.typecons;
 
-@nogc pure nothrow:
+/*@nogc pure nothrow:*/
 void pushTriangleToBuffer(alias Handler, HeaderT, ElemT)(void[] buffer, auto ref HeaderT header, auto ref ElemT elem)
 {
     auto flushFunc = &createFlushFunc!(Handler,HeaderT,ElemT);
@@ -11,7 +11,7 @@ void pushTriangleToBuffer(alias Handler, HeaderT, ElemT)(void[] buffer, auto ref
     auto oldHeader = &((*(cast(FirstElemsType*)buffer.ptr))[0]);
     assert(oldHeader is buffer.ptr);
 
-    void flushBuffer() @nogc pure nothrow
+    void flushBuffer() /*@nogc pure nothrow*/
     {
         if(oldHeader.flushFunc !is null)
         {
@@ -52,7 +52,7 @@ void flushTriangleBuffer(void[] buffer)
 private:
 struct CommonBufferHeader
 {
-    void function(void[]) @nogc pure nothrow flushFunc = null;
+    void function(void[]) /*@nogc pure nothrow*/ flushFunc = null;
     int elemCount = 0;
 }
 
