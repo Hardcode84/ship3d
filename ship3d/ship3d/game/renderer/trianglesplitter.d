@@ -1,11 +1,11 @@
-﻿module game.renderer.rasterizertiled3.trianglesplitter;
+﻿module game.renderer.trianglesplitter;
 
 import std.algorithm;
 import std.functional;
 
 import game.units;
 
-import game.renderer.rasterizertiled3.types;
+import game.renderer.types;
 
 @nogc pure nothrow:
 void splitTriangle(alias AreaHandler,VertT)(in VertT[] verts, in Rect boundingRect, in Size screenSize)

@@ -338,10 +338,11 @@
     <Compile Include="game\texture.d" />
     <Compile Include="game\renderer\rasterizertiled3\rasterizertiled3.d" />
     <Compile Include="game\renderer\trianglebuffer.d" />
-    <Compile Include="game\renderer\rasterizertiled3\trianglesplitter.d" />
-    <Compile Include="game\renderer\rasterizertiled3\types.d" />
     <Compile Include="game\renderer\rasterizertiled3\tiles.d" />
     <Compile Include="game\renderer\rasterizertiled3\draw.d" />
+    <Compile Include="game\renderer\types.d" />
+    <Compile Include="game\renderer\rasterizertiled3\types.d" />
+    <Compile Include="game\renderer\trianglesplitter.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />

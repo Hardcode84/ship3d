@@ -18,7 +18,7 @@ import game.utils;
 
 import game.renderer.trianglebuffer;
 import game.renderer.rasterizertiled3.types;
-import game.renderer.rasterizertiled3.trianglesplitter;
+import game.renderer.trianglesplitter;
 import game.renderer.rasterizertiled3.tiles;
 
 
