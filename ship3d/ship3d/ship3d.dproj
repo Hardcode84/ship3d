@@ -133,7 +133,7 @@
     <Target>Executable</Target>
     <OutputName>ship3d</OutputName>
     <UnittestMode>false</UnittestMode>
-    <ExtraCompilerArguments>-oq -singleobj -boundscheck=off -d-version=NativeBlit -mcpu=corei7-avx -mattr=+mmx,+sse,+sse2,+sse3,+sse4.1,+sse4.2,+avx,+avx2,+fma</ExtraCompilerArguments>
+    <ExtraCompilerArguments>-oq -singleobj -boundscheck=off -d-version=NativeBlit -mcpu=corei7-avx -mattr=avx2,fma</ExtraCompilerArguments>
     <Libs>
       <Libs>
         <Lib>gdi32.lib</Lib>
@@ -343,6 +343,9 @@
     <Compile Include="game\renderer\types.d" />
     <Compile Include="game\renderer\rasterizertiled3\types.d" />
     <Compile Include="game\renderer\trianglesplitter.d" />
+    <Compile Include="game\renderer\rasterizertiled4\rasterizertiled4.d" />
+    <Compile Include="game\renderer\rasterizertiled4\types.d" />
+    <Compile Include="game\renderer\rasterizertiled4\tiles.d" />
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />
@@ -352,6 +355,7 @@
     <Folder Include="game\generators\texturegen\" />
     <Folder Include="gamelib\" />
     <Folder Include="game\renderer\rasterizertiled3\" />
+    <Folder Include="game\renderer\rasterizertiled4\" />
   </ItemGroup>
   <ItemGroup>
     <None Include="todo.txt" />

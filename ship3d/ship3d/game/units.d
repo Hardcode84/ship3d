@@ -61,10 +61,15 @@ else static if(0)
     import game.renderer.rasterizertiled2;
     alias Rasterizer =   RasterizerTiled2;
 }
-else
+else static if(0)
 {
     import game.renderer.rasterizertiled3.rasterizer;
     alias Rasterizer =   RasterizerTiled3;
+}
+else
+{
+    import game.renderer.rasterizertiled4.rasterizer;
+    alias Rasterizer =   RasterizerTiled4;
 }
 
 struct Vertex
