@@ -26,7 +26,7 @@
         <Lib>gdi32.lib</Lib>
       </Libs>
     </Libs>
-    <ExtraCompilerArguments>-w -gc -profile=gc</ExtraCompilerArguments>
+    <ExtraCompilerArguments>-w -gc -profile=gc -version=GamelibHandleAssert</ExtraCompilerArguments>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|AnyCPU' ">
     <OutputPath>bin\Release</OutputPath>
@@ -346,6 +346,9 @@
     <Compile Include="game\renderer\rasterizertiled4\rasterizertiled4.d" />
     <Compile Include="game\renderer\rasterizertiled4\types.d" />
     <Compile Include="game\renderer\rasterizertiled4\tiles.d" />
+    <Compile Include="..\..\d-gamelib\gamelib\asserthandler.d">
+      <Link>gamelib\asserthandler.d</Link>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <Folder Include="game\" />
